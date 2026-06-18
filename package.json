@@ -1,0 +1,38 @@
+{
+  "name": "claude-usage-monitor",
+  "version": "0.1.0",
+  "description": "A cute desktop pet that tracks your Claude Code usage",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "author": "Renato",
+  "license": "MIT",
+  "build": {
+    "appId": "com.renato.claude-usage-monitor",
+    "productName": "Claude Usage Monitor",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "usage.js",
+      "auth.js",
+      "config.json",
+      "renderer/**"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": "dir",
+      "identity": null,
+      "icon": "build/icon.icns"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

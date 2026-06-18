@@ -1,0 +1,23 @@
+#!/bin/bash
+# Simulate Claude Usage Monitor pet states (dev).
+#   ./pet fire        -> on fire (flames + shiver)
+#   ./pet sleeping    -> sleeping (zzz)
+#   ./pet working     -> working (eats tokens + hops)
+#   ./pet idle        -> idle
+#   ./pet poke        -> one-shot squish + hearts
+#   ./pet celebrate   -> one-shot jump + sparkles
+#   ./pet auto        -> back to real data
+DIR="$HOME/Documents/claude-usage-monitor"
+state="${1:-auto}"
+
+case "$state" in
+  fire|sleeping|working|idle|poke|celebrate|auto|clear) ;;
+  *)
+    echo "unknown state: $state"
+    echo "use: fire | sleeping | working | idle | poke | celebrate | auto"
+    exit 1
+    ;;
+esac
+
+printf '{"state":"%s","t":%s}\n' "$state" "$(date +%s)" > "$DIR/debug.json"
+echo "pet -> $state"

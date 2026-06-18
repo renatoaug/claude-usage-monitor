@@ -1,0 +1,17 @@
+{
+  "_note": "Percentages are ESTIMATES. Calibrate against Settings > Usage in Claude and tune the budgets below (in tokens: input+output+cache).",
+  "plan": "max5x",
+  "sessionTokenBudget": 239246539,
+  "weeklyTokenBudget": 3428153605,
+  "_weeklyReset": "To show 'resets in Xd Yh' for the week: take the 'Resets in ...' from the official panel, add it to the current time, and put it here in ISO. e.g. '2026-06-19T03:00:00'. Leave null to use a rolling 7-day window.",
+  "weeklyAnchorIso": null,
+  "_alerts": "macOS notification when session/week cross these thresholds (%).",
+  "alerts": true,
+  "alertThresholds": [
+    80,
+    95
+  ],
+  "pollIntervalMs": 4000,
+  "activeThresholdMs": 8000,
+  "sleepThresholdMs": 300000
+}

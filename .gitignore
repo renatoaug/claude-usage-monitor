@@ -1,0 +1,11 @@
+node_modules/
+dist/
+
+# local OAuth token — never commit
+auth.json
+
+# dev scratch for ./pet simulator
+debug.json
+
+.DS_Store
+*.log
