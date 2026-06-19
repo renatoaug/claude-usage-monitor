@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="../../renderer/style.css" />
+    <style>
+      /* capture harness: show only the night-scene stage, on the warm card bg */
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        background:
+          radial-gradient(135% 115% at 32% 0%, rgba(132, 80, 52, 0.6), rgba(60, 38, 28, 0) 55%),
+          linear-gradient(158deg, #2c211b 0%, #1d1714 52%, #110c0a 100%);
+      }
+      #card {
+        position: static;
+        width: 100%;
+        height: 100%;
+        padding: 11px;
+        margin: 0;
+        background: none;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+      #controls,
+      #mini,
+      #content,
+      #settings {
+        display: none;
+      }
+      #stage {
+        margin: 0;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body class="state-idle">
+    <div id="card">
+      <div id="controls">
+        <button id="gear">⚙</button>
+        <button id="usage"></button>
+        <button id="min"><span class="ic-min">–</span><svg class="ic-max"></svg></button>
+        <button id="close">×</button>
+      </div>
+
+      <div id="stage">
+        <svg id="scene" viewBox="0 0 216 135" preserveAspectRatio="none"></svg>
+        <div id="shadow"></div>
+        <div id="pet">
+          <svg id="claude" viewBox="0 0 100 90" width="86" height="77">
+            <g id="body"></g>
+            <g id="eyes"></g>
+            <rect id="mouth" x="38" y="54" width="24" height="10" rx="2" />
+          </svg>
+          <svg id="zzz" viewBox="0 0 44 44" width="44" height="44">
+            <text x="2" y="34" class="z1">Z</text>
+            <text x="15" y="23" class="z2">Z</text>
+            <text x="26" y="14" class="z3">z</text>
+          </svg>
+          <div id="flames"><i></i><i></i><i></i></div>
+          <div id="dropzone"></div>
+        </div>
+      </div>
+
+      <div id="mini">
+        <div class="mini-line"><span id="mini-dot"></span><span id="mini-text">idle</span></div>
+        <div id="mini-pct-row"><span id="mini-pct">0%</span> <span class="lbl">session</span></div>
+      </div>
+
+      <div id="content">
+        <div id="statusline">
+          <span id="status-dot"></span><span id="status-text">idle</span>
+          <span id="rate">—</span><span id="live-tag" class="live-only">live</span>
+        </div>
+        <div id="limits">
+          <div id="limits-meters">
+            <div class="meter">
+              <div class="meter-top"><span>current session</span><span id="session-pct">0%</span></div>
+              <div class="track"><div class="fill" id="session-fill"></div></div>
+              <div class="sub" id="session-sub">no active session</div>
+            </div>
+            <div class="meter">
+              <div class="meter-top"><span>weekly</span><span id="week-pct">0%</span></div>
+              <div class="track"><div class="fill week" id="week-fill"></div></div>
+              <div class="sub" id="week-sub">—</div>
+            </div>
+          </div>
+          <button id="limits-connect"><span class="lc-text"><b>Connect</b></span></button>
+        </div>
+        <div id="bymodel"><div id="bymodel-list"></div></div>
+        <div id="heat"><div id="heat-row"></div><div id="heat-meta"><span id="month-total">0</span></div></div>
+      </div>
+
+      <div id="settings">
+        <div id="account">
+          <div id="acc-disconnected">
+            <button id="acc-connect"></button>
+            <div id="acc-paste">
+              <input id="acc-code" type="text" />
+              <button id="acc-confirm"></button>
+              <div id="acc-msg"></div>
+            </div>
+          </div>
+          <div id="acc-connected"><button id="acc-logout"></button></div>
+        </div>
+        <input id="set-alerts" type="checkbox" />
+        <input id="set-t1" type="number" min="1" max="100" />
+        <input id="set-t2" type="number" min="1" max="100" />
+        <button id="set-cancel"></button>
+        <button id="set-save"></button>
+      </div>
+    </div>
+
+    <script>
+      // stub the preload API so the real pet.js loads unchanged; capture the callbacks
+      const __cbs = {}
+      window.__cbs = __cbs
+      const noop = () => {}
+      window.api = {
+        onUsage: (f) => (__cbs.usage = f),
+        onError: noop,
+        onConfig: noop,
+        onRealUsage: (f) => (__cbs.real = f),
+        onAuthState: noop,
+        onAuthResult: noop,
+        onDebugState: (f) => (__cbs.debug = f),
+        saveConfig: noop,
+        resize: noop,
+        openUsage: noop,
+        authStart: noop,
+        authCode: noop,
+        authLogout: noop,
+        quit: noop,
+      }
+      const FAKE = {
+        active: false,
+        sleeping: false,
+        tokensPerMin: 1500000,
+        today: { tokens: 0 },
+        monthTokens: 0,
+        session: { pct: 0, resetMs: null, tokens: 0, active: false },
+        week: { pct: 0, resetMs: null, tokens: 0 },
+        byModel: [],
+        days30: [],
+      }
+      window.__init = () => __cbs.usage?.(FAKE)
+      window.__set = (s) => __cbs.debug?.({ state: s })
+    </script>
+    <script src="../../renderer/pet.js"></script>
+  </body>
+</html>

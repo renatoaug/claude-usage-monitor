@@ -3,7 +3,8 @@
 A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
 
 <p align="center">
-  <em>The little terracotta creature lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
+  <img src="docs/media/working.gif" width="360" alt="Claude Usage Monitor — the pet eating tokens" /><br />
+  <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
 
 ## What it shows
@@ -27,14 +28,22 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
 
 ## The pet's states
 
-| State       | When                          | Animation                            |
-| ----------- | ----------------------------- | ------------------------------------ |
-| 😌 idle     | no recent activity            | breathes, blinks                     |
-| 🤩 working  | Claude active in the last ~8s | hops, rosy cheeks, eats token coins  |
-| 🥵 on fire  | session ≥ 90%                 | turns red, shivers, flames           |
-| 💤 sleeping | idle for 5+ min               | eyes close, blue zzz, moonlight glow |
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/idle.gif" width="280" alt="idle" /><br /><b>idle</b><br /><sub>breathes &amp; blinks</sub></td>
+    <td align="center"><img src="docs/media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops &amp; eats token coins</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
+    <td align="center"><img src="docs/media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90% → red, shivers, flames</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet → squish &amp; hearts</sub></td>
+    <td align="center"><img src="docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
+  </tr>
+</table>
 
-Plus a welcome **wave** on launch, a **poke** reaction (click → squish + hearts), and a **celebration** (confetti) when your session resets.
+Plus a welcome **wave** on launch. You can preview any state from the terminal with [`./pet`](#simulate-states-pet).
 
 ## Install
 

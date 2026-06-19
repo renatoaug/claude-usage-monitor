@@ -8,6 +8,7 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "icon": "bash build-icon.sh",
+    "gifs": "electron tools/capture/capture.js",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
