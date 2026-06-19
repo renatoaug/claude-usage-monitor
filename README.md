@@ -23,7 +23,7 @@ The session/weekly **%** comes straight from your Anthropic account, so it match
 1. Open **⚙ Settings → "Log in with browser"** — your browser opens an Anthropic auth page.
 2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
 
-The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a *"Connect your account"* prompt instead of percentages.
+The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a _"Connect your account"_ prompt instead of percentages.
 
 ## The pet's states
 
@@ -66,7 +66,7 @@ bun run pack  # build the real .app
 
 ## Alerts
 
-Optional **macOS notifications** when your session or weekly usage crosses the thresholds you set (default **80%** and **95%**) — e.g. *"Your session is over 80% — now at 82%"*. They re-arm automatically once usage drops back below a threshold (after a reset). Toggle them and edit the thresholds in **⚙ Settings**.
+Optional **macOS notifications** when your session or weekly usage crosses the thresholds you set (default **80%** and **95%**) — e.g. _"Your session is over 80% — now at 82%"_. They re-arm automatically once usage drops back below a threshold (after a reset). Toggle them and edit the thresholds in **⚙ Settings**.
 
 ## Configure (`config.json`)
 
@@ -74,11 +74,11 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
 
 ```jsonc
 {
-  "alerts": true,            // macOS notifications on/off
+  "alerts": true, // macOS notifications on/off
   "alertThresholds": [80, 95], // notify when session/week cross these %
-  "pollIntervalMs": 4000,    // how often local logs are re-read
+  "pollIntervalMs": 4000, // how often local logs are re-read
   "activeThresholdMs": 8000, // "working" if Claude was active within this window
-  "sleepThresholdMs": 300000 // "sleeping" after this much idle time (5 min)
+  "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
 }
 ```
 
@@ -95,7 +95,7 @@ While developing the animations, force any state from the terminal — the app w
 ./pet poke        # 💕 one-shot squish + hearts
 ./pet celebrate   # 🎉 one-shot jump + confetti burst
 
-./pet auto        # ↩️  release control, back to real usage data
+./pet auto        # ↩️ release control, back to real usage data
 ```
 
 ## How it works
