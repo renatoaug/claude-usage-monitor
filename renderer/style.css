@@ -381,30 +381,48 @@ body.auth-on #acc-connected {
 #limits-connect {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
+  gap: 11px;
   width: 100%;
-  border: 0.5px dashed rgba(255, 210, 180, 0.25);
-  border-radius: 9px;
+  text-align: left;
+  border: 0.5px solid var(--hair);
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
-  padding: 12px 10px;
+  padding: 11px 13px;
   cursor: pointer;
   -webkit-app-region: no-drag;
   transition:
     background 0.2s,
-    color 0.2s,
     border-color 0.2s;
 }
 #limits-connect:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--coral);
+  background: rgba(217, 119, 87, 0.1);
+  border-color: rgba(217, 119, 87, 0.5);
+}
+.lc-ico {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  stroke: var(--coral);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.25;
+}
+.lc-text b {
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text);
 }
-.lc-plug {
-  font-size: 13px;
+.lc-text i {
+  font-size: 9.5px;
+  font-style: normal;
+  color: var(--muted);
 }
 body.live #limits-connect {
   display: none;
