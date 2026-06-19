@@ -8,46 +8,48 @@ A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mi
 
 ## What it shows
 
-- **Current session** — % used + **"resets in Xh Ym"** (real 5-hour window, detected from your activity) + session tokens
-- **Weekly · all models** — % used + tokens over the last 7 days (or since your reset anchor)
+- **Current session** — real % used + **"resets in Xh Ym"** + session tokens
+- **Weekly · all models** — real % used + tokens over the last 7 days
 - **Status line** under the pet: `● working · 1.6M tok/min` (or today's tokens when idle)
 - **By model · 7 days** — Opus / Sonnet / Haiku / Fable, in tokens
 - **30-day map** — colored squares by daily tokens (green = light → red = heavy), with the monthly total
 
-All values come from your local logs (`~/.claude/projects/**/*.jsonl`), token-based (no dollars).
+The **percentages are real**, pulled from your account (you log in once — see below). The token counts, by-model breakdown, activity status, and 30-day map come from your local logs (`~/.claude/projects/**/*.jsonl`). Everything is token-based — no dollars.
+
+## Account & live usage
+
+The session/weekly **%** comes straight from your Anthropic account, so it matches the official panel exactly. You connect once via a browser login:
+
+1. Open **⚙ Settings → "Log in with browser"** — your browser opens an Anthropic auth page.
+2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
+
+The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a *"Connect your account"* prompt instead of percentages.
 
 ## The pet's states
 
-| State | When | Animation |
-|---|---|---|
-| 😌 idle | no recent activity | breathes, blinks |
-| 🤩 working | Claude active in the last ~8s | hops, rosy cheeks, eats token coins |
-| 🥵 on fire | session ≥ 90% | turns red, shivers, flames |
-| 💤 sleeping | idle for 5+ min | eyes close, blue zzz, moonlight glow |
+| State       | When                          | Animation                            |
+| ----------- | ----------------------------- | ------------------------------------ |
+| 😌 idle     | no recent activity            | breathes, blinks                     |
+| 🤩 working  | Claude active in the last ~8s | hops, rosy cheeks, eats token coins  |
+| 🥵 on fire  | session ≥ 90%                 | turns red, shivers, flames           |
+| 💤 sleeping | idle for 5+ min               | eyes close, blue zzz, moonlight glow |
 
 Plus a welcome **wave** on launch, a **poke** reaction (click → squish + hearts), and a **celebration** (confetti) when your session resets.
 
 ## Install
 
-Requires **macOS** (Apple Silicon), **Node.js 24** (see `.nvmrc`), and **[Bun](https://bun.sh)**.
+Requires **macOS** (Apple Silicon), **Node.js 24** (see `.nvmrc`), and **[Bun](https://bun.sh)**. Clone it anywhere — the app keeps its data in `~/.claude-usage-monitor`, independent of where the repo lives.
 
 ```bash
-# 1. clone into ~/Documents (the app reads its config from this path)
-cd ~/Documents
 git clone https://github.com/renatoaug/claude-usage-monitor.git
 cd claude-usage-monitor
 
-# 2. use the pinned Node version (if you have nvm)
-nvm install   # reads .nvmrc → Node 24
+nvm install   # use the pinned Node version (reads .nvmrc)
+bun install   # install dependencies
 
-# 3. install dependencies
-bun install
-
-# 4a. dev run (live, from source)
-bun start
-
-# 4b. or build the real .app
-bun run pack
+bun start     # dev run (live, from source)
+# or
+bun run pack  # build the real .app
 ```
 
 `bun run pack` produces **`dist/mac-arm64/Claude Usage Monitor.app`** — drag it to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac.
@@ -58,35 +60,34 @@ bun run pack
 
 - **Drag** the widget anywhere on screen
 - **–** minimizes to just the pet's face (showing the live session %); the **⤢** button or a double-click on the pet expands it back
-- **⚙** opens settings (pick your plan, toggle alerts, set thresholds)
+- **⚙** opens settings (log in, toggle alerts, set thresholds)
 - **↗** opens the official Usage page
 - **×** quits
 
-## Configure / calibrate (`config.json`)
+## Alerts
 
-The packaged app reads `~/Documents/claude-usage-monitor/config.json`, so you can tune without rebuilding. The percentages are **estimates** against token budgets — calibrate them against the official panel.
+Optional **macOS notifications** when your session or weekly usage crosses the thresholds you set (default **80%** and **95%**) — e.g. *"Your session is over 80% — now at 82%"*. They re-arm automatically once usage drops back below a threshold (after a reset). Toggle them and edit the thresholds in **⚙ Settings**.
+
+## Configure (`config.json`)
+
+Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you can tweak them without rebuilding:
 
 ```jsonc
 {
-  "plan": "max5x",                   // "pro" | "max5x" | "max20x" — sets the % estimate
-  "sessionTokenBudget": 630000000,   // tune until session % matches Settings → Usage
-  "weeklyTokenBudget": 3450000000,   // tune until weekly % matches
-  "weeklyAnchorIso": null,           // set to an ISO reset time to show "resets in Xd Yh"
-  "alerts": true,                    // macOS notifications
-  "alertThresholds": [80, 95]        // notify when session/week cross these %
+  "alerts": true,            // macOS notifications on/off
+  "alertThresholds": [80, 95], // notify when session/week cross these %
+  "pollIntervalMs": 4000,    // how often local logs are re-read
+  "activeThresholdMs": 8000, // "working" if Claude was active within this window
+  "sleepThresholdMs": 300000 // "sleeping" after this much idle time (5 min)
 }
 ```
 
-To get an accurate weekly countdown: take the "Resets in …" value from the official panel, add it to the current time, and put the result in `weeklyAnchorIso` (e.g. `"2026-06-19T03:00:00"`).
-
 ## Simulate states (`./pet`)
 
-While developing the animations, force any state from the terminal — the app watches `debug.json` and reacts live (no rebuild needed):
+While developing the animations, force any state from the terminal — the app watches `~/.claude-usage-monitor/debug.json` and reacts live (no rebuild needed). Run from the repo root:
 
 ```bash
-cd ~/Documents/claude-usage-monitor
-
-./pet fire        # 🔥 on fire — flames, shiver, red tint
+./pet fire        # 🔥 on fire — flames, shivers, red tint
 ./pet sleeping    # 😴 sleeping — blue zzz, closed eyes, moonlight
 ./pet working     # 🍴 working — eats token coins and hops
 ./pet idle        # 🙂 idle — breathe + blink
@@ -100,12 +101,22 @@ cd ~/Documents/claude-usage-monitor
 ## How it works
 
 - **`main.js`** — Electron main process: frameless, transparent, always-on-top window; polls usage; fires macOS notifications; watches `config.json` and `debug.json`.
-- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/day, detects the rolling 5-hour session window, derives % from the plan budgets.
-- **`auth.js`** — optional OAuth login for *live* %  (PKCE flow, same public client as Claude Code). Token is stored locally in `auth.json` (never committed).
+- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/day, detects the rolling 5-hour session window, and the working/sleeping activity status.
+- **`auth.js`** — OAuth login (PKCE, same public client as Claude Code) that fetches the authoritative usage %. Token stored locally, never committed.
 - **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles.
 - **`make-icon.js`** — generates the app icon from the pixel sprite (`build/icon.icns`).
 
-## Notes
+## Data & privacy
 
-- Percentages are **estimates**; dollar amounts are gone by design — everything is in tokens.
-- Nothing leaves your machine except the optional OAuth call to Anthropic's own usage endpoint.
+Everything lives on your machine, in `~/.claude-usage-monitor/`:
+
+- `auth.json` — your OAuth token (file mode `600`, never committed)
+- `config.json` — your alert settings
+- `debug.json` — scratch file for the `./pet` simulator
+
+Nothing leaves your machine except the OAuth calls to Anthropic's own login and usage endpoints.
+
+## Dev tooling
+
+- **Bun** for install/scripts, **Node 24** pinned in `.nvmrc`
+- **Biome** for format + lint (`bun run check`); a versioned **pre-commit hook** (`.githooks/pre-commit`) auto-formats staged files and blocks on errors. It's wired up automatically on `bun install` (via the `prepare` script).

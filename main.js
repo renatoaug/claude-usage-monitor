@@ -5,10 +5,12 @@ const os = require('node:os')
 const { getUsage } = require('./usage')
 const auth = require('./auth')
 
+// data dir: kept outside the project folder so moving the repo doesn't break it
+const DATA_DIR = path.join(os.homedir(), '.claude-usage-monitor')
 // external config: edit without rebuilding the .app
-const EXTERNAL_CONFIG = path.join(os.homedir(), 'Documents', 'claude-usage-monitor', 'config.json')
+const EXTERNAL_CONFIG = path.join(DATA_DIR, 'config.json')
 // debug channel: `./pet <state>` writes here to force a state (dev only)
-const DEBUG_FILE = path.join(os.homedir(), 'Documents', 'claude-usage-monitor', 'debug.json')
+const DEBUG_FILE = path.join(DATA_DIR, 'debug.json')
 
 let win
 let pollTimer

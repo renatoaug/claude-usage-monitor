@@ -542,6 +542,16 @@ function openSettings() {
 el('gear').addEventListener('click', openSettings)
 // the "connect" placeholder jumps straight to settings
 el('limits-connect').addEventListener('click', openSettings)
+// custom number steppers (▲ / ▼)
+for (const b of document.querySelectorAll('.num-btn')) {
+  b.addEventListener('click', () => {
+    const input = el(b.dataset.for)
+    const min = Number(input.min) || 1
+    const max = Number(input.max) || 100
+    const next = (Number.parseInt(input.value, 10) || 0) + Number(b.dataset.step)
+    input.value = Math.min(max, Math.max(min, next))
+  })
+}
 el('set-cancel').addEventListener('click', () => {
   document.body.classList.remove('settings-open')
   fitSize()

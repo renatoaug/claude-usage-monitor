@@ -126,10 +126,23 @@
         </div>
 
         <label class="set-check"><input id="set-alerts" type="checkbox" /> Alerts</label>
+        <div class="set-hint set-hint-left">macOS notifications when your session or weekly usage crosses these % thresholds.</div>
         <label class="set-field">Alert thresholds (%)
           <span class="set-two">
-            <input id="set-t1" type="number" min="1" max="100" />
-            <input id="set-t2" type="number" min="1" max="100" />
+            <span class="num">
+              <input id="set-t1" type="number" min="1" max="100" />
+              <span class="num-spin">
+                <button type="button" class="num-btn" data-for="set-t1" data-step="1">▲</button>
+                <button type="button" class="num-btn" data-for="set-t1" data-step="-1">▼</button>
+              </span>
+            </span>
+            <span class="num">
+              <input id="set-t2" type="number" min="1" max="100" />
+              <span class="num-spin">
+                <button type="button" class="num-btn" data-for="set-t2" data-step="1">▲</button>
+                <button type="button" class="num-btn" data-for="set-t2" data-step="-1">▼</button>
+              </span>
+            </span>
           </span>
         </label>
         <div class="set-actions">

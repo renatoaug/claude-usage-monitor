@@ -11,7 +11,7 @@ const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
 const SCOPE = 'org:create_api_key user:profile user:inference'
 const UA = 'claude-cli/2.1.181 (external, cli)'
-const TOKEN_PATH = path.join(os.homedir(), 'Documents', 'claude-usage-monitor', 'auth.json')
+const TOKEN_PATH = path.join(os.homedir(), '.claude-usage-monitor', 'auth.json')
 
 const b64url = (buf) =>
   buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')

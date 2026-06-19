@@ -156,6 +156,10 @@ body.settings-open #settings {
   line-height: 1.35;
   margin-bottom: 10px;
 }
+.set-hint-left {
+  text-align: left;
+  margin: -3px 0 9px;
+}
 .set-field {
   display: block;
   font-size: 9.5px;
@@ -179,9 +183,62 @@ body.settings-open #settings {
 .set-field select:focus {
   border-color: var(--coral);
 }
+/* hide the ugly native number spinners (custom ones below) */
+.set-field input[type="number"]::-webkit-inner-spin-button,
+.set-field input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
 .set-two {
   display: flex;
   gap: 6px;
+}
+/* custom number stepper */
+.num {
+  position: relative;
+  flex: 1;
+}
+.num input {
+  width: 100%;
+  padding-right: 24px;
+}
+.num-spin {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.num-btn {
+  -webkit-app-region: no-drag;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  width: 16px;
+  height: 9px;
+  border-radius: 3px;
+  font-size: 6px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.num-btn:hover {
+  background: var(--coral);
+  color: #fff;
+}
+.num-btn:active {
+  transform: scale(0.9);
 }
 .set-check {
   display: flex;
@@ -204,14 +261,26 @@ body.settings-open #settings {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background 0.18s,
+    transform 0.1s;
+}
+.set-actions button:active {
+  transform: scale(0.97);
 }
 #set-cancel {
   background: rgba(255, 255, 255, 0.12);
   color: var(--text);
 }
+#set-cancel:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
 #set-save {
   background: var(--coral);
   color: #fff;
+}
+#set-save:hover {
+  background: #e2876a;
 }
 
 /* live tag */
@@ -241,6 +310,15 @@ body.live .live-only {
   background: var(--coral);
   color: #fff;
   -webkit-app-region: no-drag;
+  transition:
+    background 0.18s,
+    transform 0.1s;
+}
+.acc-btn:hover:not(:disabled) {
+  background: #e2876a;
+}
+.acc-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 .acc-btn:disabled {
   opacity: 0.5;
@@ -254,6 +332,10 @@ body.live .live-only {
   cursor: pointer;
   text-decoration: underline;
   -webkit-app-region: no-drag;
+  transition: color 0.15s;
+}
+.acc-link:hover {
+  color: var(--text);
 }
 .acc-ok {
   color: var(--green);

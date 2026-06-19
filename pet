@@ -7,8 +7,9 @@
 #   ./pet poke        -> one-shot squish + hearts
 #   ./pet celebrate   -> one-shot jump + sparkles
 #   ./pet auto        -> back to real data
-DIR="$HOME/Documents/claude-usage-monitor"
+DIR="$HOME/.claude-usage-monitor"
 state="${1:-auto}"
+mkdir -p "$DIR"
 
 case "$state" in
   fire|sleeping|working|idle|poke|celebrate|auto|clear) ;;
