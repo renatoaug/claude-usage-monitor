@@ -64,18 +64,24 @@
 
         <div class="divider"></div>
 
-        <!-- session + weekly (estimate from plan; real when logged in) -->
+        <!-- session + weekly (real usage; needs login) -->
         <div id="limits">
-          <div class="meter">
-            <div class="meter-top"><span>current session <i class="est">est</i></span><span id="session-pct">0%</span></div>
-            <div class="track"><div class="fill" id="session-fill"></div></div>
-            <div class="sub" id="session-sub">no active session</div>
+          <div id="limits-meters">
+            <div class="meter">
+              <div class="meter-top"><span>current session</span><span id="session-pct">0%</span></div>
+              <div class="track"><div class="fill" id="session-fill"></div></div>
+              <div class="sub" id="session-sub">no active session</div>
+            </div>
+            <div class="meter">
+              <div class="meter-top"><span>weekly · all models</span><span id="week-pct">0%</span></div>
+              <div class="track"><div class="fill week" id="week-fill"></div></div>
+              <div class="sub" id="week-sub">—</div>
+            </div>
           </div>
-          <div class="meter">
-            <div class="meter-top"><span>weekly · all models <i class="est">est</i></span><span id="week-pct">0%</span></div>
-            <div class="track"><div class="fill week" id="week-fill"></div></div>
-            <div class="sub" id="week-sub">—</div>
-          </div>
+          <button id="limits-connect">
+            <span class="lc-plug">🔌</span>
+            Connect your account to see your usage
+          </button>
         </div>
 
         <div class="divider"></div>
@@ -102,21 +108,16 @@
       <div id="settings">
         <div class="set-title">Settings</div>
 
-        <label class="set-field">Plan (sets the % estimate)
-          <select id="set-plan">
-            <option value="pro">Pro</option>
-            <option value="max5x">Max (5x)</option>
-            <option value="max20x">Max (20x)</option>
-          </select>
-        </label>
-
         <div id="account">
           <div id="acc-disconnected">
-            <div class="set-hint">Run <b>claude setup-token</b> in a terminal, then paste the token here:</div>
-            <input id="acc-code" type="text" placeholder="paste token (or browser code)" />
-            <button id="acc-confirm" class="acc-btn">Connect</button>
-            <div id="acc-msg"></div>
-            <button id="acc-connect" class="acc-link">or use browser login</button>
+            <div class="set-hint">Connect your account to show your real usage %.</div>
+            <button id="acc-connect" class="acc-btn">Log in with browser</button>
+            <div id="acc-paste">
+              <div class="set-hint">After logging in, paste the code from the browser page:</div>
+              <input id="acc-code" type="text" placeholder="authentication code" />
+              <button id="acc-confirm" class="acc-btn">Connect</button>
+              <div id="acc-msg"></div>
+            </div>
           </div>
           <div id="acc-connected">
             <span class="acc-ok">● Connected · live data</span>

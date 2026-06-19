@@ -360,14 +360,14 @@ let prevPct = null
 let lastData = null
 function render(d) {
   lastData = d
-  // authoritative % from the account if logged in, else the local estimate
+  // % comes only from the connected account — no estimates
   const liveOn = !!realUsage
   document.body.classList.toggle('live', liveOn)
-  const sessPct = liveOn ? realUsage.session.pct : d.session.pct
-  const sessReset = liveOn ? realUsage.session.resetMs : d.session.resetMs
-  const sessActive = liveOn ? sessReset != null : d.session.active
-  const wkPct = liveOn ? realUsage.week.pct : d.week.pct
-  const wkReset = liveOn ? realUsage.week.resetMs : d.week.resetMs
+  const sessPct = liveOn ? realUsage.session.pct : 0
+  const sessReset = liveOn ? realUsage.session.resetMs : null
+  const sessActive = liveOn && sessReset != null
+  const wkPct = liveOn ? realUsage.week.pct : 0
+  const wkReset = liveOn ? realUsage.week.resetMs : null
 
   let st = d.active
     ? 'working'
@@ -407,8 +407,8 @@ function render(d) {
   prevPct = sessPct
   el('session-pct').textContent = `${Math.round(sessPct)}%`
   const mini = el('mini-pct')
-  mini.textContent = `${Math.round(sessPct)}%`
-  mini.classList.toggle('high', sessPct >= 80)
+  mini.textContent = liveOn ? `${Math.round(sessPct)}%` : '—'
+  mini.classList.toggle('high', liveOn && sessPct >= 80)
   const sf = el('session-fill')
   sf.style.width = `${sessPct}%`
   sf.classList.toggle('high', sessPct >= 80)
@@ -487,6 +487,7 @@ window.api.onAuthState((s) => {
   if (!on) {
     realUsage = null
     document.body.classList.remove('live')
+    el('acc-paste').classList.remove('show')
   }
   if (document.body.classList.contains('settings-open')) fitSize()
 })
@@ -494,6 +495,7 @@ window.api.onAuthResult((r) => {
   if (r?.ok) {
     el('acc-msg').textContent = ''
     el('acc-code').value = ''
+    el('acc-paste').classList.remove('show')
   } else {
     const e = r?.error || ''
     el('acc-msg').textContent = /429|rate_limit/i.test(e)
@@ -506,9 +508,11 @@ window.api.onAuthResult((r) => {
 el('close').addEventListener('click', () => window.api.quit())
 el('usage').addEventListener('click', () => window.api.openUsage())
 
-// account login
+// account login (browser flow)
 el('acc-connect').addEventListener('click', () => {
-  window.api.authStart() // optional browser flow (rate-limited)
+  window.api.authStart() // opens the browser to log in
+  el('acc-paste').classList.add('show') // reveal the code field
+  fitSize()
 })
 el('acc-confirm').addEventListener('click', () => {
   const code = el('acc-code').value.trim()
@@ -524,18 +528,20 @@ el('acc-logout').addEventListener('click', () => window.api.authLogout())
 // settings panel
 function populateSettings() {
   const c = currentConfig || {}
-  el('set-plan').value = c.plan || 'max5x'
   el('set-alerts').checked = c.alerts !== false
   const th = c.alertThresholds || [80, 95]
   el('set-t1').value = th[0] != null ? th[0] : 80
   el('set-t2').value = th[1] != null ? th[1] : 95
 }
-el('gear').addEventListener('click', () => {
+function openSettings() {
   document.body.classList.remove('collapsed')
   populateSettings()
   document.body.classList.add('settings-open')
   fitSize()
-})
+}
+el('gear').addEventListener('click', openSettings)
+// the "connect" placeholder jumps straight to settings
+el('limits-connect').addEventListener('click', openSettings)
 el('set-cancel').addEventListener('click', () => {
   document.body.classList.remove('settings-open')
   fitSize()
@@ -543,7 +549,6 @@ el('set-cancel').addEventListener('click', () => {
 el('set-save').addEventListener('click', () => {
   const num = (id) => parseFloat(el(id).value)
   window.api.saveConfig({
-    plan: el('set-plan').value,
     alerts: el('set-alerts').checked,
     alertThresholds: [num('set-t1'), num('set-t2')]
       .filter((n) => n >= 1 && n <= 100)

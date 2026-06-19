@@ -295,14 +295,42 @@ body.auth-on #acc-connected {
   display: flex;
 }
 
-/* "est" tag on the meters, hidden once we have live data */
-.meter-top .est {
-  font-style: italic;
-  font-weight: 400;
-  font-size: 9px;
-  opacity: 0.5;
+/* limits: real meters when connected, a "connect" prompt otherwise */
+#limits-connect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  border: 0.5px dashed rgba(255, 210, 180, 0.25);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 12px 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
 }
-body.live .meter-top .est {
+#limits-connect:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--coral);
+  color: var(--text);
+}
+.lc-plug {
+  font-size: 13px;
+}
+body.live #limits-connect {
+  display: none;
+}
+body:not(.live) #limits-meters {
+  display: none;
+}
+body:not(.live) #mini-pct-row {
   display: none;
 }
 
