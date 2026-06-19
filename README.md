@@ -3,7 +3,7 @@
 A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
 
 <p align="center">
-  <img src="docs/media/working.gif" width="360" alt="Claude Usage Monitor — the pet eating tokens" /><br />
+  <img src="docs/media/overview.gif" width="300" alt="Claude Usage Monitor — the full widget showing session, weekly, by-model and 30-day usage" /><br />
   <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
 

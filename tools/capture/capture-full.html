@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="../../renderer/style.css" />
+    <style>
+      /* capture harness: full widget, centered on a soft backdrop */
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(130% 130% at 50% 0%, #1a130e 0%, #080605 100%);
+      }
+      #card {
+        position: static;
+        top: auto;
+        left: auto;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body class="state-idle">
+    <div id="card">
+      <div id="controls">
+        <button id="gear" title="Settings">⚙</button>
+        <button id="usage" title="Open Usage page">
+          <svg viewBox="0 0 24 24" width="9" height="9" aria-hidden="true">
+            <path d="M6 18 L18 6 M10 6 H18 V14" />
+          </svg>
+        </button>
+        <button id="min" title="Minimize / expand">
+          <span class="ic-min">–</span>
+          <svg class="ic-max" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 9V5h4 M15 5h4v4 M5 15v4h4 M19 15v4h-4" />
+          </svg>
+        </button>
+        <button id="close" title="Close">×</button>
+      </div>
+
+      <div id="stage">
+        <svg id="scene" viewBox="0 0 216 135" preserveAspectRatio="none"></svg>
+        <div id="shadow"></div>
+        <div id="pet">
+          <svg id="claude" viewBox="0 0 100 90" width="86" height="77">
+            <g id="body"></g>
+            <g id="eyes"></g>
+            <rect id="mouth" x="38" y="54" width="24" height="10" rx="2" />
+          </svg>
+          <svg id="zzz" viewBox="0 0 44 44" width="44" height="44">
+            <text x="2" y="34" class="z1">Z</text>
+            <text x="15" y="23" class="z2">Z</text>
+            <text x="26" y="14" class="z3">z</text>
+          </svg>
+          <div id="flames"><i></i><i></i><i></i></div>
+          <div id="dropzone"></div>
+        </div>
+      </div>
+
+      <div id="mini">
+        <div class="mini-line"><span id="mini-dot"></span><span id="mini-text">idle</span></div>
+        <div id="mini-pct-row"><span id="mini-pct">0%</span> <span class="lbl">session</span></div>
+      </div>
+
+      <div id="content">
+        <div id="statusline">
+          <span id="status-dot"></span>
+          <span id="status-text">idle</span>
+          <span class="sep">·</span>
+          <span id="rate">—</span>
+          <span class="sep live-only">·</span>
+          <span id="live-tag" class="live-only">live</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="limits">
+          <div id="limits-meters">
+            <div class="meter">
+              <div class="meter-top"><span>current session</span><span id="session-pct">0%</span></div>
+              <div class="track"><div class="fill" id="session-fill"></div></div>
+              <div class="sub" id="session-sub">no active session</div>
+            </div>
+            <div class="meter">
+              <div class="meter-top"><span>weekly · all models</span><span id="week-pct">0%</span></div>
+              <div class="track"><div class="fill week" id="week-fill"></div></div>
+              <div class="sub" id="week-sub">—</div>
+            </div>
+          </div>
+          <button id="limits-connect">
+            <svg class="lc-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 12h6 M8.5 8.5H6.5a3.5 3.5 0 0 0 0 7h2 M15.5 8.5h2a3.5 3.5 0 0 1 0 7h-2" />
+            </svg>
+            <span class="lc-text">
+              <b>Connect your account</b>
+              <i>to see your real usage</i>
+            </span>
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="bymodel">
+          <div class="bymodel-title">by model · 7 days</div>
+          <div id="bymodel-list"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="heat">
+          <div id="heat-row"></div>
+          <div id="heat-meta">
+            <span>30 days</span>
+            <span id="month-total">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="settings">
+        <div class="set-title">Settings</div>
+        <div id="account">
+          <div id="acc-disconnected">
+            <button id="acc-connect" class="acc-btn">Log in with browser</button>
+            <div id="acc-paste">
+              <input id="acc-code" type="text" />
+              <button id="acc-confirm" class="acc-btn">Connect</button>
+              <div id="acc-msg"></div>
+            </div>
+          </div>
+          <div id="acc-connected"><button id="acc-logout" class="acc-link">Disconnect</button></div>
+        </div>
+        <input id="set-alerts" type="checkbox" />
+        <input id="set-t1" type="number" min="1" max="100" />
+        <input id="set-t2" type="number" min="1" max="100" />
+        <button id="set-cancel"></button>
+        <button id="set-save"></button>
+      </div>
+    </div>
+
+    <script>
+      const __cbs = {}
+      window.__cbs = __cbs
+      const noop = () => {}
+      window.api = {
+        onUsage: (f) => (__cbs.usage = f),
+        onError: noop,
+        onConfig: noop,
+        onRealUsage: (f) => (__cbs.real = f),
+        onAuthState: (f) => (__cbs.auth = f),
+        onAuthResult: noop,
+        onDebugState: (f) => (__cbs.debug = f),
+        saveConfig: noop,
+        resize: noop,
+        openUsage: noop,
+        authStart: noop,
+        authCode: noop,
+        authLogout: noop,
+        quit: noop,
+      }
+      // realistic logged-in data
+      const h = 3600000
+      const d = 86400000
+      const DAYS30 = [
+        9, 0, 14, 22, 6, 0, 0, 31, 18, 25, 12, 40, 8, 0, 0, 27, 19, 33, 11, 5, 0, 0, 24, 38, 16,
+        29, 21, 0, 13, 35,
+      ].map((n) => n * 6000000)
+      const FAKE = {
+        active: true,
+        sleeping: false,
+        tokensPerMin: 1840000,
+        today: { tokens: 18400000 },
+        monthTokens: 412000000,
+        session: { pct: 47, resetMs: 2 * h + 18 * 60000, tokens: 152000000, active: true },
+        week: { pct: 63, resetMs: 3 * d + 5 * h, tokens: 2140000000 },
+        byModel: [
+          { label: 'Opus', tokens: 1320000000 },
+          { label: 'Sonnet', tokens: 540000000 },
+          { label: 'Haiku', tokens: 180000000 },
+        ],
+        days30: DAYS30,
+      }
+      const FAKE_REAL = {
+        session: { pct: 47, resetMs: 2 * h + 18 * 60000 },
+        week: { pct: 63, resetMs: 3 * d + 5 * h },
+      }
+      window.__init = () => {
+        __cbs.auth?.({ connected: true })
+        __cbs.usage?.(FAKE)
+        __cbs.real?.(FAKE_REAL)
+      }
+    </script>
+    <script src="../../renderer/pet.js"></script>
+  </body>
+</html>
