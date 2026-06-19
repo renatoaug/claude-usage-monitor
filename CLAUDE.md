@@ -26,7 +26,7 @@ real session/weekly % (via OAuth login) plus token counts from local logs.
 bun start        # dev run
 bun run pack     # build dist/mac-arm64/Claude Usage Monitor.app
 bun run check    # Biome format + lint (autofix)
-./pet <state>    # simulate: fire | sleeping | working | idle | poke | celebrate | auto
+./pet <state>    # simulate: fire | sleeping | working | tired | idle | poke | celebrate | auto
 ```
 
 ## Data & secrets

@@ -3,6 +3,7 @@
 #   ./pet fire        -> on fire (flames + shiver)
 #   ./pet sleeping    -> sleeping (zzz)
 #   ./pet working     -> working (eats tokens + hops)
+#   ./pet tired       -> maxed out (slumped, sweat drop)
 #   ./pet idle        -> idle
 #   ./pet poke        -> one-shot squish + hearts
 #   ./pet celebrate   -> one-shot jump + sparkles
@@ -12,10 +13,10 @@ state="${1:-auto}"
 mkdir -p "$DIR"
 
 case "$state" in
-  fire|sleeping|working|idle|poke|celebrate|auto|clear) ;;
+  fire|sleeping|working|tired|idle|poke|celebrate|auto|clear) ;;
   *)
     echo "unknown state: $state"
-    echo "use: fire | sleeping | working | idle | poke | celebrate | auto"
+    echo "use: fire | sleeping | working | tired | idle | poke | celebrate | auto"
     exit 1
     ;;
 esac

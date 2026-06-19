@@ -369,16 +369,25 @@ function render(d) {
   const wkPct = liveOn ? realUsage.week.pct : 0
   const wkReset = liveOn ? realUsage.week.resetMs : null
 
-  let st = d.active
-    ? 'working'
-    : liveOn && sessPct >= 90
-      ? 'stressed'
-      : d.sleeping
-        ? 'sleeping'
-        : 'idle'
+  let st =
+    liveOn && sessPct >= 100
+      ? 'tired'
+      : d.active
+        ? 'working'
+        : liveOn && sessPct >= 90
+          ? 'stressed'
+          : d.sleeping
+            ? 'sleeping'
+            : 'idle'
   // dev override from `./pet <state>`
   if (debugState) {
-    const map = { working: 'working', sleeping: 'sleeping', fire: 'stressed', idle: 'idle' }
+    const map = {
+      working: 'working',
+      sleeping: 'sleeping',
+      fire: 'stressed',
+      tired: 'tired',
+      idle: 'idle',
+    }
     if (map[debugState]) st = map[debugState]
   }
   setState(st)
@@ -395,7 +404,9 @@ function render(d) {
         ? 'sleeping'
         : st === 'stressed'
           ? 'on fire'
-          : 'idle'
+          : st === 'tired'
+            ? 'maxed out'
+            : 'idle'
   el('status-text').textContent = word
   el('mini-text').textContent = word
   el('rate').textContent =
@@ -583,7 +594,8 @@ el('pet').addEventListener('click', () => pokePet())
 // eyes follow the cursor
 const eyesG = el('eyes')
 window.addEventListener('mousemove', (e) => {
-  if (document.body.classList.contains('state-sleeping')) return
+  const b = document.body.classList
+  if (b.contains('state-sleeping') || b.contains('state-tired')) return
   const r = el('pet').getBoundingClientRect()
   const dx = e.clientX - (r.left + r.width / 2)
   const dy = e.clientY - (r.top + r.height / 2)

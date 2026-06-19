@@ -16,6 +16,7 @@ const STATES = [
   { name: 'working', base: 'working', ms: 3200 },
   { name: 'sleeping', base: 'sleeping', ms: 3400 },
   { name: 'on-fire', base: 'fire', ms: 2200 },
+  { name: 'tired', base: 'tired', ms: 3400 },
   { name: 'poke', base: 'idle', trigger: 'poke', ms: 1600 },
   { name: 'celebrate', base: 'idle', trigger: 'celebrate', ms: 2200 },
 ]
@@ -90,6 +91,7 @@ app.whenReady().then(async () => {
   for (const s of STATES) {
     await exec(`window.__set('${s.base}')`)
     await delay(s.trigger ? 400 : 300)
+    await exec("document.getElementById('dropzone').innerHTML = ''") // drop stale particles
     const rec = grab(win, s.ms)
     if (s.trigger) {
       await delay(60)

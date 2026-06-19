@@ -34,12 +34,15 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
     <td align="center"><img src="docs/media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops &amp; eats token coins</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
     <td align="center"><img src="docs/media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90% → red, shivers, flames</sub></td>
+    <td align="center"><img src="docs/media/tired.gif" width="280" alt="maxed out" /><br /><b>maxed out</b><br /><sub>session at 100% → drained, slumped, sweating</sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
     <td align="center"><img src="docs/media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet → squish &amp; hearts</sub></td>
-    <td align="center"><img src="docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
   </tr>
 </table>
 
