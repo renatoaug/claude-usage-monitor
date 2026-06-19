@@ -29,7 +29,7 @@ Plus a welcome **wave** on launch, a **poke** reaction (click → squish + heart
 
 ## Install
 
-Requires **macOS** (Apple Silicon) and **Node.js 18+**.
+Requires **macOS** (Apple Silicon), **Node.js 24** (see `.nvmrc`), and **[Bun](https://bun.sh)**.
 
 ```bash
 # 1. clone into ~/Documents (the app reads its config from this path)
@@ -37,17 +37,20 @@ cd ~/Documents
 git clone https://github.com/renatoaug/claude-usage-monitor.git
 cd claude-usage-monitor
 
-# 2. install dependencies
-npm install
+# 2. use the pinned Node version (if you have nvm)
+nvm install   # reads .nvmrc → Node 24
 
-# 3a. dev run (live, from source)
-npm start
+# 3. install dependencies
+bun install
 
-# 3b. or build the real .app
-npm run pack
+# 4a. dev run (live, from source)
+bun start
+
+# 4b. or build the real .app
+bun run pack
 ```
 
-`npm run pack` produces **`dist/mac-arm64/Claude Usage Monitor.app`** — drag it to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac.
+`bun run pack` produces **`dist/mac-arm64/Claude Usage Monitor.app`** — drag it to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac.
 
 > The app is **unsigned** (personal use). If Gatekeeper complains on first open, right-click the app → **Open** → **Open**.
 
