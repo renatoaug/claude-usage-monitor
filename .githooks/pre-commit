@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Run Biome on staged files before committing.
+# Auto-fixes safe issues (format + lint), then blocks the commit if anything remains.
+set -e
+
+root="$(git rev-parse --show-toplevel)"
+biome="$root/node_modules/.bin/biome"
+
+if [ ! -x "$biome" ]; then
+  echo "biome not found — run 'bun install' first" >&2
+  exit 1
+fi
+
+# staged files (added / copied / modified / renamed)
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -z "$staged" ] && exit 0
+
+# format + apply safe lint fixes to the staged files
+echo "$staged" | xargs "$biome" check --write --no-errors-on-unmatched --files-ignore-unknown=true
+
+# re-stage anything Biome just fixed
+echo "$staged" | xargs git add

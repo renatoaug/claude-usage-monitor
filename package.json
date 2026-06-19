@@ -9,7 +9,8 @@
     "dist": "electron-builder",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "check": "biome check --write ."
+    "check": "biome check --write .",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "author": "Renato",
   "license": "MIT",
