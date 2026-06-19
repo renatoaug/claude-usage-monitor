@@ -7,10 +7,7 @@
   "weeklyAnchorIso": null,
   "_alerts": "macOS notification when session/week cross these thresholds (%).",
   "alerts": true,
-  "alertThresholds": [
-    80,
-    95
-  ],
+  "alertThresholds": [80, 95],
   "pollIntervalMs": 4000,
   "activeThresholdMs": 8000,
   "sleepThresholdMs": 300000

@@ -1,6 +1,4 @@
-'use strict';
-
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
   onUsage: (cb) => ipcRenderer.on('usage', (_e, data) => cb(data)),
@@ -17,4 +15,4 @@ contextBridge.exposeInMainWorld('api', {
   authLogout: () => ipcRenderer.send('auth-logout'),
   onDebugState: (cb) => ipcRenderer.on('debug-state', (_e, s) => cb(s)),
   quit: () => ipcRenderer.send('quit'),
-});
+})
