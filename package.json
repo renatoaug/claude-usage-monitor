@@ -1,10 +1,10 @@
 {
-  "name": "@renatoaug/claude-usage-monitor",
+  "name": "clauddy",
   "version": "0.1.0",
   "description": "A cute desktop pet that tracks your Claude Code usage",
   "main": "main.js",
   "bin": {
-    "claude-usage-monitor": "bin/claude-usage-monitor.js"
+    "clauddy": "bin/clauddy.js"
   },
   "files": [
     "bin",

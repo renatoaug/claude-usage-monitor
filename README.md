@@ -67,7 +67,7 @@ It registers itself in **Login Items**, so it **starts automatically** with your
 Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
 
 ```bash
-bunx @renatoaug/claude-usage-monitor
+bunx clauddy
 ```
 
 The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.

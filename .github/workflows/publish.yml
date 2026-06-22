@@ -1,8 +1,8 @@
 name: Publish
 
 # Cut a release by pushing a tag: `git tag v0.1.0 && git push origin v0.1.0`.
-# This builds the macOS app, publishes to npm (public), and creates a GitHub
-# Release with the .app zip attached.
+# Builds the macOS app, publishes to the public npm registry, and creates a
+# GitHub Release with the .app zip attached.
 on:
   push:
     tags: ["v*"]
@@ -45,7 +45,7 @@ jobs:
         run: bun run dist
 
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
