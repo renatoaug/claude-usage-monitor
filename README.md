@@ -46,7 +46,7 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
   </tr>
 </table>
 
-Plus a welcome **wave** on launch. You can preview any state from the terminal with [`./pet`](#simulate-states-pet).
+Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#play-with-the-pet) too.
 
 ## Install
 
@@ -100,21 +100,24 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
 }
 ```
 
-## Simulate states (`./pet`)
+## Play with the pet
 
-While developing the animations, force any state from the terminal — the app watches `~/.claude-usage-monitor/debug.json` and reacts live (no rebuild needed). Run from the repo root:
+With the widget running, poke it from the terminal — just for fun:
 
 ```bash
-./pet fire        # 🔥 on fire — flames, shivers, red tint
-./pet sleeping    # 😴 sleeping — blue zzz, closed eyes, moonlight
-./pet working     # 🍴 working — eats token coins and hops
-./pet idle        # 🙂 idle — breathe + blink
-
-./pet poke        # 💕 one-shot squish + hearts
-./pet celebrate   # 🎉 one-shot jump + confetti burst
-
-./pet auto        # ↩️ release control, back to real usage data
+bunx clauddy poke        # 💕 squish + hearts
+bunx clauddy celebrate   # 🎉 jump + confetti
+bunx clauddy fire        # 🔥 on fire
+bunx clauddy sleeping    # 😴 blue zzz
+bunx clauddy working     # 🍴 eats token coins
+bunx clauddy tired       # 🥵 maxed out
+bunx clauddy idle        # 🙂 calm
+bunx clauddy auto        # ↩️ back to your real usage
 ```
+
+Each state is written to the data dir the running widget watches, so it reacts
+live. (Installed globally? Drop the `bunx`: `clauddy poke`. Working on the repo?
+`./pet <state>` does the same.)
 
 ## How it works
 
@@ -150,5 +153,3 @@ your PRs.
 
 - `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE` → major.
 - `docs:`/`chore:`/`ci:` etc. don't trigger a release.
-- Needs an **`NPM_TOKEN`** repo secret (an npm automation token); `GITHUB_TOKEN`
-  is automatic.
