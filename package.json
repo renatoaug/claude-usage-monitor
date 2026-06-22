@@ -1,10 +1,10 @@
 {
-  "name": "claude-usage-monitor",
+  "name": "clauddy",
   "version": "0.1.0",
   "description": "A cute desktop pet that tracks your Claude Code usage",
   "main": "main.js",
   "bin": {
-    "claude-usage-monitor": "bin/claude-usage-monitor.js"
+    "clauddy": "bin/clauddy.js"
   },
   "files": [
     "bin",
@@ -24,7 +24,6 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
-    "release": "release-it",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "author": "Renato",
@@ -81,8 +80,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "@release-it/conventional-changelog": "^11.0.1",
+    "@semantic-release/exec": "^7.1.0",
     "electron-builder": "^26.15.3",
-    "release-it": "^20.2.0"
+    "semantic-release": "^25.0.5"
   }
 }
