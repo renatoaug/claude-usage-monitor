@@ -52,25 +52,25 @@ Plus a welcome **wave** on launch. You can preview any state from the terminal w
 
 macOS (Apple Silicon). Two ways, depending on what you want:
 
-### 1. Run it now — `bunx` (no install)
+### 1. Download the app — opens at login (recommended)
 
-Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
-
-```bash
-bunx claude-usage-monitor
-```
-
-The first run downloads Electron, so give it a moment. Great for trying it out — but it runs **only while that command is open** and won't start on its own. Quit it with the **×** button.
-
-### 2. Install the app — opens at login (recommended)
-
-For everyday use, grab the prebuilt app — no terminal needed:
+For everyday use, grab the prebuilt app — no terminal, no setup:
 
 1. Download the latest **`Claude Usage Monitor-…-mac.zip`** from the [**Releases**](https://github.com/renatoaug/claude-usage-monitor/releases/latest) page.
 2. Unzip it and drag **Claude Usage Monitor.app** into `/Applications`.
 3. First open: right-click the app → **Open** → **Open** (it's unsigned).
 
 It registers itself in **Login Items**, so it **starts automatically** with your Mac — set it and forget it.
+
+### 2. Run it via `bunx` (no install)
+
+Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
+
+```bash
+bunx @renatoaug/claude-usage-monitor
+```
+
+The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
 
@@ -138,3 +138,15 @@ Nothing leaves your machine except the OAuth calls to Anthropic's own login and 
 
 - **Bun** for install/scripts, **Node 24** pinned in `.nvmrc`
 - **Biome** for format + lint (`bun run check`); a versioned **pre-commit hook** (`.githooks/pre-commit`) auto-formats staged files and blocks on errors. It's wired up automatically on `bun install` (via the `prepare` script).
+
+### Releasing
+
+Bump `version` in `package.json` (via a PR), then tag the merged commit:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The tag triggers `.github/workflows/publish.yml`, which builds the macOS app,
+publishes to npm, and creates a GitHub Release with the `.app` zip. Needs an
+`NPM_TOKEN` repo secret (an npm automation token).
