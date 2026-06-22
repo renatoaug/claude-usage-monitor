@@ -50,34 +50,29 @@ Plus a welcome **wave** on launch. You can preview any state from the terminal w
 
 ## Install
 
-macOS (Apple Silicon).
+macOS (Apple Silicon). Two ways, depending on what you want:
 
-**Run it instantly** (no clone) — needs [Bun](https://bun.sh) or Node 24:
+### 1. Run it now — `bunx` (no install)
+
+Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
 
 ```bash
 bunx claude-usage-monitor
-# or: npx claude-usage-monitor
 ```
 
-The first run downloads Electron, so give it a moment. The widget appears in the corner; quit it with the **×** button.
+The first run downloads Electron, so give it a moment. Great for trying it out — but it runs **only while that command is open** and won't start on its own. Quit it with the **×** button.
 
-**Install the real `.app`** (gets a proper app bundle that opens at login):
+### 2. Install the app — opens at login (recommended)
 
-```bash
-git clone https://github.com/renatoaug/claude-usage-monitor.git
-cd claude-usage-monitor
+For everyday use, grab the prebuilt app — no terminal needed:
 
-nvm install   # use the pinned Node version (reads .nvmrc)
-bun install   # install dependencies
+1. Download the latest **`Claude Usage Monitor-…-mac.zip`** from the [**Releases**](https://github.com/renatoaug/claude-usage-monitor/releases/latest) page.
+2. Unzip it and drag **Claude Usage Monitor.app** into `/Applications`.
+3. First open: right-click the app → **Open** → **Open** (it's unsigned).
 
-bun run pack  # → dist/mac-arm64/Claude Usage Monitor.app
-```
+It registers itself in **Login Items**, so it **starts automatically** with your Mac — set it and forget it.
 
-Drag the `.app` to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac. (The `bunx` quick-run mode doesn't add a login item.)
-
-> The app is **unsigned** (personal use). If Gatekeeper complains on first open, right-click the app → **Open** → **Open**.
-
-The app keeps its data in `~/.claude-usage-monitor`, independent of how you run it.
+> The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
 
 ## Controls
 

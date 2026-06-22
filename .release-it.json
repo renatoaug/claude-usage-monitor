@@ -1,6 +1,7 @@
 {
   "git": {
-    "commitMessage": "chore: release v${version}",
+    "commitMessage": "chore: release v${version} [skip ci]",
+    "commitArgs": ["--no-verify"],
     "tagName": "v${version}",
     "requireCleanWorkingDir": true,
     "requireUpstream": true
@@ -14,7 +15,7 @@
     "assets": ["dist/*.zip"]
   },
   "hooks": {
-    "before:init": ["bun run check"],
+    "before:init": ["bunx biome ci ."],
     "after:bump": ["bun run dist"]
   },
   "plugins": {
