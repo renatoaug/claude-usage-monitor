@@ -55,7 +55,7 @@
     "node": ">=24"
   },
   "build": {
-    "appId": "com.renato.clauddy",
+    "appId": "app.clauddy",
     "productName": "Clauddy",
     "directories": {
       "output": "dist"
