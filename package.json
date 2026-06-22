@@ -3,19 +3,54 @@
   "version": "0.1.0",
   "description": "A cute desktop pet that tracks your Claude Code usage",
   "main": "main.js",
+  "bin": {
+    "claude-usage-monitor": "bin/claude-usage-monitor.js"
+  },
+  "files": [
+    "bin",
+    "main.js",
+    "preload.js",
+    "usage.js",
+    "auth.js",
+    "config.json",
+    "renderer"
+  ],
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "pack": "node scripts/build-app.js --dir",
+    "dist": "node scripts/build-app.js --mac zip",
     "icon": "bash build-icon.sh",
     "gifs": "electron tools/capture/capture.js",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
+    "release": "release-it",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "author": "Renato",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renatoaug/claude-usage-monitor.git"
+  },
+  "homepage": "https://github.com/renatoaug/claude-usage-monitor#readme",
+  "bugs": {
+    "url": "https://github.com/renatoaug/claude-usage-monitor/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "usage",
+    "monitor",
+    "desktop-pet",
+    "electron",
+    "macos",
+    "menubar",
+    "widget"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "packageManager": "bun@1.3.14",
   "engines": {
     "node": ">=24"
@@ -41,9 +76,13 @@
       "icon": "build/icon.icns"
     }
   },
+  "dependencies": {
+    "electron": "^42.4.1"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "electron": "^42.4.1",
-    "electron-builder": "^26.15.3"
+    "@release-it/conventional-changelog": "^11.0.1",
+    "electron-builder": "^26.15.3",
+    "release-it": "^20.2.0"
   }
 }
