@@ -5,8 +5,20 @@ const os = require('node:os')
 const { getUsage } = require('./usage')
 const auth = require('./auth')
 
-// data dir: kept outside the project folder so moving the repo doesn't break it
-const DATA_DIR = path.join(os.homedir(), '.claude-usage-monitor')
+// data dir: kept outside the project folder so moving the repo doesn't break it.
+// when CLAUDE_CONFIG_DIR is set (e.g. via direnv for multi-account setups), nest
+// the widget's data under that account's Claude config dir so each account gets
+// its own auth.json, config.json, and Electron userData.
+const DATA_DIR = process.env.CLAUDE_CONFIG_DIR
+  ? path.join(process.env.CLAUDE_CONFIG_DIR, 'usage-monitor')
+  : path.join(os.homedir(), '.claude-usage-monitor')
+// when isolating per-account, also pin Electron's userData under DATA_DIR so two
+// widgets can run in parallel without fighting over cookies/cache. left untouched
+// in the default case so existing installs keep their window position etc.
+if (process.env.CLAUDE_CONFIG_DIR) {
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+  app.setPath('userData', path.join(DATA_DIR, 'electron'))
+}
 // external config: edit without rebuilding the .app
 const EXTERNAL_CONFIG = path.join(DATA_DIR, 'config.json')
 // debug channel: `./pet <state>` writes here to force a state (dev only)

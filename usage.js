@@ -2,7 +2,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 
-const PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects')
+const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects')
 
 function labelFor(model) {
   if (!model) return 'desconhecido'
