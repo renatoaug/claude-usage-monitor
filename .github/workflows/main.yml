@@ -22,15 +22,15 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, 'chore: release') }}
     runs-on: macos-latest # building a .app requires macOS
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # release-it needs full history + tags
 
       - uses: oven-sh/setup-bun@v2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc # don't hardcode — track the pinned Node
           registry-url: https://registry.npmjs.org
 
       - run: bun install --frozen-lockfile
