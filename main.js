@@ -77,7 +77,7 @@ function checkAlerts(config, d) {
         if (!armed.has(key)) {
           armed.add(key)
           new Notification({
-            title: 'Claude Usage Monitor',
+            title: 'Clauddy',
             body: `Your ${name} is over ${t}% — now at ${Math.round(pct)}%`,
             silent: false,
           }).show()

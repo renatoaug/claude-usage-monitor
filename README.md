@@ -1,9 +1,9 @@
-# 🟫 Claude Usage Monitor
+# 🟫 Clauddy
 
 A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/overview.gif" width="300" alt="Claude Usage Monitor — the full widget showing session, weekly, by-model and 30-day usage" /><br />
+  <img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/overview.gif" width="300" alt="Clauddy — the full widget showing session, weekly, by-model and 30-day usage" /><br />
   <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
 
@@ -80,7 +80,7 @@ The first run downloads Electron, so give it a moment. Handy for a quick run, bu
 Grab the **`…-mac.zip`** from [Releases](https://github.com/renatoaug/claude-usage-monitor/releases/latest), unzip, and drag the app to `/Applications`. The browser quarantines it, so macOS will call it *"damaged"* — clear the flag once (Terminal needs **Full Disk Access**):
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Claude Usage Monitor.app"
+xattr -dr com.apple.quarantine "/Applications/Clauddy.app"
 ```
 
 The `curl` installer above avoids all of this.
