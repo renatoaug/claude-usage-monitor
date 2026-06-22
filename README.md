@@ -76,19 +76,6 @@ The first run downloads Electron, so give it a moment. Handy for a quick run, bu
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
 
-<details>
-<summary>Prefer to download the app by hand?</summary>
-
-Grab the **`…-mac.zip`** from [Releases](https://github.com/renatoaug/claude-usage-monitor/releases/latest), unzip, and drag the app to `/Applications`. The browser quarantines it, so macOS will call it *"damaged"* — clear the flag once (Terminal needs **Full Disk Access**):
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Clauddy.app"
-```
-
-The `curl` installer above avoids all of this.
-
-</details>
-
 ## Controls
 
 - **Drag** the widget anywhere on screen
