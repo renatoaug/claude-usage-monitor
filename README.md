@@ -141,12 +141,14 @@ Nothing leaves your machine except the OAuth calls to Anthropic's own login and 
 
 ### Releasing
 
-Bump `version` in `package.json` (via a PR), then tag the merged commit:
+Releases are **fully automated**. Every push to `main` runs
+[semantic-release](https://semantic-release.gitbook.io) (`.github/workflows/release.yml`):
+it reads the **Conventional Commits** and, when there's something to ship,
+computes the version, builds the macOS app, publishes `clauddy` to npm, and
+cuts a GitHub Release with the `.app` zip. Nothing to do by hand — just merge
+your PRs.
 
-```bash
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-The tag triggers `.github/workflows/publish.yml`, which builds the macOS app,
-publishes to npm, and creates a GitHub Release with the `.app` zip. Needs an
-`NPM_TOKEN` repo secret (an npm automation token).
+- `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE` → major.
+- `docs:`/`chore:`/`ci:` etc. don't trigger a release.
+- Needs an **`NPM_TOKEN`** repo secret (an npm automation token); `GITHUB_TOKEN`
+  is automatic.

@@ -80,6 +80,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "electron-builder": "^26.15.3"
+    "@semantic-release/exec": "^7.1.0",
+    "electron-builder": "^26.15.3",
+    "semantic-release": "^25.0.5"
   }
 }
