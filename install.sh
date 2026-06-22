@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install Claude Usage Monitor as a native app, with no Gatekeeper hassle.
+# Install Clauddy as a native app, with no Gatekeeper hassle.
 #
 #   curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/install.sh | bash
 #
@@ -8,7 +8,7 @@
 set -euo pipefail
 
 REPO="renatoaug/claude-usage-monitor"
-APP_NAME="Claude Usage Monitor.app"
+APP_NAME="Clauddy.app"
 DEST="/Applications"
 
 echo "→ Finding the latest release…"
@@ -30,9 +30,10 @@ curl -fSL --progress-bar "$ZIP_URL" -o "$TMP/app.zip"
 echo "→ Installing to ${DEST}…"
 unzip -q "$TMP/app.zip" -d "$TMP"
 rm -rf "${DEST:?}/${APP_NAME}"
+rm -rf "${DEST:?}/Claude Usage Monitor.app" # remove the pre-rebrand app if present
 mv "$TMP/${APP_NAME}" "${DEST}/"
 
 echo "→ Launching…"
 open "${DEST}/${APP_NAME}"
 
-echo "✓ Done — Claude Usage Monitor is installed and will start at login."
+echo "✓ Done — Clauddy is installed and will start at login."

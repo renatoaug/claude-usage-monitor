@@ -1,4 +1,4 @@
-# Claude Usage Monitor — project guide
+# Clauddy — project guide
 
 A cute pixel-art macOS desktop pet (Electron) that tracks Claude Code usage:
 real session/weekly % (via OAuth login) plus token counts from local logs.
@@ -24,7 +24,7 @@ real session/weekly % (via OAuth login) plus token counts from local logs.
 
 ```bash
 bun start        # dev run
-bun run pack     # build dist/mac-arm64/Claude Usage Monitor.app
+bun run pack     # build dist/mac-arm64/Clauddy.app
 bun run check    # Biome format + lint (autofix)
 ./pet <state>    # simulate: fire | sleeping | working | tired | idle | poke | celebrate | auto
 ```

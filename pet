@@ -1,5 +1,5 @@
 #!/bin/bash
-# Simulate Claude Usage Monitor pet states (dev).
+# Simulate Clauddy pet states (dev).
 #   ./pet fire        -> on fire (flames + shiver)
 #   ./pet sleeping    -> sleeping (zzz)
 #   ./pet working     -> working (eats tokens + hops)

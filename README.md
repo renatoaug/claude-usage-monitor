@@ -1,9 +1,9 @@
-# 🟫 Claude Usage Monitor
+# 🟫 Clauddy
 
 A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/overview.gif" width="300" alt="Claude Usage Monitor — the full widget showing session, weekly, by-model and 30-day usage" /><br />
+  <img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/overview.gif" width="300" alt="Clauddy — the full widget showing session, weekly, by-model and 30-day usage" /><br />
   <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
 
@@ -60,7 +60,9 @@ One command — it downloads the latest release and drops it in `/Applications`:
 curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/install.sh | bash
 ```
 
-No Gatekeeper warning: files fetched with `curl` aren't quarantined like browser downloads, so the (unsigned) app just opens. It registers itself in **Login Items**, so it **starts automatically** with your Mac — set it and forget it.
+**Clauddy is free and open source** — the command above just downloads the latest release from this repo and drops it in `/Applications`, nothing else (you can read [`install.sh`](install.sh) first if you'd like).
+
+Why not a normal download? macOS blocks **unsigned** apps downloaded through a browser with a scary *"damaged, move to Trash"* warning — even when they're perfectly safe. It's a false alarm: the only way to silence it is to pay Apple **$99/year** to sign + notarize, which a free hobby app skips. Files fetched with `curl` aren't flagged, so this method simply **lets your Mac open the app** without the block. It then registers in **Login Items** and starts with your Mac — set it and forget it.
 
 ### 2. Run it via `bunx` (no install)
 
@@ -73,19 +75,6 @@ bunx clauddy
 The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
-
-<details>
-<summary>Prefer to download the app by hand?</summary>
-
-Grab the **`…-mac.zip`** from [Releases](https://github.com/renatoaug/claude-usage-monitor/releases/latest), unzip, and drag the app to `/Applications`. The browser quarantines it, so macOS will call it *"damaged"* — clear the flag once (Terminal needs **Full Disk Access**):
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Claude Usage Monitor.app"
-```
-
-The `curl` installer above avoids all of this.
-
-</details>
 
 ## Controls
 

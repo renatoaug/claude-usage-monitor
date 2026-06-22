@@ -55,8 +55,8 @@
     "node": ">=24"
   },
   "build": {
-    "appId": "com.renato.claude-usage-monitor",
-    "productName": "Claude Usage Monitor",
+    "appId": "app.clauddy",
+    "productName": "Clauddy",
     "directories": {
       "output": "dist"
     },
