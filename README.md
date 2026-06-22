@@ -3,7 +3,7 @@
 A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/overview.gif" width="300" alt="Claude Usage Monitor — the full widget showing session, weekly, by-model and 30-day usage" /><br />
+  <img src="docs/media/overview.gif" width="300" alt="Claude Usage Monitor — the full widget showing session, weekly, by-model and 30-day usage" /><br />
   <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
 
@@ -30,19 +30,19 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
 
 <table>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/idle.gif" width="280" alt="idle" /><br /><b>idle</b><br /><sub>breathes &amp; blinks</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops &amp; eats token coins</sub></td>
+    <td align="center"><img src="docs/media/idle.gif" width="280" alt="idle" /><br /><b>idle</b><br /><sub>breathes &amp; blinks</sub></td>
+    <td align="center"><img src="docs/media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops &amp; eats token coins</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90% → red, shivers, flames</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/tired.gif" width="280" alt="maxed out" /><br /><b>maxed out</b><br /><sub>session at 100% → drained, slumped, sweating</sub></td>
+    <td align="center"><img src="docs/media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90% → red, shivers, flames</sub></td>
+    <td align="center"><img src="docs/media/tired.gif" width="280" alt="maxed out" /><br /><b>maxed out</b><br /><sub>session at 100% → drained, slumped, sweating</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet → squish &amp; hearts</sub></td>
+    <td align="center"><img src="docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
+    <td align="center"><img src="docs/media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet → squish &amp; hearts</sub></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
+    <td colspan="2" align="center"><img src="docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
   </tr>
 </table>
 
@@ -50,18 +50,7 @@ Plus a welcome **wave** on launch. You can preview any state from the terminal w
 
 ## Install
 
-macOS (Apple Silicon).
-
-**Run it instantly** (no clone) — needs [Bun](https://bun.sh) or Node 24:
-
-```bash
-bunx claude-usage-monitor
-# or: npx claude-usage-monitor
-```
-
-The first run downloads Electron, so give it a moment. The widget appears in the corner; quit it with the **×** button.
-
-**Install the real `.app`** (gets a proper app bundle that opens at login):
+Requires **macOS** (Apple Silicon), **Node.js 24** (see `.nvmrc`), and **[Bun](https://bun.sh)**. Clone it anywhere — the app keeps its data in `~/.claude-usage-monitor`, independent of where the repo lives.
 
 ```bash
 git clone https://github.com/renatoaug/claude-usage-monitor.git
@@ -70,14 +59,14 @@ cd claude-usage-monitor
 nvm install   # use the pinned Node version (reads .nvmrc)
 bun install   # install dependencies
 
-bun run pack  # → dist/mac-arm64/Claude Usage Monitor.app
+bun start     # dev run (live, from source)
+# or
+bun run pack  # build the real .app
 ```
 
-Drag the `.app` to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac. (The `bunx` quick-run mode doesn't add a login item.)
+`bun run pack` produces **`dist/mac-arm64/Claude Usage Monitor.app`** — drag it to `/Applications`. When run as a packaged app it registers itself in **Login Items**, so it starts with your Mac.
 
 > The app is **unsigned** (personal use). If Gatekeeper complains on first open, right-click the app → **Open** → **Open**.
-
-The app keeps its data in `~/.claude-usage-monitor`, independent of how you run it.
 
 ## Controls
 
