@@ -52,15 +52,15 @@ Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#pla
 
 macOS (Apple Silicon). Two ways, depending on what you want:
 
-### 1. Download the app — opens at login (recommended)
+### 1. Install as an app — opens at login (recommended)
 
-For everyday use, grab the prebuilt app — no terminal, no setup:
+One command — it downloads the latest release and drops it in `/Applications`:
 
-1. Download the latest **`Claude Usage Monitor-…-mac.zip`** from the [**Releases**](https://github.com/renatoaug/claude-usage-monitor/releases/latest) page.
-2. Unzip it and drag **Claude Usage Monitor.app** into `/Applications`.
-3. First open: right-click the app → **Open** → **Open** (it's unsigned).
+```bash
+curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/install.sh | bash
+```
 
-It registers itself in **Login Items**, so it **starts automatically** with your Mac — set it and forget it.
+No Gatekeeper warning: files fetched with `curl` aren't quarantined like browser downloads, so the (unsigned) app just opens. It registers itself in **Login Items**, so it **starts automatically** with your Mac — set it and forget it.
 
 ### 2. Run it via `bunx` (no install)
 
@@ -73,6 +73,19 @@ bunx clauddy
 The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
+
+<details>
+<summary>Prefer to download the app by hand?</summary>
+
+Grab the **`…-mac.zip`** from [Releases](https://github.com/renatoaug/claude-usage-monitor/releases/latest), unzip, and drag the app to `/Applications`. The browser quarantines it, so macOS will call it *"damaged"* — clear the flag once (Terminal needs **Full Disk Access**):
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Claude Usage Monitor.app"
+```
+
+The `curl` installer above avoids all of this.
+
+</details>
 
 ## Controls
 
