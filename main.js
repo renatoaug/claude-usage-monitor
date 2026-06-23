@@ -135,6 +135,7 @@ function createWindow() {
     win.webContents.send('auth-state', { connected: auth.isConnected() })
     pollTimer = setInterval(tick, config.pollIntervalMs)
     startUsagePoll()
+    sendProfile()
     watchDebug()
   })
 }
@@ -182,6 +183,7 @@ async function pollUsage() {
       if (win && !win.isDestroyed()) {
         win.webContents.send('auth-state', { connected: false })
         win.webContents.send('real-usage', null)
+        win.webContents.send('profile', null)
       }
     }
   }
@@ -191,6 +193,15 @@ function startUsagePoll() {
   if (auth.isConnected()) pollUsage()
 }
 
+// push the logged-in account's identity (email + plan) to the renderer
+async function sendProfile() {
+  if (!auth.isConnected()) return
+  try {
+    const p = await auth.fetchProfile()
+    if (win && !win.isDestroyed()) win.webContents.send('profile', p)
+  } catch {} // non-fatal: the chip just stays hidden
+}
+
 ipcMain.on('auth-start', () => shell.openExternal(auth.begin()))
 ipcMain.on('auth-code', async (_e, code) => {
   const ok = () => {
@@ -198,6 +209,7 @@ ipcMain.on('auth-code', async (_e, code) => {
       win.webContents.send('auth-state', { connected: true })
       win.webContents.send('auth-result', { ok: true })
     }
+    sendProfile()
   }
   try {
     await auth.complete(code)
@@ -227,6 +239,7 @@ ipcMain.on('auth-logout', () => {
   if (win && !win.isDestroyed()) {
     win.webContents.send('auth-state', { connected: false })
     win.webContents.send('real-usage', null)
+    win.webContents.send('profile', null)
   }
 })
 

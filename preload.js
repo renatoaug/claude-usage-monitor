@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   openUsage: () => ipcRenderer.send('open-usage'),
   onRealUsage: (cb) => ipcRenderer.on('real-usage', (_e, u) => cb(u)),
   onAuthState: (cb) => ipcRenderer.on('auth-state', (_e, s) => cb(s)),
+  onProfile: (cb) => ipcRenderer.on('profile', (_e, p) => cb(p)),
   onAuthResult: (cb) => ipcRenderer.on('auth-result', (_e, r) => cb(r)),
   authStart: () => ipcRenderer.send('auth-start'),
   authCode: (code) => ipcRenderer.send('auth-code', code),
