@@ -18,8 +18,10 @@
         justify-content: center;
         background: radial-gradient(130% 130% at 50% 0%, #1a130e 0%, #080605 100%);
       }
+      /* relative (not static) so the absolute controls/account-chip anchor to
+         the card top — as they do in the real app — instead of the window */
       #card {
-        position: static;
+        position: relative;
         top: auto;
         left: auto;
         margin: 0;
@@ -28,6 +30,11 @@
   </head>
   <body class="state-idle">
     <div id="card">
+      <div id="account-chip" hidden>
+        <span class="ac-dot"></span>
+        <span id="ac-email"></span>
+        <span id="ac-plan" class="plan-badge" hidden></span>
+      </div>
       <div id="controls">
         <button id="gear" title="Settings">⚙</button>
         <button id="usage" title="Open Usage page">
@@ -64,6 +71,10 @@
       </div>
 
       <div id="mini">
+        <div id="mini-acct" hidden>
+          <span id="mini-acct-name"></span>
+          <span id="mini-acct-plan" class="plan-badge" hidden></span>
+        </div>
         <div class="mini-line"><span id="mini-dot"></span><span id="mini-text">idle</span></div>
         <div id="mini-pct-row"><span id="mini-pct">0%</span> <span class="lbl">session</span></div>
       </div>
@@ -153,6 +164,7 @@
         onConfig: noop,
         onRealUsage: (f) => (__cbs.real = f),
         onAuthState: (f) => (__cbs.auth = f),
+        onProfile: (f) => (__cbs.profile = f),
         onAuthResult: noop,
         onDebugState: (f) => (__cbs.debug = f),
         saveConfig: noop,
@@ -193,6 +205,7 @@
         __cbs.auth?.({ connected: true })
         __cbs.usage?.(FAKE)
         __cbs.real?.(FAKE_REAL)
+        __cbs.profile?.({ email: 'you@example.com', name: 'You', plan: 'Max' })
       }
     </script>
     <script src="../../renderer/pet.js"></script>

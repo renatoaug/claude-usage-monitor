@@ -499,9 +499,39 @@ window.api.onAuthState((s) => {
     realUsage = null
     document.body.classList.remove('live')
     el('acc-paste').classList.remove('show')
+    showProfile(null)
   }
   if (document.body.classList.contains('settings-open')) fitSize()
 })
+
+// logged-in account chip (email + plan) shown top-left when connected
+function showProfile(p) {
+  const chip = el('account-chip')
+  const mini = el('mini-acct')
+  if (!p?.email) {
+    chip.hidden = true
+    mini.hidden = true
+    return
+  }
+  // expanded: full email chip in the top bar
+  el('ac-email').textContent = p.email
+  chip.title = p.name ? `${p.name} · ${p.email}` : p.email
+  setPlan(el('ac-plan'), p.plan)
+  chip.hidden = false
+  // collapsed: short name + plan in the mini block (email won't fit at 116px)
+  el('mini-acct-name').textContent = p.name || p.email.split('@')[0]
+  setPlan(el('mini-acct-plan'), p.plan)
+  mini.hidden = false
+}
+function setPlan(node, plan) {
+  if (plan) {
+    node.textContent = plan
+    node.hidden = false
+  } else {
+    node.hidden = true
+  }
+}
+window.api.onProfile(showProfile)
 window.api.onAuthResult((r) => {
   if (r?.ok) {
     el('acc-msg').textContent = ''

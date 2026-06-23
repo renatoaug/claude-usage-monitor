@@ -9,6 +9,7 @@ const REDIRECT = 'https://platform.claude.com/oauth/code/callback'
 const AUTHORIZE = 'https://claude.ai/oauth/authorize'
 const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
+const PROFILE_URL = 'https://api.anthropic.com/api/oauth/profile'
 const SCOPE = 'org:create_api_key user:profile user:inference'
 const UA = 'claude-cli/2.1.181 (external, cli)'
 // when CLAUDE_CONFIG_DIR is set (e.g. via direnv for multi-account setups),
@@ -23,6 +24,7 @@ const b64url = (buf) =>
 
 let tokens = null // { access_token, refresh_token, expires_at }
 let pending = null // { verifier, state }
+let profile = null // { email, name, plan } — cached account identity
 
 function load() {
   if (tokens) return tokens
@@ -42,6 +44,7 @@ function save(t) {
 }
 function clear() {
   tokens = null
+  profile = null
   try {
     fs.unlinkSync(TOKEN_PATH)
   } catch {}
@@ -169,4 +172,29 @@ async function fetchUsage() {
   }
 }
 
-module.exports = { begin, complete, fetchUsage, clear, isConnected }
+// The logged-in account's identity (email + plan tier). Cached for the session;
+// only changes on logout/login, so we don't re-fetch on every usage poll.
+async function fetchProfile() {
+  if (profile) return profile
+  const token = await validToken()
+  const res = await fetch(PROFILE_URL, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'anthropic-beta': 'oauth-2025-04-20',
+      'anthropic-version': '2023-06-01',
+      'User-Agent': UA,
+    },
+  })
+  if (!res.ok) {
+    throw Object.assign(new Error(`profile ${res.status}`), { status: res.status })
+  }
+  const a = (await res.json()).account || {}
+  profile = {
+    email: a.email || null,
+    name: a.display_name || a.full_name || null,
+    plan: a.has_claude_max ? 'Max' : a.has_claude_pro ? 'Pro' : null,
+  }
+  return profile
+}
+
+module.exports = { begin, complete, fetchUsage, fetchProfile, clear, isConnected }

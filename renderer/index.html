@@ -8,6 +8,11 @@
   </head>
   <body class="state-idle">
     <div id="card">
+      <div id="account-chip" hidden>
+        <span class="ac-dot"></span>
+        <span id="ac-email"></span>
+        <span id="ac-plan" class="plan-badge" hidden></span>
+      </div>
       <div id="controls">
         <button id="gear" title="Settings">⚙</button>
         <button id="usage" title="Open Usage page">
@@ -47,6 +52,10 @@
 
       <!-- shown only when collapsed -->
       <div id="mini">
+        <div id="mini-acct" hidden>
+          <span id="mini-acct-name"></span>
+          <span id="mini-acct-plan" class="plan-badge" hidden></span>
+        </div>
         <div class="mini-line"><span id="mini-dot"></span><span id="mini-text">idle</span></div>
         <div id="mini-pct-row"><span id="mini-pct">0%</span> <span class="lbl">session</span></div>
       </div>

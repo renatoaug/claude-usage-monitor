@@ -1,7 +1,7 @@
 :root {
   --coral: #d97757;
   --coral-soft: #e6a07f;
-  --pixel: #bd7853; /* pet terracotta (earthier, like the original) */
+  --pixel: #d57658; /* pet terracotta — matches the real Claude logo */
   --eye: #221b16;
   --text: #f3ebe3;
   --muted: #9d9085;
@@ -126,6 +126,54 @@ body.collapsed #min .ic-max {
 }
 body.collapsed #gear,
 body.collapsed #usage {
+  display: none;
+}
+
+/* logged-in account chip (top-left, mirrors #controls) */
+#account-chip {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px; /* match #controls buttons so text centers on the same line */
+  max-width: 138px;
+  font-size: 9.5px;
+  line-height: 1;
+  color: var(--muted);
+}
+#account-chip[hidden] {
+  display: none;
+}
+.ac-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pixel);
+}
+#ac-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-badge {
+  flex: none;
+  padding: 1.5px 5px;
+  border-radius: 6px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--coral-soft);
+  background: rgba(217, 119, 87, 0.16);
+}
+.plan-badge[hidden] {
+  display: none;
+}
+/* no room for the chip when collapsed */
+body.collapsed #account-chip {
   display: none;
 }
 
@@ -439,6 +487,25 @@ body:not(.live) #mini-pct-row {
   display: none;
   text-align: center;
   margin-top: 2px;
+}
+/* account name + plan, shown above the status line when collapsed */
+#mini-acct {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+#mini-acct[hidden] {
+  display: none;
+}
+#mini-acct-name {
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9.5px;
+  color: var(--muted);
 }
 .mini-line {
   display: flex;
@@ -756,9 +823,6 @@ body.state-tired #sweat {
 /* states */
 body.state-working #claude {
   animation: hop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-body.state-working #body rect {
-  fill: #d68a64;
 }
 body.state-stressed #body rect {
   fill: #cb5642;
