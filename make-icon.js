@@ -127,7 +127,8 @@ const cw = cell * 10,
   ch = cell * SPRITE.length
 const ox = Math.round((S - cw) / 2)
 const oy = Math.round((S - ch) / 2 + S * 0.01)
-const CORAL = [0xbd, 0x78, 0x53],
+// pet terracotta — matches --pixel in renderer/style.css (the real Claude logo)
+const CORAL = [0xd5, 0x76, 0x58],
   EYE = [0x22, 0x1b, 0x16]
 function fillCell(c, r, col) {
   for (let yy = 0; yy < cell; yy++)
