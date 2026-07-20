@@ -124,7 +124,13 @@ async function refresh() {
       client_id: CLIENT_ID,
     }),
   })
-  if (!res.ok) throw Object.assign(new Error('refresh failed'), { status: res.status })
+  if (!res.ok) {
+    // a rejected grant (expired/revoked refresh token) means the session is
+    // dead — surface it as 401 so callers clear the token and prompt login.
+    // transient failures (429, 5xx) keep their status so we retry, not logout.
+    const dead = res.status === 400 || res.status === 403
+    throw Object.assign(new Error('refresh failed'), { status: dead ? 401 : res.status })
+  }
   const j = await res.json()
   save({
     access_token: j.access_token,
