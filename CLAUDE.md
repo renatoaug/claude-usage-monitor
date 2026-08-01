@@ -1,7 +1,8 @@
 # Clauddy — project guide
 
-A cute pixel-art macOS desktop pet (Electron) that tracks Claude Code usage:
+A cute pixel-art desktop pet (Electron) that tracks Claude Code usage:
 real session/weekly % (via OAuth login) plus token counts from local logs.
+macOS-first, with Windows (x64) support and Linux on the way.
 
 ## Stack
 
@@ -17,17 +18,26 @@ real session/weekly % (via OAuth login) plus token counts from local logs.
 - `usage.js` — reads `~/.claude/projects/**/*.jsonl` (tokens, session window, activity)
 - `auth.js` — OAuth (PKCE) login + authoritative usage % fetch
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
-- `make-icon.js` — generates the app icon from the pixel sprite
+- `make-icon.js` — generates the macOS `.icns` from the pixel sprite
+- `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
 - `pet` — dev script to simulate pet states (writes `~/.claude-usage-monitor/debug.json`)
 
 ## Commands
 
 ```bash
-bun start        # dev run
-bun run pack     # build dist/mac-arm64/Clauddy.app
-bun run check    # Biome format + lint (autofix)
-./pet <state>    # simulate: fire | sleeping | working | tired | idle | poke | celebrate | auto
+bun start          # dev run
+bun run pack       # build dist/mac-arm64/Clauddy.app
+bun run dist       # macOS zip (used by the release pipeline)
+bun run dist:win   # Windows zip — run on Windows/CI (needs a native runner)
+bun run dist:linux # Linux tar.gz + AppImage (run on Linux/CI)
+bun run icon       # regenerate build/icon.{icns,ico,png} from the sprite
+bun run check      # Biome format + lint (autofix)
+./pet <state>      # simulate: fire | sleeping | working | tired | idle | poke | celebrate | auto
 ```
+
+> Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't
+> reliably cross-build them from macOS. The `Build (manual)` workflow (`.github/workflows/build.yml`)
+> does this on `windows-latest`; the automated `release.yml` still ships macOS only for now.
 
 ## Data & secrets
 

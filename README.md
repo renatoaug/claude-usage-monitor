@@ -50,9 +50,13 @@ Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#pla
 
 ## Install
 
-macOS (Apple Silicon). Two ways, depending on what you want:
+**macOS (Apple Silicon)** is the first-class build. **Windows (x64)** works too, and **Linux** is next. The `bunx`/`npx` route below runs on all of them today.
 
-### 1. Install as an app — opens at login (recommended)
+### macOS
+
+Two ways, depending on what you want:
+
+#### 1. Install as an app — opens at login (recommended)
 
 One command — it downloads the latest release and drops it in `/Applications`:
 
@@ -64,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main
 
 Why not a normal download? macOS blocks **unsigned** apps downloaded through a browser with a scary *"damaged, move to Trash"* warning — even when they're perfectly safe. It's a false alarm: the only way to silence it is to pay Apple **$99/year** to sign + notarize, which a free hobby app skips. Files fetched with `curl` aren't flagged, so this method simply **lets your Mac open the app** without the block. It then registers in **Login Items** and starts with your Mac — set it and forget it.
 
-### 2. Run it via `bunx` (no install)
+#### 2. Run it via `bunx` (no install)
 
 Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
 
@@ -74,7 +78,23 @@ bunx clauddy
 
 The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.
 
-> The app keeps its data in `~/.claude-usage-monitor`, regardless of how you run it.
+### Windows (x64)
+
+The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node 24 installed:
+
+```powershell
+bunx clauddy   # or: npx clauddy
+```
+
+Prefer a standalone app with no Node/Bun? Grab the **portable zip** (`Clauddy-<version>-win.zip`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), unzip it anywhere, and run `Clauddy.exe`. Because the app is unsigned, Windows **SmartScreen** shows a "Windows protected your PC" prompt the first time — click **More info → Run anyway**. From then on it starts with Windows.
+
+> Windows builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
+
+### Linux
+
+Coming soon — the build is already wired for `tar.gz` and AppImage. In the meantime, `bunx clauddy` / `npx clauddy` works today.
+
+> The app keeps its data in `~/.claude-usage-monitor`, regardless of platform or how you run it.
 
 ## Controls
 
