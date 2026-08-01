@@ -23,3 +23,14 @@ cp "$PNG" "$SET/icon_512x512@2x.png"
 
 iconutil -c icns "$SET" -o "$DIR/build/icon.icns"
 echo "built $DIR/build/icon.icns"
+
+# Windows (.ico) and Linux (.png) from the same sprite, so electron-builder can
+# package all three platforms from one source of truth.
+sips -z 512 512 "$PNG" --out "$DIR/build/icon.png" >/dev/null # Linux
+ICO_TMP="$(mktemp -d)"
+trap 'rm -rf "$ICO_TMP"' EXIT
+for s in 16 32 48 64 128 256; do
+  sips -z "$s" "$s" "$PNG" --out "$ICO_TMP/$s.png" >/dev/null
+done
+node "$DIR/make-ico.js" "$ICO_TMP" "$DIR/build/icon.ico" # Windows
+echo "built $DIR/build/icon.png"
