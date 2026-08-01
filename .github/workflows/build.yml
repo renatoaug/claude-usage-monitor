@@ -1,0 +1,48 @@
+name: Build (manual)
+
+# Manually build a platform artifact for testing — Windows today, Linux ready to
+# enable (uncomment the matrix entry below once we ship Linux). This does NOT
+# publish anything: the automated release pipeline lives in release.yml. Grab the
+# built app from this run's "Artifacts" section.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            dist: dist:win
+            artifact: clauddy-windows
+          # - os: ubuntu-latest      # enable when Linux support ships
+          #   dist: dist:linux
+          #   artifact: clauddy-linux
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned build, skip signing
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run ${{ matrix.dist }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.AppImage
+          if-no-files-found: error
