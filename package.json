@@ -19,6 +19,8 @@
     "start": "electron .",
     "pack": "node scripts/build-app.js --dir",
     "dist": "node scripts/build-app.js --mac zip",
+    "dist:win": "node scripts/build-app.js --win zip",
+    "dist:linux": "node scripts/build-app.js --linux",
     "icon": "bash build-icon.sh",
     "gifs": "electron tools/capture/capture.js",
     "format": "biome format --write .",
@@ -73,6 +75,18 @@
       "target": "dir",
       "identity": null,
       "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "zip",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "tar.gz",
+        "AppImage"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {

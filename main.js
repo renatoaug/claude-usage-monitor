@@ -101,6 +101,7 @@ function createWindow() {
     y: workAreaSize.height - H - 24,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000', // fully transparent — Windows needs this or the window paints black
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -265,6 +266,8 @@ ipcMain.on('save-config', (_e, patch) => {
 ipcMain.on('quit', () => app.quit())
 
 app.whenReady().then(() => {
+  // Windows toast notifications need an explicit AppUserModelID to show reliably
+  if (process.platform === 'win32') app.setAppUserModelId('app.clauddy')
   createWindow()
   // open at login (packaged app only)
   if (app.isPackaged) {
