@@ -115,7 +115,8 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
 ```jsonc
 {
   "alerts": true, // macOS notifications on/off
-  "alertThresholds": [80, 95], // notify when session/week cross these %
+  "alertThresholds": [80, 95], // notify when session/week cross these % (two levels)
+  "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays 100)
   "pollIntervalMs": 4000, // how often local logs are re-read
   "activeThresholdMs": 8000, // "working" if Claude was active within this window
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)

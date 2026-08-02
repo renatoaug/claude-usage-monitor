@@ -242,6 +242,16 @@ body.settings-open #settings {
   display: flex;
   gap: 6px;
 }
+/* small captions under each threshold box */
+.set-caps {
+  margin-top: 3px;
+}
+.num-cap {
+  flex: 1;
+  font-size: 8.5px;
+  color: var(--muted);
+  padding-left: 2px;
+}
 /* custom number stepper */
 .num {
   position: relative;
@@ -324,11 +334,25 @@ body.settings-open #settings {
   background: rgba(255, 255, 255, 0.2);
 }
 #set-save {
-  background: var(--coral);
+  background: rgba(217, 119, 87, 0.4); /* calm until there are unsaved changes */
   color: #fff;
 }
 #set-save:hover {
   background: #e2876a;
+}
+/* unsaved changes: light up and pulse so you don't forget to save */
+#set-save.dirty {
+  background: var(--coral);
+  animation: save-pulse 1.6s ease-in-out infinite;
+}
+@keyframes save-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0);
+  }
+  50% {
+    box-shadow: 0 0 9px 2px rgba(217, 119, 87, 0.6);
+  }
 }
 
 /* live tag */
@@ -666,6 +690,51 @@ body.collapsed #shadow {
   transform-box: fill-box;
   transform-origin: center;
   animation: blink 5.5s infinite;
+}
+/* mechanic mode (settings): hard hat + screwdriver on the pet, loose gears
+   turning behind it. Hidden otherwise. */
+#robot {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+/* hard hat colors live inline (built pixel-by-pixel in pet.js buildHat) */
+.dr-handle {
+  fill: #c0392b;
+}
+.dr-handle-hi {
+  fill: #e0685a;
+}
+.dr-collar {
+  fill: #9a9a9a;
+}
+.dr-tip,
+.dr-shaft {
+  fill: #d0d0d0;
+}
+.dr-hi {
+  fill: #f2f2f2;
+}
+#gears {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  fill: #7a6a5c;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+body.settings-open #robot,
+body.settings-open #gears {
+  opacity: 1;
+}
+/* declutter the scene while configuring */
+body.settings-open #zzz,
+body.settings-open #flames,
+body.settings-open #sweat {
+  display: none;
 }
 #mouth {
   fill: var(--eye);

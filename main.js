@@ -38,6 +38,7 @@ function publicConfig(c) {
     weeklyAnchorIso: c.weeklyAnchorIso,
     alerts: c.alerts,
     alertThresholds: c.alertThresholds,
+    fireThreshold: c.fireThreshold,
   }
 }
 
@@ -49,6 +50,7 @@ function loadConfig() {
     weeklyAnchorIso: null,
     alerts: true,
     alertThresholds: [80, 95],
+    fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
     pollIntervalMs: 4000,
     activeThresholdMs: 8000,
     sleepThresholdMs: 300000,

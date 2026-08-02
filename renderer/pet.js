@@ -40,6 +40,39 @@ const SPRITE = [
   })
 })()
 
+// hard hat (mechanic mode): pixel-art bitmap so it matches the pet's blocky look
+;(function buildHat() {
+  const g = el('hardhat')
+  if (!g) return
+  // L = highlight, Y = main, D = shadow rim, B = brim
+  const HAT = [
+    '.....YLLY.....',
+    '...YYYLLYYY...',
+    '..YYYYLLYYYY..',
+    '.YYYYYLLYYYYY.',
+    '.DDDDDDDDDDDD.',
+    'BBBBBBBBBBBBBB',
+  ]
+  const COL = { L: '#ffe27a', Y: '#f5c518', D: '#d99a00', B: '#c98f14' }
+  const C = 8 // cell size in svg units
+  const cols = HAT[0].length
+  const ox = 50 - (cols * C) / 2 // centered on the head (center x = 50)
+  const oy = -24 // rises above the head, brim ends just over the eyes
+  HAT.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++) {
+      const ch = row[c]
+      if (ch === '.') continue
+      const rect = document.createElementNS(SVGNS, 'rect')
+      rect.setAttribute('x', ox + c * C)
+      rect.setAttribute('y', oy + r * C)
+      rect.setAttribute('width', C)
+      rect.setAttribute('height', C)
+      rect.setAttribute('fill', COL[ch])
+      g.appendChild(rect)
+    }
+  })
+})()
+
 // night scene backdrop (clouds, crescent moon, stars, dotted ground/sky)
 ;(function buildScene() {
   const s = el('scene')
@@ -369,12 +402,13 @@ function render(d) {
   const wkPct = liveOn ? realUsage.week.pct : 0
   const wkReset = liveOn ? realUsage.week.resetMs : null
 
+  const fireAt = currentConfig.fireThreshold ?? 90
   let st =
     liveOn && sessPct >= 100
       ? 'tired'
       : d.active
         ? 'working'
-        : liveOn && sessPct >= 90
+        : liveOn && sessPct >= fireAt
           ? 'stressed'
           : d.sleeping
             ? 'sleeping'
@@ -567,12 +601,32 @@ el('acc-confirm').addEventListener('click', () => {
 el('acc-logout').addEventListener('click', () => window.api.authLogout())
 
 // settings panel
+// snapshot of the editable fields, to tell whether there are unsaved changes
+let settingsBaseline = null
+function snapshotSettings() {
+  return JSON.stringify({
+    alerts: el('set-alerts').checked,
+    t1: el('set-t1').value,
+    t2: el('set-t2').value,
+    fire: el('set-fire').value,
+  })
+}
+function refreshSaveDirty() {
+  if (settingsBaseline == null) return
+  el('set-save').classList.toggle('dirty', snapshotSettings() !== settingsBaseline)
+}
+function clearSaveDirty() {
+  settingsBaseline = snapshotSettings()
+  el('set-save').classList.remove('dirty')
+}
 function populateSettings() {
   const c = currentConfig || {}
   el('set-alerts').checked = c.alerts !== false
   const th = c.alertThresholds || [80, 95]
   el('set-t1').value = th[0] != null ? th[0] : 80
   el('set-t2').value = th[1] != null ? th[1] : 95
+  el('set-fire').value = c.fireThreshold != null ? c.fireThreshold : 90
+  clearSaveDirty() // fields now match the saved config
 }
 function openSettings() {
   document.body.classList.remove('collapsed')
@@ -591,20 +645,30 @@ for (const b of document.querySelectorAll('.num-btn')) {
     const max = Number(input.max) || 100
     const next = (Number.parseInt(input.value, 10) || 0) + Number(b.dataset.step)
     input.value = Math.min(max, Math.max(min, next))
+    refreshSaveDirty() // steppers change the value without an 'input' event
   })
+}
+// light up Save whenever an editable field changes
+for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire']) {
+  el(id).addEventListener('input', refreshSaveDirty)
+  el(id).addEventListener('change', refreshSaveDirty)
 }
 el('set-cancel').addEventListener('click', () => {
   document.body.classList.remove('settings-open')
+  clearSaveDirty()
   fitSize()
 })
 el('set-save').addEventListener('click', () => {
   const num = (id) => parseFloat(el(id).value)
+  const fire = num('set-fire')
   window.api.saveConfig({
     alerts: el('set-alerts').checked,
     alertThresholds: [num('set-t1'), num('set-t2')]
       .filter((n) => n >= 1 && n <= 100)
       .sort((a, b) => a - b),
+    fireThreshold: fire >= 1 && fire <= 99 ? fire : 90,
   })
+  clearSaveDirty()
   document.body.classList.remove('settings-open')
   fitSize()
 })
