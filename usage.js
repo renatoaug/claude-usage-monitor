@@ -99,6 +99,69 @@ function parseFile(full, st) {
 const DAYS = 30
 const SESSION_MS = 5 * 3600 * 1000
 
+// map a Claude Code tool name to what the pet is "doing"
+const ACTIVITY_BY_TOOL = {
+  Edit: 'editing',
+  MultiEdit: 'editing',
+  Write: 'editing',
+  NotebookEdit: 'editing',
+  Read: 'reading',
+  Grep: 'reading',
+  Glob: 'reading',
+  LS: 'reading',
+  Bash: 'running',
+  BashOutput: 'running',
+  KillShell: 'running',
+  WebSearch: 'researching',
+  WebFetch: 'researching',
+  Task: 'delegating',
+  Agent: 'delegating',
+  TodoWrite: 'planning',
+  ExitPlanMode: 'planning',
+  AskUserQuestion: 'waiting',
+}
+
+// Classify what Claude Code is doing right now by reading the tail of the most
+// recently touched session log: the latest tool_use → an activity, plan mode
+// (permission-mode) wins over everything. Returns null when there's no signal.
+function detectActivity(file) {
+  let raw
+  try {
+    const fd = fs.openSync(file, 'r')
+    const size = fs.fstatSync(fd).size
+    const len = Math.min(size, 65536) // last 64KB is plenty for the recent tail
+    const buf = Buffer.alloc(len)
+    fs.readSync(fd, buf, 0, len, size - len)
+    fs.closeSync(fd)
+    raw = buf.toString('utf8')
+  } catch {
+    return null
+  }
+  const lines = raw.split('\n').filter(Boolean)
+  let activity = null
+  let permMode = null
+  for (let i = lines.length - 1; i >= 0 && i >= lines.length - 80; i--) {
+    let o
+    try {
+      o = JSON.parse(lines[i])
+    } catch {
+      continue
+    }
+    if (permMode === null && (o.type === 'permission-mode' || o.type === 'mode')) {
+      const v = o.mode || o.permissionMode || o.value
+      if (typeof v === 'string') permMode = v
+    }
+    if (activity === null && o.type === 'assistant' && Array.isArray(o.message?.content)) {
+      const blocks = o.message.content
+      const tools = blocks.filter((b) => b && b.type === 'tool_use')
+      if (tools.length) activity = ACTIVITY_BY_TOOL[tools[tools.length - 1].name] || 'working'
+    }
+    if (activity !== null && permMode !== null) break
+  }
+  if (permMode === 'plan') return 'planning'
+  return activity
+}
+
 // Plan presets (token budgets ~= 100%). Calibrated for Max 5x from the official
 // panel (5h ~24% at 152M tokens, weekly ~62% at 2.14B); Pro/Max20x scaled by the
 // plan multiplier. ESTIMATES — Anthropic doesn't publish exact numbers.
@@ -134,7 +197,13 @@ function getUsage(config) {
   walkJsonl(PROJECTS_DIR, files, scanCutoff)
 
   let lastMtime = 0
-  for (const f of files) lastMtime = Math.max(lastMtime, f.st.mtimeMs)
+  let newestFile = null
+  for (const f of files) {
+    if (f.st.mtimeMs > lastMtime) {
+      lastMtime = f.st.mtimeMs
+      newestFile = f.full
+    }
+  }
 
   const seen = new Set()
   let todayTokens = 0
@@ -195,8 +264,11 @@ function getUsage(config) {
   const weekPct = weeklyBudget ? Math.min(100, (weekTokens / weeklyBudget) * 100) : 0
 
   const lastActivityMs = lastMtime ? now - lastMtime : Infinity
-  const active = lastActivityMs <= (config.activeThresholdMs || 8000)
+  const active = lastActivityMs <= (config.activeThresholdMs || 20000)
   const sleeping = lastActivityMs >= (config.sleepThresholdMs || 300000)
+
+  // what Claude is doing right now (only meaningful while active)
+  const activity = active && newestFile ? detectActivity(newestFile) : null
 
   const byModelArr = [...byModel.entries()]
     .map(([label, tokens]) => ({ label, tokens }))
@@ -212,6 +284,7 @@ function getUsage(config) {
     tokensPerMin: Math.round(last5mTokens / 5),
     active,
     sleeping,
+    activity,
     lastActivityMs,
     ts: now,
   }

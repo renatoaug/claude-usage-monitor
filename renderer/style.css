@@ -628,6 +628,7 @@ body.settings-open #min {
   position: absolute;
   left: 26px;
   bottom: 3px;
+  transition: left 0.35s ease;
   width: 86px;
   height: 77px;
   zoom: 0.8; /* a bit smaller in the scene */
@@ -655,6 +656,16 @@ body.collapsed #stage {
   justify-content: center;
 }
 body.collapsed #scene {
+  display: none;
+}
+/* minimized = just the pet's face: hide all activity scenery + props */
+body.collapsed #desk,
+body.collapsed #plant,
+body.collapsed #mug,
+body.collapsed #reading,
+body.collapsed #terminal,
+body.collapsed #gears,
+body.collapsed #glasses {
   display: none;
 }
 body.collapsed #pet {
@@ -735,6 +746,259 @@ body.settings-open #zzz,
 body.settings-open #flames,
 body.settings-open #sweat {
   display: none;
+}
+/* reading mode: an open book with a magnifying glass scanning the lines */
+#reading {
+  position: absolute;
+  left: 64%;
+  bottom: 3px;
+  width: 66px;
+  height: 63px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+body.act-reading #reading {
+  opacity: 1;
+}
+/* reading glasses on the pet */
+#glasses {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.gl-lens {
+  fill: rgba(190, 225, 255, 0.16);
+  stroke: #241c17;
+  stroke-width: 2.4;
+}
+.gl-bridge,
+.gl-arm {
+  fill: none;
+  stroke: #241c17;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+body.act-reading #glasses {
+  opacity: 1;
+}
+.dc-card {
+  fill: #191d23; /* dark markdown viewer — easier to read on the dark scene */
+}
+.dc-ico {
+  fill: none;
+  stroke: #8a9098;
+  stroke-width: 1.1;
+}
+.dc-ico-fold {
+  fill: #8a9098;
+}
+.dc-title {
+  fill: #e2e5ea;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 7px;
+  font-weight: 700;
+}
+#dc-fname {
+  transition: opacity 0.25s ease;
+}
+.dc-divider {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+.dc-h {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 6.5px;
+  font-weight: 700;
+}
+.dc-h1 {
+  fill: #c39cf0; /* purple */
+}
+.dc-g {
+  fill: #7ed07e; /* green */
+}
+.dc-b {
+  fill: #6fb3f2; /* blue */
+}
+.dc-a {
+  fill: #e0b46a; /* amber */
+}
+.dc-body {
+  fill: #626b76; /* muted body text */
+}
+/* each heading lights up in turn (a "being read" pulse) */
+body.act-reading .dc-h {
+  animation: dc-read 4s ease-in-out infinite;
+}
+@keyframes dc-read {
+  0% {
+    opacity: 0.5;
+  }
+  7% {
+    opacity: 1;
+  }
+  24% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+/* editing mode: a coding desk (laptop with colorful code, coffee, plant) */
+#desk {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+#mug {
+  position: absolute;
+  left: 36%; /* editing: on the desk, near the laptop */
+  bottom: 3px;
+  width: 44px;
+  height: 42px;
+  z-index: 3; /* the mug sits in front, on the desk */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+body.act-editing #desk,
+body.act-editing #mug,
+body.act-reading #mug {
+  opacity: 1;
+}
+/* editing: raise the mug onto the desk, level with the plant */
+body.act-editing #mug {
+  bottom: 22px;
+}
+/* the mug shifts right in reading (centered with the doc) */
+body.act-reading #mug {
+  left: 38%;
+}
+/* slide the pet left in editing to open up the full desk */
+body.act-editing:not(.collapsed) #pet {
+  left: 4px;
+}
+/* reading: pet + mug + doc, centered as a group */
+body.act-reading:not(.collapsed) #pet {
+  left: 12px;
+}
+/* running: pet + terminal centered as a pair */
+body.act-running:not(.collapsed) #pet {
+  left: 27px;
+}
+.dk-desk {
+  fill: #262626;
+}
+.dk-keys {
+  fill: #4d4d4d;
+}
+.mug-body {
+  fill: #d8cbaf;
+}
+.mug-rim {
+  fill: #c6b896;
+}
+.mug-handle {
+  fill: none;
+  stroke: #d8cbaf;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+}
+.mug-code {
+  fill: none;
+  stroke: #2a211a;
+  stroke-width: 1.7;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.dk-wisp {
+  fill: none;
+  stroke: #c9c9c9;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+}
+.dk-deck2 {
+  fill: #3a3a3a;
+}
+.dk-screen {
+  fill: #1c1c1c;
+}
+.dk-glass {
+  fill: #0b0b0b;
+}
+.c-grn {
+  fill: #6fcf6f;
+}
+.c-yel {
+  fill: #e2c46a;
+}
+.c-blu {
+  fill: #6fb3f2;
+}
+.c-cur {
+  fill: #cdeccf;
+}
+.dk-pot {
+  fill: #b98a5e;
+}
+.dk-leaf {
+  fill: #3f9150;
+}
+.dk-leaf-c {
+  fill: #57a95f;
+}
+/* shared potted plant (editing + reading desks) */
+#plant {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+body.act-editing #plant {
+  opacity: 1;
+}
+body.act-editing .c-cur {
+  animation: cursor-blink 1s steps(1, end) infinite;
+}
+body.act-editing .dk-wisp,
+body.act-reading .dk-wisp {
+  transform-box: view-box;
+  animation: steam 2.6s ease-in-out infinite;
+}
+@keyframes cursor-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes steam {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  35% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
 }
 #mouth {
   fill: var(--eye);
@@ -939,6 +1203,198 @@ body.drowse #claude {
 }
 body.celebrate #claude {
   animation: celebrate 1.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* reading/editing/running: calm bob instead of the working hop */
+body.act-reading #claude,
+body.act-editing #claude,
+body.act-running #claude {
+  animation: bob 3.6s ease-in-out infinite;
+}
+/* running mode: a mini terminal with a typing command */
+#terminal {
+  position: absolute;
+  left: 48%;
+  bottom: 3px;
+  width: 88px;
+  height: 68px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+body.act-running #terminal {
+  opacity: 1;
+}
+.tm-win {
+  fill: #14161a;
+}
+.tm-border {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 0.7;
+}
+.tm-bar {
+  fill: #262a30;
+}
+.tm-d1 {
+  fill: #ff5f57;
+}
+.tm-d2 {
+  fill: #febc2e;
+}
+.tm-d3 {
+  fill: #28c840;
+}
+.tm-prompt-c {
+  fill: #6fcf6f;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 7.5px;
+  font-weight: 700;
+}
+.tm-head {
+  fill: #d6d9de;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 7px;
+  font-weight: 600;
+}
+.tm-txt {
+  fill: #cfd3d8;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 6.5px;
+}
+.tm-dots {
+  fill: #8a9098;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 7px;
+  font-weight: 700;
+}
+.tm-cursor {
+  fill: #6fcf6f;
+}
+.tm-check {
+  fill: none;
+  stroke: #28c840;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tm-spin {
+  fill: none;
+  stroke: #cfd3d8;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: 8px 54px; /* the spinner's own centre */
+}
+.tm-done-txt {
+  fill: #6fcf6f;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 6.5px;
+  font-weight: 600;
+}
+/* task log lifecycle (5s): lines stream in → Waiting spins → ✓ Done → restart */
+.tskA,
+.tskB,
+.tskC,
+.tskWait,
+.tskDone {
+  opacity: 0;
+}
+body.act-running .tskA {
+  animation: tskA 5s linear infinite;
+}
+body.act-running .tskB {
+  animation: tskB 5s linear infinite;
+}
+body.act-running .tskC {
+  animation: tskC 5s linear infinite;
+}
+body.act-running .tskWait {
+  animation: tskWait 5s linear infinite;
+}
+body.act-running .tskDone {
+  animation: tskDone 5s linear infinite;
+}
+body.act-running .tm-spin {
+  animation: tm-spin-rot 0.8s linear infinite;
+}
+body.act-running .tm-cursor {
+  animation: cursor-blink 1s steps(1, end) infinite;
+}
+@keyframes tm-spin-rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes tskA {
+  0%,
+  4% {
+    opacity: 0;
+  }
+  8%,
+  90% {
+    opacity: 1;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes tskB {
+  0%,
+  16% {
+    opacity: 0;
+  }
+  20%,
+  90% {
+    opacity: 1;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes tskC {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  34%,
+  90% {
+    opacity: 1;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes tskWait {
+  0%,
+  6% {
+    opacity: 0;
+  }
+  10%,
+  46% {
+    opacity: 1;
+  }
+  52%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes tskDone {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  58%,
+  90% {
+    opacity: 1;
+  }
+  96%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* status */
@@ -1186,17 +1642,6 @@ body.state-tired #status-text {
   }
   95% {
     transform: scaleY(0.1);
-  }
-}
-@keyframes shadowPulse {
-  0%,
-  100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: translateX(-50%) scale(0.84);
-    opacity: 0.7;
   }
 }
 @keyframes ping {

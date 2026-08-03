@@ -22,6 +22,14 @@ const STATES = [
   'celebrate',
   'auto',
   'clear',
+  // activity states (what Claude Code is doing)
+  'editing',
+  'reading',
+  'planning',
+  'running',
+  'researching',
+  'delegating',
+  'waiting',
 ]
 const arg = process.argv[2]
 

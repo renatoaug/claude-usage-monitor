@@ -7,6 +7,7 @@
 #   ./pet idle        -> idle
 #   ./pet poke        -> one-shot squish + hearts
 #   ./pet celebrate   -> one-shot jump + sparkles
+#   ./pet reading     -> reading a book (also: editing planning running researching delegating waiting)
 #   ./pet auto        -> back to real data
 DIR="$HOME/.claude-usage-monitor"
 state="${1:-auto}"
@@ -14,9 +15,11 @@ mkdir -p "$DIR"
 
 case "$state" in
   fire|sleeping|working|tired|idle|poke|celebrate|auto|clear) ;;
+  editing|reading|planning|running|researching|delegating|waiting) ;;
   *)
     echo "unknown state: $state"
     echo "use: fire | sleeping | working | tired | idle | poke | celebrate | auto"
+    echo "     activities: editing | reading | planning | running | researching | delegating | waiting"
     exit 1
     ;;
 esac

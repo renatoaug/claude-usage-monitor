@@ -52,7 +52,7 @@ function loadConfig() {
     alertThresholds: [80, 95],
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
     pollIntervalMs: 4000,
-    activeThresholdMs: 8000,
+    activeThresholdMs: 20000,
     sleepThresholdMs: 300000,
   }
   for (const p of [EXTERNAL_CONFIG, path.join(__dirname, 'config.json')]) {

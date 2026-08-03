@@ -32,8 +32,12 @@ bun run dist:win   # Windows zip — run on Windows/CI (needs a native runner)
 bun run dist:linux # Linux tar.gz + AppImage (run on Linux/CI)
 bun run icon       # regenerate build/icon.{icns,ico,png} from the sprite
 bun run check      # Biome format + lint (autofix)
-./pet <state>      # simulate: fire | sleeping | working | tired | idle | poke | celebrate | auto
+./pet <state>      # simulate a state, e.g. ./pet fire
 ```
+
+`./pet <state>` states: `fire`, `sleeping`, `working`, `tired`, `idle`, `poke`,
+`celebrate`, `auto`, plus the activity scenes `reading`, `editing`, `running`,
+`planning`, `researching`, `delegating`, `waiting`.
 
 > Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't
 > reliably cross-build them from macOS. The `Build (manual)` workflow (`.github/workflows/build.yml`)

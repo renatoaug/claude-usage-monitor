@@ -48,6 +48,27 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
 
 Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#play-with-the-pet) too.
 
+### What Claude's up to
+
+While Claude Code is actively working, the pet sets up a little desk scene that
+mirrors **what it's doing right now** — inferred from your local logs (the last
+tool it used). The status line names the activity, and three of them get their
+own animated scene:
+
+<table>
+  <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/reading.gif" width="280" alt="reading" /><br /><b>reading</b><br /><sub>puts on glasses &amp; flips through docs</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/editing.gif" width="280" alt="editing" /><br /><b>editing</b><br /><sub>types at the laptop, coffee in reach</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/docs/media/running.gif" width="280" alt="running" /><br /><b>running</b><br /><sub>watches a task log tick through its checks</sub></td>
+  </tr>
+</table>
+
+Other activities — **planning**, **researching**, **delegating**, **waiting** —
+show up in the status line as they happen. When Claude goes quiet, the pet drops
+back to plain **working** / **idle**.
+
 ## Install
 
 **macOS (Apple Silicon)** is the first-class build. **Windows (x64)** works too, and **Linux** is next. The `bunx`/`npx` route below runs on all of them today.
@@ -118,7 +139,7 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
   "alertThresholds": [80, 95], // notify when session/week cross these % (two levels)
   "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays 100)
   "pollIntervalMs": 4000, // how often local logs are re-read
-  "activeThresholdMs": 8000, // "working" if Claude was active within this window
+  "activeThresholdMs": 20000, // "active" if Claude wrote to its logs within this window
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
 }
 ```
@@ -145,7 +166,7 @@ live. (Installed globally? Drop the `bunx`: `clauddy poke`. Working on the repo?
 ## How it works
 
 - **`main.js`** — Electron main process: frameless, transparent, always-on-top window; polls usage; fires macOS notifications; watches `config.json` and `debug.json`.
-- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/day, detects the rolling 5-hour session window, and the working/sleeping activity status.
+- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/day, detects the rolling 5-hour session window, the working/sleeping status, and which activity (reading/editing/running/…) Claude is on from its latest tool use.
 - **`auth.js`** — OAuth login (PKCE, same public client as Claude Code) that fetches the authoritative usage %. Token stored locally, never committed.
 - **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles.
 - **`make-icon.js`** — generates the app icon from the pixel sprite (`build/icon.icns`).

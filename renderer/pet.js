@@ -114,6 +114,32 @@ const SPRITE = [
   })
 })()
 
+// reading mode: the doc's filename slowly cycles through project docs, since
+// it's a Claude app "reading" different files (a gentle fade between names)
+;(function cycleDocName() {
+  const node = el('dc-fname')
+  if (!node) return
+  const names = [
+    'README.md',
+    'ARCHITECTURE.md',
+    'api.md',
+    'AUTH.md',
+    'MIGRATION.md',
+    'CONTRIBUTING.md',
+    'usage.md',
+    'config.md',
+  ]
+  let i = 0
+  setInterval(() => {
+    node.style.opacity = '0'
+    setTimeout(() => {
+      i = (i + 1) % names.length
+      node.textContent = names[i]
+      node.style.opacity = '1'
+    }, 260)
+  }, 3800)
+})()
+
 // helpers
 function fmtTokens(t) {
   t = t || 0
@@ -413,7 +439,9 @@ function render(d) {
           : d.sleeping
             ? 'sleeping'
             : 'idle'
-  // dev override from `./pet <state>`
+  const acts = ['editing', 'reading', 'planning', 'running', 'researching', 'delegating', 'waiting']
+  let curActivity = d.activity
+  // dev override from `./pet <state>` (base states or an activity name)
   if (debugState) {
     const map = {
       working: 'working',
@@ -422,9 +450,20 @@ function render(d) {
       tired: 'tired',
       idle: 'idle',
     }
-    if (map[debugState]) st = map[debugState]
+    if (map[debugState]) {
+      st = map[debugState]
+      curActivity = null
+    } else if (acts.includes(debugState)) {
+      st = 'working'
+      curActivity = debugState
+    }
   }
   setState(st)
+  // expose the current activity as a body class so per-action animations can
+  // hook it (e.g. body.act-reading). Only while actively working.
+  for (const a of acts) {
+    document.body.classList.toggle(`act-${a}`, st === 'working' && curActivity === a)
+  }
   if (prevState && prevState !== st) {
     if (st === 'sleeping') oneShot('drowse', 700)
     else if (prevState === 'sleeping') oneShot('wake', 700)
@@ -433,7 +472,7 @@ function render(d) {
 
   const word =
     st === 'working'
-      ? 'working'
+      ? curActivity || 'working' // show what Claude's doing (editing/reading/…)
       : st === 'sleeping'
         ? 'sleeping'
         : st === 'stressed'

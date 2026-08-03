@@ -21,15 +21,24 @@ const STATES = [
   { name: 'celebrate', base: 'idle', trigger: 'celebrate', ms: 2200 },
 ]
 
+// activity states (what Claude Code is doing) — these need the full desk scenery
+// (mug/doc/terminal/glasses), so we drive the real renderer directly and capture
+// its #stage region, rather than the minimal capture.html stub.
+const ACT_STATES = [
+  { name: 'reading', cls: 'state-working act-reading live', ms: 5000 },
+  { name: 'editing', cls: 'state-working act-editing live', ms: 5000 },
+  { name: 'running', cls: 'state-working act-running live', ms: 5500 },
+]
+
 const delay = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function grab(win, ms) {
+async function grab(win, ms, rect) {
   const frames = []
   const interval = 50
   const start = Date.now()
   while (Date.now() - start < ms) {
     const t0 = Date.now()
-    const img = await win.webContents.capturePage()
+    const img = rect ? await win.webContents.capturePage(rect) : await win.webContents.capturePage()
     frames.push(img.toPNG())
     const dt = Date.now() - t0
     if (dt < interval) await delay(interval - dt)
@@ -100,6 +109,42 @@ app.whenReady().then(async () => {
     const { frames, elapsed } = await rec
     encode(s.name, frames, elapsed, 420)
   }
+
+  // --- 1b) activity-state GIFs: the real renderer, capturing the #stage region.
+  // These need the full desk scenery, so we drive the actual index.html and set
+  // the body class directly. Uses its own window sized for the full card — the
+  // whole stage must sit inside the viewport or capturePage clips the scene, and
+  // resizing the shared window mid-run trips capturePage (UnknownVizError). ---
+  win.hide() // base captures are done; leave a single window on the compositor
+  const awin = new BrowserWindow({
+    width: 320,
+    height: 600,
+    x: 60,
+    y: 60,
+    show: true,
+    backgroundColor: '#110c0a',
+    webPreferences: {
+      preload: path.join(ROOT, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  const aexec = (js) => awin.webContents.executeJavaScript(js)
+  for (const s of ACT_STATES) {
+    // reload fresh per state so no previous scene's fade-out bleeds into the
+    // opening frames, then let the entrance transitions settle before recording.
+    await awin.loadFile(path.join(ROOT, 'renderer', 'index.html'))
+    await delay(500)
+    await aexec(`document.body.className = ${JSON.stringify(s.cls)}`)
+    await delay(900)
+    const rect = await aexec(
+      "(()=>{const r=document.getElementById('stage').getBoundingClientRect();return {x:Math.max(0,Math.floor(r.x)),y:Math.max(0,Math.floor(r.y)),width:Math.ceil(r.width),height:Math.ceil(r.height)}})()",
+    )
+    const { frames, elapsed } = await grab(awin, s.ms, rect)
+    encode(s.name, frames, elapsed, 420)
+  }
+  awin.close()
+  win.show()
 
   // --- 2) full-widget GIF (the whole card with live-looking data) ---
   win.setContentSize(300, 220)

@@ -69,12 +69,58 @@
           </g>
         </svg>
         <svg id="scene" viewBox="0 0 216 135" preserveAspectRatio="none"></svg>
+        <!-- editing mode: a coding desk (laptop + coffee + plant) behind the pet -->
+        <svg id="desk" viewBox="0 0 216 135" preserveAspectRatio="none">
+          <rect class="dk-desk" x="4" y="113" width="208" height="3" />
+          <!-- laptop (shrunk + shifted right for breathing room) -->
+          <g class="dk-laptop" transform="translate(49 28) scale(0.7)">
+          <rect class="dk-screen" x="110" y="64" width="66" height="48" rx="3" />
+          <rect class="dk-glass" x="114" y="68" width="58" height="40" rx="2" />
+          <polygon class="dk-deck2" points="106,110 180,110 190,121 96,121" />
+          <rect class="dk-keys" x="112" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="121" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="130" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="139" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="148" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="157" y="112" width="7" height="2.4" rx="0.5" />
+          <rect class="dk-keys" x="109" y="115.5" width="8" height="2.6" rx="0.5" />
+          <rect class="dk-keys" x="119" y="115.5" width="8" height="2.6" rx="0.5" />
+          <rect class="dk-keys" x="129" y="115.5" width="18" height="2.6" rx="0.5" />
+          <rect class="dk-keys" x="149" y="115.5" width="8" height="2.6" rx="0.5" />
+          <rect class="dk-keys" x="159" y="115.5" width="8" height="2.6" rx="0.5" />
+          <rect class="c-grn" x="119" y="75" width="4" height="3" />
+          <rect class="c-grn" x="126" y="75" width="22" height="3" />
+          <rect class="c-grn" x="119" y="82" width="30" height="3" />
+          <rect class="c-yel" x="123" y="89" width="26" height="3" />
+          <rect class="c-blu" x="119" y="96" width="14" height="3" />
+          <rect class="c-yel" x="136" y="96" width="12" height="3" />
+          <rect class="c-grn" x="119" y="103" width="10" height="3" />
+          <rect class="c-cur" x="132" y="103" width="2.5" height="3.6" />
+          </g>
+        </svg>
+        <!-- potted plant, shared by the editing + reading desks -->
+        <svg id="plant" viewBox="0 0 216 135" preserveAspectRatio="none">
+          <polygon class="dk-pot" points="188,102 208,102 205,113 191,113" />
+          <path class="dk-leaf" d="M198 103 q-11 -7 -13 -21 q11 4 13 21" />
+          <path class="dk-leaf" d="M198 103 q11 -7 13 -21 q-11 4 -13 21" />
+          <path class="dk-leaf" d="M198 103 q-5 -12 -3 -25 q7 9 3 25" />
+          <path class="dk-leaf" d="M198 103 q5 -12 3 -25 q-7 9 -3 25" />
+          <path class="dk-leaf-c" d="M198 103 q0 -14 0 -27 q3 13 0 27" />
+        </svg>
         <div id="shadow"></div>
         <div id="pet">
           <svg id="claude" viewBox="0 0 100 90" width="86" height="77">
             <g id="body"></g>
             <g id="eyes"></g>
             <rect id="mouth" x="38" y="54" width="24" height="10" rx="2" />
+            <!-- reading glasses (reading mode) -->
+            <g id="glasses">
+              <circle class="gl-lens" cx="35" cy="35" r="8.5" />
+              <circle class="gl-lens" cx="65" cy="35" r="8.5" />
+              <path class="gl-bridge" d="M43 34 q7 -3 14 0" />
+              <line class="gl-arm" x1="26.5" y1="35" x2="20" y2="33" />
+              <line class="gl-arm" x1="73.5" y1="35" x2="80" y2="33" />
+            </g>
             <!-- mechanic mode (settings): hard hat + screwdriver -->
             <g id="robot">
               <!-- yellow hard hat: pixel-art bitmap, built in pet.js (buildHat) -->
@@ -100,6 +146,73 @@
           <div id="sweat"><i></i><i></i></div>
           <div id="dropzone"></div>
         </div>
+        <!-- editing mode, foreground: coffee mug in front of the pet -->
+        <!-- mug: its own SVG with UNIFORM scaling (no stage stretch) so it stays perfectly shaped -->
+        <svg id="mug" viewBox="0 0 46 44" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <g class="dk-steam">
+            <path class="dk-wisp" d="M19 15 q4 -4 0 -8 q-4 -4 0 -8" style="animation-delay: 0s" />
+            <path class="dk-wisp" d="M25 15 q4 -4 0 -8 q-4 -4 0 -8" style="animation-delay: 0.9s" />
+          </g>
+          <path class="mug-handle" d="M31 23 q8 1 8 7 q0 6 -8 6.5" />
+          <rect class="mug-body" x="12" y="18" width="19" height="26" rx="2.5" />
+          <rect class="mug-rim" x="12.5" y="18" width="18" height="3" rx="1.6" />
+          <path class="mug-code" d="M17 26 L14 32 L17 38 M20 38 L25 26 M26 26 L29 32 L26 38" />
+        </svg>
+        <!-- running mode: a task log — Claude working (uniform scale) -->
+        <svg id="terminal" viewBox="0 0 92 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <rect class="tm-win" x="2" y="2" width="88" height="60" rx="4" />
+          <rect class="tm-bar" x="2" y="2" width="88" height="8" rx="4" />
+          <rect class="tm-bar" x="2" y="6.5" width="88" height="3.5" />
+          <circle class="tm-d1" cx="8" cy="6" r="1.6" />
+          <circle class="tm-d2" cx="13" cy="6" r="1.6" />
+          <circle class="tm-d3" cx="18" cy="6" r="1.6" />
+          <!-- hairline border around the content area only (open at the top bar) -->
+          <path class="tm-border" d="M2.4 10 L2.4 58 Q2.4 61.6 6 61.6 L86 61.6 Q89.6 61.6 89.6 58 L89.6 10" />
+          <text class="tm-prompt-c" x="7" y="20">&#10095;</text>
+          <text class="tm-head" x="13" y="20">Running</text>
+          <text class="tm-dots" x="33" y="20">...</text>
+          <rect class="tm-cursor" x="43" y="15" width="2.4" height="5.4" />
+          <g class="tskA">
+            <path class="tm-check" d="M7 30 l1.5 1.5 l2.7 -3.2" />
+            <text class="tm-txt" x="14" y="32">Reading files</text>
+          </g>
+          <g class="tskB">
+            <path class="tm-check" d="M7 38 l1.5 1.5 l2.7 -3.2" />
+            <text class="tm-txt" x="14" y="40">Editing code</text>
+          </g>
+          <g class="tskC">
+            <path class="tm-check" d="M7 46 l1.5 1.5 l2.7 -3.2" />
+            <text class="tm-txt" x="14" y="48">Executing</text>
+          </g>
+          <g class="tskWait">
+            <path class="tm-spin" d="M10.4 54 A2.4 2.4 0 1 1 8 51.6" />
+            <text class="tm-txt" x="14" y="56">Waiting</text>
+            <text class="tm-dots" x="33" y="56">...</text>
+          </g>
+          <g class="tskDone">
+            <path class="tm-check" d="M7 54 l1.5 1.5 l2.7 -3.2" />
+            <text class="tm-done-txt" x="14" y="56">Done</text>
+          </g>
+        </svg>
+        <!-- reading mode: a "docs.md" markdown file being read (uniform scale) -->
+        <svg id="reading" viewBox="0 0 84 74" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <rect class="dc-card" x="2" y="2" width="80" height="70" rx="4" />
+          <!-- title bar -->
+          <rect class="dc-ico" x="7" y="7" width="7" height="9" rx="1" />
+          <rect class="dc-ico-fold" x="11.5" y="7" width="2.5" height="2.5" />
+          <text id="dc-fname" class="dc-title" x="17" y="14">README.md</text>
+          <line class="dc-divider" x1="6" y1="19" x2="78" y2="19" />
+          <!-- content -->
+          <text class="dc-h dc-h1" x="7" y="29" style="animation-delay: 0s"># Getting Started</text>
+          <rect class="dc-body" x="9" y="32" width="42" height="2" />
+          <rect class="dc-body" x="9" y="35.5" width="34" height="2" />
+          <text class="dc-h dc-g" x="7" y="45" style="animation-delay: 1s">## Installation</text>
+          <rect class="dc-body" x="9" y="48" width="30" height="2" />
+          <text class="dc-h dc-b" x="7" y="57" style="animation-delay: 2s">## Usage</text>
+          <rect class="dc-body" x="9" y="60" width="40" height="2" />
+          <text class="dc-h dc-a" x="7" y="68" style="animation-delay: 3s">## Examples</text>
+          <rect class="dc-body" x="9" y="70.5" width="26" height="2" />
+        </svg>
       </div>
 
       <!-- shown only when collapsed -->
