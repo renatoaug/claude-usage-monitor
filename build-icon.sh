@@ -34,3 +34,6 @@ for s in 16 32 48 64 128 256; do
 done
 node "$DIR/make-ico.js" "$ICO_TMP" "$DIR/build/icon.ico" # Windows
 echo "built $DIR/build/icon.png"
+
+# menu-bar (tray) template icon, from the same sprite
+node "$DIR/make-tray.js"

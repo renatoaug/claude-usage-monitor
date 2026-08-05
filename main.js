@@ -1,4 +1,14 @@
-const { app, BrowserWindow, ipcMain, screen, Notification, shell } = require('electron')
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  Notification,
+  shell,
+  Tray,
+  Menu,
+  nativeImage,
+} = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -30,12 +40,20 @@ let config
 let doTick = null
 const W = 276
 
+// menu-bar (tray) mode state
+let tray = null
+let currentMode = 'floating' // 'floating' widget | 'menubar' popover
+let trayBounds = null // last known tray icon rect, to anchor the popover
+let lastBlurHide = 0 // debounce: ignore the tray click that dismissed the popover
+let sessionPct = null // authoritative session % shown in the tray title
+
 function publicConfig(c) {
   return {
     plan: c.plan,
     sessionTokenBudget: c.sessionTokenBudget,
     weeklyTokenBudget: c.weeklyTokenBudget,
     weeklyAnchorIso: c.weeklyAnchorIso,
+    mode: c.mode,
     alerts: c.alerts,
     alertThresholds: c.alertThresholds,
     fireThreshold: c.fireThreshold,
@@ -48,6 +66,7 @@ function loadConfig() {
     sessionTokenBudget: 630000000,
     weeklyTokenBudget: 3450000000,
     weeklyAnchorIso: null,
+    mode: 'floating', // 'floating' widget or 'menubar' popover
     alerts: true,
     alertThresholds: [80, 95],
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
@@ -105,6 +124,7 @@ function createWindow() {
     transparent: true,
     backgroundColor: '#00000000', // fully transparent — Windows needs this or the window paints black
     resizable: false,
+    show: false, // applyMode() reveals it (floating) or keeps it a hidden popover (menubar)
     alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: false,
@@ -119,6 +139,14 @@ function createWindow() {
   win.setAlwaysOnTop(true, 'floating')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+
+  // in menu-bar mode the popover dismisses when it loses focus (click elsewhere)
+  win.on('blur', () => {
+    if (currentMode === 'menubar' && win.isVisible()) {
+      win.hide()
+      lastBlurHide = Date.now()
+    }
+  })
 
   const tick = () => {
     if (!win || win.isDestroyed()) return
@@ -140,7 +168,115 @@ function createWindow() {
     startUsagePoll()
     sendProfile()
     watchDebug()
+    applyMode(config.mode) // reveal the widget, or set up the tray + popover
   })
+}
+
+// ---- menu-bar (tray) mode ----------------------------------------------------
+// Floating mode: the widget lives bottom-right, always visible. Menu-bar mode:
+// the same window becomes a popover shown under a tray icon on click. Switching
+// is live — no relaunch — so the Settings toggle applies immediately.
+function applyMode(mode) {
+  const next = mode === 'menubar' ? 'menubar' : 'floating'
+  const changed = next !== currentMode
+  currentMode = next
+  if (currentMode === 'menubar') {
+    ensureTray()
+    win.setSkipTaskbar(true)
+    if (changed && win.isVisible()) win.hide() // hide only when switching in
+  } else {
+    destroyTray()
+    if (changed || !win.isVisible()) {
+      positionFloating()
+      win.show()
+    }
+  }
+  updateTray()
+}
+
+function ensureTray() {
+  if (tray) return
+  const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'trayTemplate.png'))
+  img.setTemplateImage(true) // let macOS recolor it for the light/dark menu bar
+  tray = new Tray(img)
+  tray.setToolTip('Clauddy')
+  tray.on('click', (_e, bounds) => {
+    trayBounds = bounds
+    togglePopover()
+  })
+  tray.on('right-click', () => tray.popUpContextMenu(trayMenu()))
+}
+
+function destroyTray() {
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+}
+
+function trayMenu() {
+  return Menu.buildFromTemplate([
+    { label: 'Open Clauddy', click: () => showPopover() },
+    {
+      label: 'Open Usage page',
+      click: () => shell.openExternal('https://claude.ai/settings/usage'),
+    },
+    { type: 'separator' },
+    { label: 'Quit Clauddy', click: () => app.quit() },
+  ])
+}
+
+function togglePopover() {
+  if (Date.now() - lastBlurHide < 250) return // this click just dismissed it
+  if (win.isVisible()) win.hide()
+  else showPopover()
+}
+
+function showPopover() {
+  positionUnderTray()
+  win.show()
+  win.focus()
+}
+
+// center the popover under the tray icon, kept on-screen
+function positionUnderTray() {
+  const b = win.getBounds()
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  let x = workAreaSize.width - b.width - 24
+  let y = 24
+  if (trayBounds?.width) {
+    x = Math.round(trayBounds.x + trayBounds.width / 2 - b.width / 2)
+    y = Math.round(trayBounds.y + trayBounds.height)
+  }
+  x = Math.max(8, Math.min(x, workAreaSize.width - b.width - 8))
+  win.setPosition(x, y)
+}
+
+function positionFloating() {
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  const b = win.getBounds()
+  win.setPosition(workAreaSize.width - b.width - 24, workAreaSize.height - b.height - 24)
+}
+
+// the tray shows the live session % (macOS title), turning 🔥 near the limit
+function updateTray() {
+  if (!tray) return
+  if (sessionPct == null) {
+    if (process.platform === 'darwin') tray.setTitle('')
+    tray.setToolTip('Clauddy — connect your account for live %')
+    return
+  }
+  const pct = Math.round(sessionPct)
+  const hot = pct >= (config?.fireThreshold ?? 90)
+  if (process.platform === 'darwin') tray.setTitle(hot ? ` ${pct}% 🔥` : ` ${pct}%`)
+  tray.setToolTip(`Clauddy — session ${pct}%`)
+}
+
+// send real usage to the renderer and refresh the tray title in one place
+function pushRealUsage(u) {
+  sessionPct = u?.session ? u.session.pct : null
+  updateTray()
+  if (win && !win.isDestroyed()) win.webContents.send('real-usage', u)
 }
 
 // resize the window to fit the content
@@ -149,8 +285,12 @@ ipcMain.on('resize', (_e, w, h) => {
   const width = Math.max(100, Math.round(w))
   const height = Math.max(110, Math.round(h))
   win.setContentSize(width, height)
-  const { workAreaSize } = screen.getPrimaryDisplay()
-  win.setPosition(workAreaSize.width - width - 24, workAreaSize.height - height - 24)
+  if (currentMode === 'menubar') {
+    if (win.isVisible()) positionUnderTray() // keep it anchored under the tray
+  } else {
+    const { workAreaSize } = screen.getPrimaryDisplay()
+    win.setPosition(workAreaSize.width - width - 24, workAreaSize.height - height - 24)
+  }
 })
 
 ipcMain.on('open-usage', () => shell.openExternal('https://claude.ai/settings/usage'))
@@ -177,15 +317,15 @@ async function pollUsage() {
   try {
     const u = await auth.fetchUsage()
     usageBackoff = 5 * 60 * 1000
-    if (win && !win.isDestroyed()) win.webContents.send('real-usage', u)
+    pushRealUsage(u)
   } catch (e) {
     if (e && e.status === 429) {
       usageBackoff = Math.min(usageBackoff * 2, 30 * 60 * 1000)
     } else if (e && e.status === 401) {
       auth.clear()
+      pushRealUsage(null)
       if (win && !win.isDestroyed()) {
         win.webContents.send('auth-state', { connected: false })
-        win.webContents.send('real-usage', null)
         win.webContents.send('profile', null)
       }
     }
@@ -220,7 +360,7 @@ ipcMain.on('auth-code', async (_e, code) => {
     try {
       const u = await auth.fetchUsage() // validate the token
       ok()
-      if (win && !win.isDestroyed()) win.webContents.send('real-usage', u)
+      pushRealUsage(u)
     } catch (e) {
       if (e && e.status === 429) {
         // token is fine, the usage endpoint is just throttled — keep it and retry later
@@ -239,9 +379,9 @@ ipcMain.on('auth-code', async (_e, code) => {
 ipcMain.on('auth-logout', () => {
   auth.clear()
   clearTimeout(usageTimer)
+  pushRealUsage(null)
   if (win && !win.isDestroyed()) {
     win.webContents.send('auth-state', { connected: false })
-    win.webContents.send('real-usage', null)
     win.webContents.send('profile', null)
   }
 })
@@ -263,6 +403,7 @@ ipcMain.on('save-config', (_e, patch) => {
   armed.clear() // re-arm alerts with new thresholds
   if (doTick) doTick()
   if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
+  applyMode(config.mode) // switch between floating widget and menu-bar popover live
 })
 
 ipcMain.on('quit', () => app.quit())
@@ -280,6 +421,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (pollTimer) clearInterval(pollTimer)
   fs.unwatchFile(DEBUG_FILE)
+  destroyTray()
   app.quit()
 })
 

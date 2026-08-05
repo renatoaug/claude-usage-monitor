@@ -560,6 +560,7 @@ window.api.onError((msg) => {
 })
 window.api.onConfig((cfg) => {
   currentConfig = cfg || {}
+  document.body.classList.toggle('is-menubar', currentConfig.mode === 'menubar')
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
@@ -642,8 +643,16 @@ el('acc-logout').addEventListener('click', () => window.api.authLogout())
 // settings panel
 // snapshot of the editable fields, to tell whether there are unsaved changes
 let settingsBaseline = null
+let selectedMode = 'floating'
+function setModeUI(mode) {
+  selectedMode = mode === 'menubar' ? 'menubar' : 'floating'
+  for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
+    b.classList.toggle('on', b.dataset.mode === selectedMode)
+  }
+}
 function snapshotSettings() {
   return JSON.stringify({
+    mode: selectedMode,
     alerts: el('set-alerts').checked,
     t1: el('set-t1').value,
     t2: el('set-t2').value,
@@ -660,6 +669,7 @@ function clearSaveDirty() {
 }
 function populateSettings() {
   const c = currentConfig || {}
+  setModeUI(c.mode)
   el('set-alerts').checked = c.alerts !== false
   const th = c.alertThresholds || [80, 95]
   el('set-t1').value = th[0] != null ? th[0] : 80
@@ -692,6 +702,13 @@ for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire']) {
   el(id).addEventListener('input', refreshSaveDirty)
   el(id).addEventListener('change', refreshSaveDirty)
 }
+// display-mode segmented control (floating pet | menu bar)
+for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
+  b.addEventListener('click', () => {
+    setModeUI(b.dataset.mode)
+    refreshSaveDirty()
+  })
+}
 el('set-cancel').addEventListener('click', () => {
   document.body.classList.remove('settings-open')
   clearSaveDirty()
@@ -701,6 +718,7 @@ el('set-save').addEventListener('click', () => {
   const num = (id) => parseFloat(el(id).value)
   const fire = num('set-fire')
   window.api.saveConfig({
+    mode: selectedMode,
     alerts: el('set-alerts').checked,
     alertThresholds: [num('set-t1'), num('set-t2')]
       .filter((n) => n >= 1 && n <= 100)

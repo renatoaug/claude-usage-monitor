@@ -1,5 +1,6 @@
 {
   "_note": "Defaults bundled with the app. User settings are saved to ~/.claude-usage-monitor/config.json. Session/weekly % come from your account (log in via Settings).",
+  "mode": "floating",
   "alerts": true,
   "alertThresholds": [80, 95],
   "fireThreshold": 90,

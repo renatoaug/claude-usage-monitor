@@ -121,9 +121,18 @@ Coming soon — the build is already wired for `tar.gz` and AppImage. In the mea
 
 - **Drag** the widget anywhere on screen
 - **–** minimizes to just the pet's face (showing the live session %); the **⤢** button or a double-click on the pet expands it back
-- **⚙** opens settings (log in, toggle alerts, set thresholds)
+- **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page
 - **×** quits
+
+### Floating or menu bar
+
+Under **⚙ Settings → Display** you can pick where Clauddy lives:
+
+- **Floating pet** — the always-on widget in the corner (default).
+- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
+
+Switching is instant — no restart. (On Windows/Linux the icon lives in the system tray; the live % shows in its tooltip.)
 
 ## Alerts
 
@@ -135,6 +144,7 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
 
 ```jsonc
 {
+  "mode": "floating", // "floating" pet in the corner, or "menubar" popover
   "alerts": true, // macOS notifications on/off
   "alertThresholds": [80, 95], // notify when session/week cross these % (two levels)
   "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays 100)

@@ -238,6 +238,38 @@ body.settings-open #settings {
   appearance: none;
   margin: 0;
 }
+/* display-mode segmented control (floating pet | menu bar) */
+.seg {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.seg-btn {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid var(--hair);
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.seg-btn:hover {
+  color: var(--text);
+}
+.seg-btn.on {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: #fff;
+}
+/* menu-bar mode: the popover auto-sizes, so the minimize control is redundant */
+body.is-menubar #min {
+  display: none;
+}
 .set-two {
   display: flex;
   gap: 6px;

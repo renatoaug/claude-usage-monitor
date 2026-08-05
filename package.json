@@ -68,7 +68,9 @@
       "usage.js",
       "auth.js",
       "config.json",
-      "renderer/**"
+      "renderer/**",
+      "build/trayTemplate.png",
+      "build/trayTemplate@2x.png"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

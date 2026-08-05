@@ -20,6 +20,7 @@ macOS-first, with Windows (x64) support and Linux on the way.
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
 - `make-icon.js` — generates the macOS `.icns` from the pixel sprite
 - `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
+- `make-tray.js` — generates the menu-bar (tray) template icon from the same sprite
 - `pet` — dev script to simulate pet states (writes `~/.claude-usage-monitor/debug.json`)
 
 ## Commands
