@@ -424,13 +424,19 @@ function enableLinuxAutostart() {
   const exec = process.env.APPIMAGE || process.execPath
   const autostartDir = path.join(os.homedir(), '.config', 'autostart')
   const desktopFile = path.join(autostartDir, 'clauddy.desktop')
+  // AppImage isn't registered in the system's hicolor icon theme, so a bare
+  // "Icon=clauddy" name won't resolve — copy the icon to a path that outlives
+  // the AppImage's temp mount and reference it absolutely instead.
+  const iconFile = path.join(DATA_DIR, 'icon.png')
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+  fs.copyFileSync(path.join(__dirname, 'build', 'icon.png'), iconFile)
   const entry = [
     '[Desktop Entry]',
     'Type=Application',
     'Name=Clauddy',
     'Comment=A cute pixel-art desktop pet that tracks your Claude Code usage',
     `Exec="${exec}"`,
-    'Icon=clauddy',
+    `Icon=${iconFile}`,
     'Terminal=false',
     'X-GNOME-Autostart-enabled=true',
     '',
