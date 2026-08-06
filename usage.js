@@ -19,10 +19,13 @@ function labelFor(model) {
           : m.includes('mythos')
             ? 'Mythos'
             : null
-  const ver = m.match(/-(\d)-(\d+)/)
-  if (fam && ver) return `${fam} ${ver[1]}.${ver[2]}`
-  if (fam) return fam
-  return model
+  if (!fam) return model
+  // version after the family: opus-5, opus-4-8, haiku-4-5-<date>
+  let ver = m.match(/(?:opus|sonnet|haiku|fable|mythos)-(\d{1,2})(?:-(\d{1,2}))?(?!\d)/)
+  // legacy ids put the version before the family: claude-3-5-sonnet
+  if (!ver) ver = m.match(/-(\d)-(\d+)/)
+  if (ver) return ver[2] ? `${fam} ${ver[1]}.${ver[2]}` : `${fam} ${ver[1]}`
+  return fam
 }
 
 function tokensOf(entry) {
