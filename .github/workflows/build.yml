@@ -1,9 +1,8 @@
 name: Build (manual)
 
-# Manually build a platform artifact for testing — Windows today, Linux ready to
-# enable (uncomment the matrix entry below once we ship Linux). This does NOT
-# publish anything: the automated release pipeline lives in release.yml. Grab the
-# built app from this run's "Artifacts" section.
+# Manually build a platform artifact for testing — Windows and Linux. This does
+# NOT publish anything: the automated release pipeline lives in release.yml. Grab
+# the built app from this run's "Artifacts" section.
 on:
   workflow_dispatch:
 
@@ -16,9 +15,9 @@ jobs:
           - os: windows-latest
             dist: dist:win
             artifact: clauddy-windows
-          # - os: ubuntu-latest      # enable when Linux support ships
-          #   dist: dist:linux
-          #   artifact: clauddy-linux
+          - os: ubuntu-latest
+            dist: dist:linux
+            artifact: clauddy-linux
     runs-on: ${{ matrix.os }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned build, skip signing

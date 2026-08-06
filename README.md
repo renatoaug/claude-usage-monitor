@@ -71,7 +71,7 @@ back to plain **working** / **idle**.
 
 ## Install
 
-**macOS (Apple Silicon)** is the first-class build. **Windows (x64)** works too, and **Linux** is next. The `bunx`/`npx` route below runs on all of them today.
+**macOS (Apple Silicon)** is the first-class build. **Windows (x64)** and **Linux (x64)** work too. The `bunx`/`npx` route below runs on all of them today.
 
 ### macOS
 
@@ -111,9 +111,24 @@ Prefer a standalone app with no Node/Bun? Grab the **portable zip** (`Clauddy-<v
 
 > Windows builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
 
-### Linux
+### Linux (x64)
 
-Coming soon — the build is already wired for `tar.gz` and AppImage. In the meantime, `bunx clauddy` / `npx clauddy` works today.
+The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node 24 installed:
+
+```bash
+bunx clauddy   # or: npx clauddy
+```
+
+Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>.AppImage` / `clauddy-<version>.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
+
+```bash
+chmod +x Clauddy-*.AppImage
+./Clauddy-*.AppImage
+```
+
+> Linux builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
+
+> The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login isn't wired up on Linux yet.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of platform or how you run it.
 

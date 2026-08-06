@@ -1,5 +1,6 @@
 {
   "name": "clauddy",
+  "desktopName": "clauddy.desktop",
   "version": "0.1.0",
   "description": "A cute desktop pet that tracks your Claude Code usage",
   "main": "main.js",
@@ -88,7 +89,8 @@
         "AppImage"
       ],
       "category": "Utility",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "syncDesktopName": true
     }
   },
   "dependencies": {

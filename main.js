@@ -412,7 +412,8 @@ app.whenReady().then(() => {
   // Windows toast notifications need an explicit AppUserModelID to show reliably
   if (process.platform === 'win32') app.setAppUserModelId('app.clauddy')
   createWindow()
-  // open at login (packaged app only)
+  // open at login (packaged app only) — Electron only supports this on
+  // macOS/Windows; on Linux it's a silent no-op (no XDG autostart entry)
   if (app.isPackaged) {
     app.setLoginItemSettings({ openAtLogin: true, openAsHidden: false })
   }
