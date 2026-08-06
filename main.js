@@ -414,14 +414,43 @@ ipcMain.on('save-config', (_e, patch) => {
 
 ipcMain.on('quit', () => app.quit())
 
+// Electron's login-item API only covers macOS (SMAppService) and Windows (the
+// registry Run key) — @platform darwin,win32 in electron.d.ts, a no-op on
+// Linux. The real "start with the system" mechanism there is the XDG
+// Autostart spec: a .desktop file in ~/.config/autostart, read by every major
+// desktop environment's session manager at login (GNOME, KDE, XFCE, Cinnamon,
+// MATE) — same role as the registry key or SMAppService, just file-based.
+function enableLinuxAutostart() {
+  const exec = process.env.APPIMAGE || process.execPath
+  const autostartDir = path.join(os.homedir(), '.config', 'autostart')
+  const desktopFile = path.join(autostartDir, 'clauddy.desktop')
+  const entry = [
+    '[Desktop Entry]',
+    'Type=Application',
+    'Name=Clauddy',
+    'Comment=A cute pixel-art desktop pet that tracks your Claude Code usage',
+    `Exec="${exec}"`,
+    'Icon=clauddy',
+    'Terminal=false',
+    'X-GNOME-Autostart-enabled=true',
+    '',
+  ].join('\n')
+  if (fs.existsSync(desktopFile) && fs.readFileSync(desktopFile, 'utf8') === entry) return
+  fs.mkdirSync(autostartDir, { recursive: true })
+  fs.writeFileSync(desktopFile, entry)
+}
+
 app.whenReady().then(() => {
   // Windows toast notifications need an explicit AppUserModelID to show reliably
   if (process.platform === 'win32') app.setAppUserModelId('app.clauddy')
   createWindow()
-  // open at login (packaged app only) — Electron only supports this on
-  // macOS/Windows; on Linux it's a silent no-op (no XDG autostart entry)
+  // open at login (packaged app only)
   if (app.isPackaged) {
-    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: false })
+    if (process.platform === 'linux') {
+      enableLinuxAutostart()
+    } else {
+      app.setLoginItemSettings({ openAtLogin: true, openAsHidden: false })
+    }
   }
 })
 
