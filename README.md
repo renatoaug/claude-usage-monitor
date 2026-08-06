@@ -128,7 +128,7 @@ chmod +x Clauddy-*.AppImage
 
 > Linux builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
 
-> The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login isn't wired up on Linux yet.
+> The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login is wired up via an XDG `.desktop` entry in `~/.config/autostart/`.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of platform or how you run it.
 
