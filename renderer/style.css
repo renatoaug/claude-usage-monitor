@@ -387,6 +387,36 @@ body.is-menubar #min {
   }
 }
 
+/* updates footer */
+.set-updates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--hair);
+}
+.upd-ver {
+  font-size: 10px;
+  color: var(--muted);
+}
+#upd-status {
+  font-size: 10px;
+  color: var(--muted);
+}
+#upd-status.ok {
+  color: var(--green);
+}
+#upd-status.err {
+  color: var(--coral);
+}
+#upd-now {
+  width: auto;
+  margin-left: auto;
+  padding: 5px 10px;
+}
+
 /* live tag */
 .live-only {
   display: none;

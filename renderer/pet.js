@@ -640,6 +640,38 @@ el('acc-confirm').addEventListener('click', () => {
 })
 el('acc-logout').addEventListener('click', () => window.api.authLogout())
 
+// self-update: show the version, check the latest release, one-click update
+window.api.onVersion((v) => {
+  if (v) el('app-version').textContent = v
+})
+window.api.onUpdateStatus((s) => {
+  const status = el('upd-status')
+  const now = el('upd-now')
+  now.hidden = true
+  status.className = ''
+  const state = s?.state
+  if (state === 'checking') {
+    status.textContent = 'Checking…'
+  } else if (state === 'uptodate') {
+    status.textContent = "You're up to date"
+    status.className = 'ok'
+  } else if (state === 'available') {
+    status.textContent = `${s.latest} available`
+    now.hidden = false
+  } else if (state === 'updating') {
+    status.textContent = 'Updating… the app will restart'
+  } else if (state === 'error') {
+    status.textContent = 'Check failed'
+    status.className = 'err'
+  }
+  if (document.body.classList.contains('settings-open')) fitSize()
+})
+el('upd-check').addEventListener('click', () => window.api.checkUpdates())
+el('upd-now').addEventListener('click', () => {
+  el('upd-now').disabled = true
+  window.api.doUpdate()
+})
+
 // settings panel
 // snapshot of the editable fields, to tell whether there are unsaved changes
 let settingsBaseline = null

@@ -12,8 +12,11 @@ const {
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
+const { spawn } = require('node:child_process')
 const { getUsage } = require('./usage')
 const auth = require('./auth')
+
+const REPO = 'renatoaug/claude-usage-monitor'
 
 // data dir: kept outside the project folder so moving the repo doesn't break it.
 // when CLAUDE_CONFIG_DIR is set (e.g. via direnv for multi-account setups), nest
@@ -163,6 +166,7 @@ function createWindow() {
   win.webContents.once('did-finish-load', () => {
     tick()
     win.webContents.send('config', publicConfig(config))
+    win.webContents.send('version', app.getVersion())
     win.webContents.send('auth-state', { connected: auth.isConnected() })
     pollTimer = setInterval(tick, config.pollIntervalMs)
     startUsagePoll()
@@ -404,6 +408,51 @@ ipcMain.on('save-config', (_e, patch) => {
   if (doTick) doTick()
   if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
   applyMode(config.mode) // switch between floating widget and menu-bar popover live
+})
+
+// ---- self-update (checks the latest GitHub release, runs install.sh) ---------
+async function fetchLatestTag() {
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    headers: { 'User-Agent': 'Clauddy', Accept: 'application/vnd.github+json' },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const j = await res.json()
+  return j.tag_name // e.g. "v1.9.1"
+}
+// compare two "1.2.3" versions; >0 if a is newer than b
+function cmpVer(a, b) {
+  const pa = String(a).replace(/^v/, '').split('.').map(Number)
+  const pb = String(b).replace(/^v/, '').split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0)
+    if (d) return d > 0 ? 1 : -1
+  }
+  return 0
+}
+ipcMain.on('check-updates', async () => {
+  if (!win || win.isDestroyed()) return
+  const send = (s) => !win.isDestroyed() && win.webContents.send('update-status', s)
+  send({ state: 'checking' })
+  try {
+    const latest = await fetchLatestTag()
+    const current = app.getVersion()
+    send(cmpVer(latest, current) > 0 ? { state: 'available', latest } : { state: 'uptodate' })
+  } catch (e) {
+    send({ state: 'error', message: String(e?.message || e) })
+  }
+})
+ipcMain.on('do-update', () => {
+  // Windows/Linux have no install.sh: send them to the releases page instead.
+  if (process.platform !== 'darwin') {
+    shell.openExternal(`https://github.com/${REPO}/releases/latest`)
+    return
+  }
+  if (win && !win.isDestroyed()) win.webContents.send('update-status', { state: 'updating' })
+  const cmd = `curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash`
+  const child = spawn('/bin/bash', ['-lc', cmd], { detached: true, stdio: 'ignore' })
+  child.unref()
+  // quit so the installer can replace the running .app and relaunch the new build
+  setTimeout(() => app.quit(), 1500)
 })
 
 ipcMain.on('quit', () => app.quit())

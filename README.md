@@ -87,6 +87,8 @@ curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main
 
 **Clauddy is free and open source** — the command above just downloads the latest release from this repo and drops it in `/Applications`, nothing else (you can read [`install.sh`](install.sh) first if you'd like).
 
+Once installed, you can update in-app: **⚙ Settings → Check for updates → Update now** runs the same installer and relaunches the new build.
+
 Why not a normal download? macOS blocks **unsigned** apps downloaded through a browser with a scary *"damaged, move to Trash"* warning — even when they're perfectly safe. It's a false alarm: the only way to silence it is to pay Apple **$99/year** to sign + notarize, which a free hobby app skips. Files fetched with `curl` aren't flagged, so this method simply **lets your Mac open the app** without the block. It then registers in **Login Items** and starts with your Mac — set it and forget it.
 
 #### 2. Run it via `bunx` (no install)

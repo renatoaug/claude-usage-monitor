@@ -15,5 +15,9 @@ contextBridge.exposeInMainWorld('api', {
   authCode: (code) => ipcRenderer.send('auth-code', code),
   authLogout: () => ipcRenderer.send('auth-logout'),
   onDebugState: (cb) => ipcRenderer.on('debug-state', (_e, s) => cb(s)),
+  onVersion: (cb) => ipcRenderer.on('version', (_e, v) => cb(v)),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_e, s) => cb(s)),
+  checkUpdates: () => ipcRenderer.send('check-updates'),
+  doUpdate: () => ipcRenderer.send('do-update'),
   quit: () => ipcRenderer.send('quit'),
 })
