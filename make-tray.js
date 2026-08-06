@@ -1,8 +1,12 @@
-// Generate the menu-bar (tray) template icon from the same pixel pet sprite.
+// Generate the menu-bar (tray) icons from the same pixel pet sprite.
 // A macOS "template" image is pure black + alpha; the system recolors it to
-// match the menu bar (light/dark). The eyes are punched out so the face reads
-// even at ~18px. Writes build/trayTemplate.png (@1x) and build/trayTemplate@2x.png.
-// No dependencies — a tiny PNG encoder, same as make-icon.js.
+// match the menu bar (light/dark) — macOS/win32 only (Tray#setTemplateImage
+// has no effect elsewhere). Linux tray icons get no such OS-level recoloring,
+// so we ship a second, pre-colored variant (same terracotta as the app icon)
+// that reads on both light and dark panels. The eyes are punched out so the
+// face reads even at ~18px. Writes build/trayTemplate*.png (@1x/@2x) and
+// build/trayColor*.png (@1x/@2x). No dependencies — a tiny PNG encoder, same
+// as make-icon.js.
 const zlib = require('node:zlib')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -65,9 +69,10 @@ const SPRITE = [
 const COLS = SPRITE[0].length
 const ROWS = SPRITE.length
 
-// render the sprite at `cell` px per pixel, black where solid, transparent
-// elsewhere (eyes included, so they punch through the recolored face)
-function render(cell) {
+// render the sprite at `cell` px per pixel, `col` where solid, transparent
+// elsewhere (eyes included, so they punch through — recolored on macOS, or
+// just the panel background showing through on Linux/Windows)
+function render(cell, col) {
   const W = COLS * cell
   const H = ROWS * cell
   const rgba = Buffer.alloc(W * H * 4) // zero = transparent
@@ -77,7 +82,10 @@ function render(cell) {
       for (let dy = 0; dy < cell; dy++) {
         for (let dx = 0; dx < cell; dx++) {
           const i = ((r * cell + dy) * W + (c * cell + dx)) * 4
-          rgba[i + 3] = 255 // black, fully opaque (R/G/B already 0)
+          rgba[i] = col[0]
+          rgba[i + 1] = col[1]
+          rgba[i + 2] = col[2]
+          rgba[i + 3] = 255
         }
       }
     }
@@ -85,8 +93,14 @@ function render(cell) {
   return png(W, H, rgba)
 }
 
+// pet terracotta — same CORAL as make-icon.js / --pixel in renderer/style.css
+const BLACK = [0, 0, 0]
+const CORAL = [0xd5, 0x76, 0x58]
+
 const OUT = path.join(__dirname, 'build')
 fs.mkdirSync(OUT, { recursive: true })
-fs.writeFileSync(path.join(OUT, 'trayTemplate.png'), render(2)) // 20x18
-fs.writeFileSync(path.join(OUT, 'trayTemplate@2x.png'), render(4)) // 40x36
-console.log('built build/trayTemplate.png + @2x')
+fs.writeFileSync(path.join(OUT, 'trayTemplate.png'), render(2, BLACK)) // 20x18
+fs.writeFileSync(path.join(OUT, 'trayTemplate@2x.png'), render(4, BLACK)) // 40x36
+fs.writeFileSync(path.join(OUT, 'trayColor.png'), render(2, CORAL)) // 20x18
+fs.writeFileSync(path.join(OUT, 'trayColor@2x.png'), render(4, CORAL)) // 40x36
+console.log('built build/trayTemplate.png + @2x, build/trayColor.png + @2x')

@@ -71,7 +71,9 @@
       "config.json",
       "renderer/**",
       "build/trayTemplate.png",
-      "build/trayTemplate@2x.png"
+      "build/trayTemplate@2x.png",
+      "build/trayColor.png",
+      "build/trayColor@2x.png"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

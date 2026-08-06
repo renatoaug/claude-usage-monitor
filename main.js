@@ -196,8 +196,14 @@ function applyMode(mode) {
 
 function ensureTray() {
   if (tray) return
-  const img = nativeImage.createFromPath(path.join(__dirname, 'build', 'trayTemplate.png'))
-  img.setTemplateImage(true) // let macOS recolor it for the light/dark menu bar
+  // macOS recolors a "template" (black+alpha) image for the light/dark menu
+  // bar; Linux/Windows tray icons get no such recoloring, so they get the
+  // pre-colored terracotta variant instead — a plain black icon disappears
+  // on dark panels (e.g. Linux Mint's default Cinnamon taskbar).
+  const isMac = process.platform === 'darwin'
+  const iconFile = isMac ? 'trayTemplate.png' : 'trayColor.png'
+  const img = nativeImage.createFromPath(path.join(__dirname, 'build', iconFile))
+  if (isMac) img.setTemplateImage(true)
   tray = new Tray(img)
   tray.setToolTip('Clauddy')
   tray.on('click', (_e, bounds) => {
