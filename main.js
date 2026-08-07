@@ -173,6 +173,8 @@ function createWindow() {
     sendProfile()
     watchDebug()
     applyMode(config.mode) // reveal the widget, or set up the tray + popover
+    setTimeout(autoUpdateCheck, 8000) // check once shortly after launch…
+    setInterval(autoUpdateCheck, 6 * 60 * 60 * 1000) // …then every 6h
   })
 }
 
@@ -429,18 +431,31 @@ function cmpVer(a, b) {
   }
   return 0
 }
+async function computeUpdate() {
+  const latest = await fetchLatestTag()
+  return { latest, available: cmpVer(latest, app.getVersion()) > 0 }
+}
+// manual check (from the Settings button): shows checking / result / error
 ipcMain.on('check-updates', async () => {
   if (!win || win.isDestroyed()) return
   const send = (s) => !win.isDestroyed() && win.webContents.send('update-status', s)
   send({ state: 'checking' })
   try {
-    const latest = await fetchLatestTag()
-    const current = app.getVersion()
-    send(cmpVer(latest, current) > 0 ? { state: 'available', latest } : { state: 'uptodate' })
+    const u = await computeUpdate()
+    send(u.available ? { state: 'available', latest: u.latest } : { state: 'uptodate' })
   } catch (e) {
     send({ state: 'error', message: String(e?.message || e) })
   }
 })
+// silent background check: only speaks up when there's actually an update, so
+// the renderer can badge the gear without any UI churn on the common case
+async function autoUpdateCheck() {
+  if (!win || win.isDestroyed()) return
+  try {
+    const u = await computeUpdate()
+    if (u.available) win.webContents.send('update-status', { state: 'available', latest: u.latest })
+  } catch {} // offline / rate-limited: stay quiet, try again on the next tick
+}
 ipcMain.on('do-update', () => {
   // Windows/Linux have no install.sh: send them to the releases page instead.
   if (process.platform !== 'darwin') {

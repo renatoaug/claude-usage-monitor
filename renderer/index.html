@@ -305,51 +305,59 @@
           </div>
         </div>
 
-        <div class="set-hint set-hint-left">Where Clauddy lives: a floating pet, or a menu-bar icon with a pop-up.</div>
-        <label class="set-field">Display
+        <div class="set-section">
+          <div class="set-sec-title">Display</div>
           <span class="seg" id="set-mode">
             <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
             <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
           </span>
-        </label>
+        </div>
 
-        <label class="set-check"><input id="set-alerts" type="checkbox" /> Alerts</label>
-        <div class="set-hint set-hint-left">A macOS notification when your session or weekly usage crosses each level.</div>
-        <label class="set-field">Alert thresholds (%)
-          <span class="set-two">
-            <span class="num">
-              <input id="set-t1" type="number" min="1" max="100" />
-              <span class="num-spin">
-                <button type="button" class="num-btn" data-for="set-t1" data-step="1">▲</button>
-                <button type="button" class="num-btn" data-for="set-t1" data-step="-1">▼</button>
+        <div class="set-section">
+          <div class="set-sec-title">
+            Alerts
+            <input id="set-alerts" class="set-toggle" type="checkbox" aria-label="Enable alerts" />
+          </div>
+          <div class="set-thresholds">
+            <span class="thr">
+              <span class="thr-cap">heads-up</span>
+              <span class="num">
+                <input id="set-t1" type="number" min="1" max="100" />
+                <span class="num-spin">
+                  <button type="button" class="num-btn" data-for="set-t1" data-step="1">▲</button>
+                  <button type="button" class="num-btn" data-for="set-t1" data-step="-1">▼</button>
+                </span>
               </span>
             </span>
-            <span class="num">
-              <input id="set-t2" type="number" min="1" max="100" />
-              <span class="num-spin">
-                <button type="button" class="num-btn" data-for="set-t2" data-step="1">▲</button>
-                <button type="button" class="num-btn" data-for="set-t2" data-step="-1">▼</button>
+            <span class="thr">
+              <span class="thr-cap">near limit</span>
+              <span class="num">
+                <input id="set-t2" type="number" min="1" max="100" />
+                <span class="num-spin">
+                  <button type="button" class="num-btn" data-for="set-t2" data-step="1">▲</button>
+                  <button type="button" class="num-btn" data-for="set-t2" data-step="-1">▼</button>
+                </span>
               </span>
             </span>
-          </span>
-          <span class="set-two set-caps">
-            <span class="num-cap">heads-up</span>
-            <span class="num-cap">near limit</span>
-          </span>
-        </label>
-        <div class="set-hint set-hint-left">The pet catches fire past this session % (it's maxed out at 100%).</div>
-        <label class="set-field">Catch fire at (%)
-          <span class="set-two">
-            <span class="num">
-              <input id="set-fire" type="number" min="1" max="99" />
-              <span class="num-spin">
-                <button type="button" class="num-btn" data-for="set-fire" data-step="1">▲</button>
-                <button type="button" class="num-btn" data-for="set-fire" data-step="-1">▼</button>
+          </div>
+        </div>
+
+        <div class="set-section">
+          <div class="set-sec-title">Catch fire</div>
+          <div class="set-thresholds">
+            <span class="thr">
+              <span class="thr-cap">session %</span>
+              <span class="num">
+                <input id="set-fire" type="number" min="1" max="99" />
+                <span class="num-spin">
+                  <button type="button" class="num-btn" data-for="set-fire" data-step="1">▲</button>
+                  <button type="button" class="num-btn" data-for="set-fire" data-step="-1">▼</button>
+                </span>
               </span>
             </span>
-            <span class="num" aria-hidden="true"></span>
-          </span>
-        </label>
+          </div>
+        </div>
+
         <div class="set-actions">
           <button id="set-cancel">Cancel</button>
           <button id="set-save">Save</button>
@@ -357,9 +365,11 @@
 
         <div class="set-updates">
           <span class="upd-ver">Clauddy v<span id="app-version">—</span></span>
-          <button type="button" id="upd-check" class="acc-link">Check for updates</button>
-          <span id="upd-status"></span>
-          <button type="button" id="upd-now" class="acc-btn" hidden>Update now</button>
+          <span class="upd-right">
+            <span id="upd-status"></span>
+            <button type="button" id="upd-check" class="acc-link">Check for updates</button>
+            <button type="button" id="upd-now" class="upd-btn" hidden>Update now</button>
+          </span>
         </div>
       </div>
     </div>

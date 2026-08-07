@@ -647,23 +647,36 @@ window.api.onVersion((v) => {
 window.api.onUpdateStatus((s) => {
   const status = el('upd-status')
   const now = el('upd-now')
+  const check = el('upd-check')
+  // reset to the idle look, then layer each state on top
   now.hidden = true
+  check.hidden = false
+  status.textContent = ''
   status.className = ''
   const state = s?.state
   if (state === 'checking') {
     status.textContent = 'Checking…'
+    check.hidden = true
   } else if (state === 'uptodate') {
     status.textContent = "You're up to date"
     status.className = 'ok'
   } else if (state === 'available') {
-    status.textContent = `${s.latest} available`
+    // the button carries the version, so no separate status text is needed
+    now.textContent = `Update to ${s.latest}`
     now.hidden = false
+    check.hidden = true
   } else if (state === 'updating') {
     status.textContent = 'Updating… the app will restart'
+    check.hidden = true
   } else if (state === 'error') {
     status.textContent = 'Check failed'
     status.className = 'err'
   }
+  // pulse a dot on the gear whenever an update is waiting (cleared once it's
+  // up to date or actively updating) — so it's noticeable without opening Settings
+  if (state === 'available') document.body.classList.add('has-update')
+  else if (state === 'uptodate' || state === 'updating')
+    document.body.classList.remove('has-update')
   if (document.body.classList.contains('settings-open')) fitSize()
 })
 el('upd-check').addEventListener('click', () => window.api.checkUpdates())
