@@ -19,9 +19,9 @@
   "scripts": {
     "start": "electron .",
     "pack": "node scripts/build-app.js --dir",
-    "dist": "node scripts/build-app.js --mac zip",
-    "dist:win": "node scripts/build-app.js --win zip",
-    "dist:linux": "node scripts/build-app.js --linux",
+    "dist": "node scripts/build-app.js --mac zip --publish never",
+    "dist:win": "node scripts/build-app.js --win zip --publish never",
+    "dist:linux": "node scripts/build-app.js --linux --publish never",
     "icon": "bash build-icon.sh",
     "gifs": "electron tools/capture/capture.js",
     "format": "biome format --write .",
