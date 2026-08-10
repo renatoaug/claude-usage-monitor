@@ -296,12 +296,20 @@ ipcMain.on('resize', (_e, w, h) => {
   if (!win || win.isDestroyed()) return
   const width = Math.max(100, Math.round(w))
   const height = Math.max(110, Math.round(h))
-  win.setContentSize(width, height)
   if (currentMode === 'menubar') {
+    win.setContentSize(width, height)
     if (win.isVisible()) positionUnderTray() // keep it anchored under the tray
   } else {
-    const { workAreaSize } = screen.getPrimaryDisplay()
-    win.setPosition(workAreaSize.width - width - 24, workAreaSize.height - height - 24)
+    // keep the widget pinned to its current bottom-right corner on whatever
+    // display the user dragged it to. setContentSize grows from the top-left
+    // origin, so re-anchor by the old corner instead of snapping to the primary
+    // display's bottom-right (which yanked the widget back on every update).
+    const before = win.getBounds()
+    const right = before.x + before.width
+    const bottom = before.y + before.height
+    win.setContentSize(width, height)
+    const after = win.getBounds()
+    win.setPosition(Math.round(right - after.width), Math.round(bottom - after.height))
   }
 })
 
