@@ -36,6 +36,9 @@ if (process.env.CLAUDE_CONFIG_DIR) {
 const EXTERNAL_CONFIG = path.join(DATA_DIR, 'config.json')
 // debug channel: `./pet <state>` writes here to force a state (dev only)
 const DEBUG_FILE = path.join(DATA_DIR, 'debug.json')
+// remembered floating-widget position: survives restarts and lets the widget
+// return to the monitor the user parked it on after a display is unplugged/replugged
+const WINDOW_STATE = path.join(DATA_DIR, 'window.json')
 
 let win
 let pollTimer
@@ -49,6 +52,8 @@ let currentMode = 'floating' // 'floating' widget | 'menubar' popover
 let trayBounds = null // last known tray icon rect, to anchor the popover
 let lastBlurHide = 0 // debounce: ignore the tray click that dismissed the popover
 let sessionPct = null // authoritative session % shown in the tray title
+let lastProgrammaticMove = 0 // ignore the 'moved' event our own setPosition triggers
+let displayChanging = 0 // ignore OS window-shuffles while a display (dis)connects
 
 function publicConfig(c) {
   return {
@@ -151,6 +156,27 @@ function createWindow() {
     }
   })
 
+  // remember where the user parks the widget — but not the moves we make
+  // ourselves (resize re-anchoring) nor the ones the OS forces when a display
+  // (dis)connects, so a monitor going dark never overwrites the saved spot
+  win.on('moved', () => {
+    if (Date.now() - lastProgrammaticMove < 500) return
+    if (Date.now() - displayChanging < 2000) return
+    saveWindowState()
+  })
+
+  // when a monitor is unplugged/replugged (or its layout changes), put the
+  // floating widget back on the display the user parked it on — the OS dumps
+  // it on the primary display otherwise, and never moves it back on its own
+  const onDisplayChange = () => {
+    displayChanging = Date.now()
+    if (currentMode === 'floating' && win && !win.isDestroyed() && win.isVisible())
+      positionFloating()
+  }
+  screen.on('display-added', onDisplayChange)
+  screen.on('display-removed', onDisplayChange)
+  screen.on('display-metrics-changed', onDisplayChange)
+
   const tick = () => {
     if (!win || win.isDestroyed()) return
     try {
@@ -250,6 +276,43 @@ function showPopover() {
   win.focus()
 }
 
+// route every programmatic move through here so the 'moved' handler can tell
+// our own repositioning apart from a genuine user drag (and skip saving it)
+function moveWindow(x, y) {
+  lastProgrammaticMove = Date.now()
+  win.setPosition(Math.round(x), Math.round(y))
+}
+
+// persist the widget's anchor — its bottom-right corner, since the window's
+// size changes as the pet animates — so it can be restored later
+function saveWindowState() {
+  if (currentMode !== 'floating' || !win || win.isDestroyed()) return
+  const b = win.getBounds()
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+    fs.writeFileSync(WINDOW_STATE, JSON.stringify({ right: b.x + b.width, bottom: b.y + b.height }))
+  } catch {}
+}
+
+function loadWindowState() {
+  try {
+    const s = JSON.parse(fs.readFileSync(WINDOW_STATE, 'utf8'))
+    return Number.isFinite(s?.right) && Number.isFinite(s?.bottom) ? s : null
+  } catch {
+    return null
+  }
+}
+
+// is the saved bottom-right corner on a display that's currently connected?
+function cornerVisible(right, bottom) {
+  const x = Math.round(right - 1)
+  const y = Math.round(bottom - 1)
+  return screen.getAllDisplays().some((d) => {
+    const b = d.bounds
+    return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
+  })
+}
+
 // center the popover under the tray icon, kept on-screen
 function positionUnderTray() {
   const b = win.getBounds()
@@ -261,13 +324,20 @@ function positionUnderTray() {
     y = Math.round(trayBounds.y + trayBounds.height)
   }
   x = Math.max(8, Math.min(x, workAreaSize.width - b.width - 8))
-  win.setPosition(x, y)
+  moveWindow(x, y)
 }
 
 function positionFloating() {
-  const { workAreaSize } = screen.getPrimaryDisplay()
   const b = win.getBounds()
-  win.setPosition(workAreaSize.width - b.width - 24, workAreaSize.height - b.height - 24)
+  // reuse the saved spot when that monitor is still connected; otherwise fall
+  // back to the primary display's bottom-right corner
+  const saved = loadWindowState()
+  if (saved && cornerVisible(saved.right, saved.bottom)) {
+    moveWindow(saved.right - b.width, saved.bottom - b.height)
+    return
+  }
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  moveWindow(workAreaSize.width - b.width - 24, workAreaSize.height - b.height - 24)
 }
 
 // the tray shows the live session % (macOS title), turning 🔥 near the limit
@@ -296,12 +366,20 @@ ipcMain.on('resize', (_e, w, h) => {
   if (!win || win.isDestroyed()) return
   const width = Math.max(100, Math.round(w))
   const height = Math.max(110, Math.round(h))
-  win.setContentSize(width, height)
   if (currentMode === 'menubar') {
+    win.setContentSize(width, height)
     if (win.isVisible()) positionUnderTray() // keep it anchored under the tray
   } else {
-    const { workAreaSize } = screen.getPrimaryDisplay()
-    win.setPosition(workAreaSize.width - width - 24, workAreaSize.height - height - 24)
+    // keep the widget pinned to its current bottom-right corner on whatever
+    // display the user dragged it to. setContentSize grows from the top-left
+    // origin, so re-anchor by the old corner instead of snapping to the primary
+    // display's bottom-right (which yanked the widget back on every update).
+    const before = win.getBounds()
+    const right = before.x + before.width
+    const bottom = before.y + before.height
+    win.setContentSize(width, height)
+    const after = win.getBounds()
+    moveWindow(right - after.width, bottom - after.height)
   }
 })
 
