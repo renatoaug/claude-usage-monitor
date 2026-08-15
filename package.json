@@ -25,7 +25,7 @@
     "icon": "bash build-icon.sh",
     "gifs": "electron tools/capture/capture.js",
     "test": "bun test test/ && bun test test-main/ && bun test test-dom/",
-    "test:coverage": "bun test test/ --coverage && bun test test-main/ --coverage && bun test test-dom/ --coverage",
+    "test:coverage": "node scripts/check-coverage.js",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
