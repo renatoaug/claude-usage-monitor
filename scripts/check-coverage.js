@@ -13,6 +13,20 @@
 // Coverage tools only measure files the tests *load*. A brand-new module with
 // no tests is therefore invisible: it can't drag the percentage down, because
 // it isn't in the denominator. Checking the file list closes that hole.
+//
+// Why not bunfig.toml? bun does support `[test] coverageThreshold`, but it
+// cannot express what this file is for:
+//
+//   - it has no equivalent of jest's `collectCoverageFrom`, so an untested
+//     file stays invisible and the threshold passes green — the exact case we
+//     are guarding against;
+//   - there is no per-file floor, only a global one;
+//   - the floor applies per `bun test` run, and this suite is three runs, so
+//     no bunfig setting ever sees the project total.
+//
+// Worth knowing if you do reach for it: the keys are plural (`lines`,
+// `functions`, `statements`) and bun ignores unknown ones *silently* — the
+// singular `{ line = 0.99 }` disables enforcement with no warning at all.
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
