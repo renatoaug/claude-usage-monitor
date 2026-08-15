@@ -41,8 +41,11 @@ bun run check      # Biome format + lint (autofix)
 `planning`, `researching`, `delegating`, `waiting`.
 
 > Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't
-> reliably cross-build them from macOS. The `Build (manual)` workflow (`.github/workflows/build.yml`)
-> does this on `windows-latest`; the automated `release.yml` still ships macOS only for now.
+> reliably cross-build them from macOS. `release.yml` handles that in three stages:
+> `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the
+> computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs
+> semantic-release for real). The `Build (manual)` workflow (`.github/workflows/build.yml`) stays
+> as a quick on-demand build path.
 
 ## Data & secrets
 

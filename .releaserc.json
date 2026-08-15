@@ -4,11 +4,15 @@
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     "@semantic-release/npm",
-    ["@semantic-release/exec", { "prepareCmd": "bun run dist" }],
     [
       "@semantic-release/github",
       {
-        "assets": [{ "path": "dist/*.zip", "label": "macOS app (Apple Silicon)" }],
+        "assets": [
+          { "path": "dist/*-mac-*.zip", "label": "macOS app (Apple Silicon)" },
+          { "path": "dist/*-win-*.zip", "label": "Windows app (x64)" },
+          { "path": "dist/*-linux-*.tar.gz", "label": "Linux tarball (x64)" },
+          { "path": "dist/*-linux-*.AppImage", "label": "Linux AppImage (x64)" }
+        ],
         "successComment": false,
         "failComment": false,
         "failTitle": false
