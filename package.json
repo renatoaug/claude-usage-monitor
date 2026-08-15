@@ -80,17 +80,20 @@
       "category": "public.app-category.developer-tools",
       "target": "dir",
       "identity": null,
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "win": {
       "target": "zip",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
     },
     "linux": {
       "target": [
         "tar.gz",
         "AppImage"
       ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
       "category": "Utility",
       "icon": "build/icon.png",
       "syncDesktopName": true
@@ -101,7 +104,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
-    "@semantic-release/exec": "^7.1.0",
     "electron-builder": "^26.15.3",
     "semantic-release": "^25.0.5"
   }
