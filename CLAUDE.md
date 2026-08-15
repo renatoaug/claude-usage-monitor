@@ -51,32 +51,23 @@ bun run test:coverage
 
 ## Tests
 
-`bun run test` — never bare `bun test`. The suite runs as **three separate
-processes**, because mocking is global to a bun runtime and bun loads every
-test file before running any of them:
+`bun run test` — three processes, not plain `bun test`:
 
-- `test/` — the real `usage.js`, `auth.js` and `renderer/burn.js`, no mocks.
-- `test-main/` — `main.js`, with `electron`, `./usage` and `./auth` replaced.
-  Those mocks would otherwise reach the suites above.
-- `test-dom/` — `renderer/pet.js` and `preload.js` under happy-dom, which
-  installs a DOM on every global.
+- `test/` — `usage.js`, `auth.js`, `renderer/burn.js` (no mocks)
+- `test-main/` — `main.js` (mocks `electron`, `./usage`, `./auth`)
+- `test-dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
 
-Line coverage sits around **87%** and is **enforced**: `bun run test:coverage`
-(`scripts/check-coverage.js`) merges the three lcov reports and fails under an
-80% project floor or a 60% per-file floor. It also fails when a shipped `.js`
-has no coverage at all — coverage tools only measure files the tests load, so
-a brand-new untested module would otherwise be invisible rather than red. The
-file list is read from electron-builder's `files` in package.json: ship it and
-it's gated, with nothing to remember.
+Split because bun mocks are per-runtime and it loads every test file before
+running any, so a mock in one file reaches the others.
 
-CI runs it on every pull request (`.github/workflows/ci.yml`) and again in the
-release pipeline.
+`bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js`
+without coverage. Runs on every PR.
 
-`pet.js` and `burn.js` carry a `module.exports` guard at the bottom so the same
-file works as a plain `<script>` in the widget and as an import in the tests.
+`pet.js` and `burn.js` end with a `module.exports` guard so one file works as a
+`<script>` in the widget and as an import in the tests.
 
-> `main.js`'s update path spawns `curl … | bash`. Any test touching it **must**
-> stub `child_process.spawn`, or it downloads and installs over the running app.
+> `main.js`'s update path spawns `curl … | bash` — always stub
+> `child_process.spawn`, or it installs over the running app.
 
 ## Data & secrets
 

@@ -1,15 +1,12 @@
-name: CI
+name: On pull request
 
-# Runs on every pull request, and on main as a safety net. release.yml only
-# triggers on push to main, so without this a PR reached review with nothing
-# checked at all.
+# Without this a pull request reached review with nothing checked at all:
+# release.yml only triggers on push to main.
 on:
   pull_request:
-  push:
-    branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: pr-${{ github.ref }}
   cancel-in-progress: true # a new push supersedes the run it replaced
 
 permissions:
@@ -35,6 +32,5 @@ jobs:
       - name: Lint
         run: bunx biome ci .
 
-      # enforces the project-wide floor *and* that every shipped .js is tested
       - name: Test with coverage
         run: bun run test:coverage

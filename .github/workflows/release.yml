@@ -42,9 +42,6 @@ jobs:
       - name: Lint
         run: bunx biome ci .
 
-      - name: Test with coverage
-        run: bun run test:coverage
-
       - name: Dry-run semantic-release
         id: next
         env:
