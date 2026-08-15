@@ -156,44 +156,57 @@ function fmtReset(ms) {
 }
 // ---- burn-rate projection ----
 // The panel knows where you are (82%) and when the window resets (1h 12m); it
-// can also say where you're headed. We keep a short trail of session-% samples
-// (real usage is polled every ~5 min) and fit a line through it to project the
-// crossing of 100%. If the reset lands first there's nothing to worry about —
-// which is worth saying out loud, not leaving blank.
+// can also say where you're headed — fit a slope through recent usage and
+// project the crossing of 100%. If the reset lands first there's nothing to
+// worry about, which is worth saying out loud rather than leaving blank.
+//
+// The slope is fitted over session *tokens*, not the account %. The % is the
+// number we ultimately care about, but it arrives as a whole number every ~5
+// min: over a short window the whole signal is a single 16 → 17 step, which
+// makes the fitted pace wrong by multiples. Local-log tokens move continuously
+// and are polled every few seconds, so they carry a far steadier slope. The
+// account % still anchors it: pct/tokens converts tokens/ms into %/ms and
+// re-calibrates on every poll, so the projection stays tied to the real number.
 const PROJ_WINDOW_MS = 45 * 60 * 1000 // only fit recent samples — pace changes
-const PROJ_MIN_SAMPLES = 3
-const PROJ_MIN_SPAN_MS = 8 * 60 * 1000 // ~2 polls: less is noise, not a trend
-let pctTrail = []
+const PROJ_MIN_SAMPLES = 4
+const PROJ_MIN_SPAN_MS = 5 * 60 * 1000 // shorter than a % fit affords, and steadier
+const PROJ_SAMPLE_EVERY_MS = 30 * 1000 // usage polls every few seconds; thin it out
+let tokTrail = []
 
-function notePct(pct, active) {
-  if (!active) {
-    pctTrail = [] // no session, no trend
+function noteTokens(tokens, active) {
+  if (!active || !(tokens > 0)) {
+    tokTrail = [] // no session, no trend
     return
   }
-  const last = pctTrail[pctTrail.length - 1]
-  // session % only climbs within a window — a drop means it rolled over
-  if (last && pct < last.pct - 1) pctTrail = []
-  pctTrail.push({ t: Date.now(), pct })
-  const cutoff = Date.now() - PROJ_WINDOW_MS
-  pctTrail = pctTrail.filter((s) => s.t >= cutoff)
+  // session tokens only climb within a window — a drop means it rolled over,
+  // and the fresh sample starts the new trail rather than being throttled away
+  let last = tokTrail[tokTrail.length - 1]
+  if (last && tokens < last.tokens) {
+    tokTrail = []
+    last = undefined
+  }
+  const now = Date.now()
+  if (last && now - last.t < PROJ_SAMPLE_EVERY_MS) return
+  tokTrail.push({ t: now, tokens })
+  tokTrail = tokTrail.filter((s) => s.t >= now - PROJ_WINDOW_MS)
 }
 
-// least-squares slope in % per ms, or null when there isn't enough to say
+// least-squares slope in tokens per ms, or null when there isn't enough to say
 function burnSlope() {
-  if (pctTrail.length < PROJ_MIN_SAMPLES) return null
-  const span = pctTrail[pctTrail.length - 1].t - pctTrail[0].t
+  if (tokTrail.length < PROJ_MIN_SAMPLES) return null
+  const span = tokTrail[tokTrail.length - 1].t - tokTrail[0].t
   if (span < PROJ_MIN_SPAN_MS) return null
-  const n = pctTrail.length
-  const t0 = pctTrail[0].t
+  const n = tokTrail.length
+  const t0 = tokTrail[0].t
   let sx = 0
   let sy = 0
   let sxy = 0
   let sxx = 0
-  for (const s of pctTrail) {
+  for (const s of tokTrail) {
     const x = s.t - t0
     sx += x
-    sy += s.pct
-    sxy += x * s.pct
+    sy += s.tokens
+    sxy += x * s.tokens
     sxx += x * x
   }
   const denom = n * sxx - sx * sx
@@ -203,10 +216,12 @@ function burnSlope() {
 
 // → { kind: 'eta', ms } when you'd run out first, { kind: 'safe' } when the
 // reset beats you there, or null when we can't tell yet.
-function project(pct, resetMs) {
-  const slope = burnSlope()
-  if (slope == null || slope <= 0) return null // idle or flat — nothing to project
-  const eta = (100 - pct) / slope
+function project(pct, resetMs, tokens) {
+  if (!(pct > 0) || !(tokens > 0)) return null // no anchor to convert tokens → %
+  const tokPerMs = burnSlope()
+  if (tokPerMs == null || tokPerMs <= 0) return null // idle or flat
+  const pctPerMs = tokPerMs * (pct / tokens)
+  const eta = (100 - pct) / pctPerMs
   if (!Number.isFinite(eta) || eta <= 0) return null
   if (resetMs != null && eta >= resetMs) return { kind: 'safe' }
   return { kind: 'eta', ms: eta }
@@ -559,7 +574,8 @@ function render(d) {
     : 'no active session'
 
   // where this pace is taking you — hidden until there's enough trail to tell
-  const proj = sessActive && sessPct < 100 ? project(sessPct, sessReset) : null
+  noteTokens(d.session.tokens, sessActive)
+  const proj = sessActive && sessPct < 100 ? project(sessPct, sessReset, d.session.tokens) : null
   const pe = el('session-proj')
   pe.hidden = !proj
   pe.classList.toggle('tight', proj?.kind === 'eta')
@@ -632,7 +648,6 @@ window.api.onConfig((cfg) => {
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
-  notePct(realUsage?.session?.pct ?? 0, !!realUsage && realUsage.session?.resetMs != null)
   if (lastData) render(lastData)
 })
 window.api.onAuthState((s) => {
