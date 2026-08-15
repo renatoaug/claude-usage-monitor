@@ -33,6 +33,9 @@ bun run dist:win   # Windows zip — run on Windows/CI (needs a native runner)
 bun run dist:linux # Linux tar.gz + AppImage (run on Linux/CI)
 bun run icon       # regenerate build/icon.{icns,ico,png} from the sprite
 bun run check      # Biome format + lint (autofix)
+bun test           # the suite — but prefer `bun run test` (see below)
+bun run test       # all three groups, each in its own process
+bun run test:coverage
 ./pet <state>      # simulate a state, e.g. ./pet fire
 ```
 
@@ -45,6 +48,28 @@ bun run check      # Biome format + lint (autofix)
 > `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the
 > computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs
 > semantic-release for real).
+
+## Tests
+
+`bun run test` — three processes, not plain `bun test`:
+
+- `test/unit/` — `usage.js`, `auth.js`, `renderer/burn.js` (no mocks)
+- `test/main/` — `main.js` (mocks `electron`, `./usage`, `./auth`)
+- `test/dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
+
+Split because bun mocks are per-runtime and it loads every test file before
+running any, so a mock in one file reaches the others. Each group must be run
+by its own path — `bun test` (or `bun test test/`) globs all three into one
+process and fails.
+
+`bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js`
+without coverage. Runs on every PR.
+
+`pet.js` and `burn.js` end with a `module.exports` guard so one file works as a
+`<script>` in the widget and as an import in the tests.
+
+> `main.js`'s update path spawns `curl … | bash` — always stub
+> `child_process.spawn`, or it installs over the running app.
 
 ## Data & secrets
 

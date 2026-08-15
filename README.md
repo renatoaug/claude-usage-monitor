@@ -220,6 +220,9 @@ Nothing leaves your machine except the OAuth calls to Anthropic's own login and 
 ## Dev tooling
 
 - **Bun** for install/scripts, **Node 24** pinned in `.nvmrc`
+- **Tests**: `bun run test` (never bare `bun test` — the groups under `test/`
+  must each run in their own process). `bun run test:coverage` enforces the
+  floor; every PR runs both.
 - **Biome** for format + lint (`bun run check`); a versioned **pre-commit hook** (`.githooks/pre-commit`) auto-formats staged files and blocks on errors. It's wired up automatically on `bun install` (via the `prepare` script).
 
 ### Releasing

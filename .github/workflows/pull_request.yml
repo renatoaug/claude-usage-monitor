@@ -1,0 +1,36 @@
+name: On pull request
+
+# Without this a pull request reached review with nothing checked at all:
+# release.yml only triggers on push to main.
+on:
+  pull_request:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true # a new push supersedes the run it replaced
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, test, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bunx biome ci .
+
+      - name: Test with coverage
+        run: bun run test:coverage

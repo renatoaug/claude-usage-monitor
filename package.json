@@ -24,6 +24,8 @@
     "dist:linux": "node scripts/build-app.js --linux --publish never",
     "icon": "bash build-icon.sh",
     "gifs": "electron tools/capture/capture.js",
+    "test": "bun test test/unit/ && bun test test/main/ && bun test test/dom/",
+    "test:coverage": "node scripts/check-coverage.js",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write .",
@@ -104,6 +106,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
+    "@happy-dom/global-registrator": "^20.11.2",
     "electron-builder": "^26.15.3",
     "semantic-release": "^25.0.5"
   }

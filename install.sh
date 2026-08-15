@@ -14,7 +14,7 @@ DEST="/Applications"
 echo "→ Finding the latest release…"
 ZIP_URL="$(
   curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" |
-    grep -oE 'https://[^"]+-mac\.zip' | head -1
+    grep -oE 'https://[^"]+-mac[^"]*\.zip' | head -1
 )"
 if [ -z "${ZIP_URL:-}" ]; then
   echo "Couldn't find a macOS build in the latest release. Aborting." >&2

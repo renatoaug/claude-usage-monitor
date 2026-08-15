@@ -293,4 +293,7 @@ function getUsage(config) {
   }
 }
 
-module.exports = { getUsage }
+// labelFor/tokensOf/detectActivity are exported for the tests — they're the
+// parts that decode Claude Code's log format, which is the thing most likely
+// to change out from under us.
+module.exports = { getUsage, labelFor, tokensOf, detectActivity, PLAN_BUDGETS }
