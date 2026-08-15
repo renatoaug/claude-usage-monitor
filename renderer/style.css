@@ -1618,6 +1618,18 @@ body.state-tired #status-text {
   letter-spacing: 0.2px;
 }
 
+/* burn-rate projection — calm by default, warm when you'd run out first */
+.sub.proj {
+  margin-top: 2px;
+  font-style: italic;
+  opacity: 0.85;
+}
+.sub.proj.tight {
+  color: var(--coral);
+  font-style: normal;
+  opacity: 1;
+}
+
 /* 30-day map */
 #heat {
   margin-top: 12px;
