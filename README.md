@@ -132,7 +132,7 @@ The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node
 bunx clauddy   # or: npx clauddy
 ```
 
-Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>-linux-x64.AppImage` / `Clauddy-<version>-linux-x64.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
+Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>-linux-x86_64.AppImage` / `Clauddy-<version>-linux-x64.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
 
 ```bash
 chmod +x Clauddy-*.AppImage
