@@ -163,8 +163,9 @@ function fmtReset(ms) {
 // The slope is fitted over session *tokens*, not the account %. The % is the
 // number we ultimately care about, but it arrives as a whole number every ~5
 // min: over a short window the whole signal is a single 16 → 17 step, which
-// makes the fitted pace wrong by multiples. Local-log tokens move continuously
-// and are polled every few seconds, so they carry a far steadier slope. The
+// makes the fitted pace wrong by multiples. Local-log tokens step too — one
+// jump per assistant turn, with plateaus in between — but in increments some
+// 10-20x finer, so they carry a far steadier slope. The
 // account % still anchors it: pct/tokens converts tokens/ms into %/ms and
 // re-calibrates on every poll, so the projection stays tied to the real number.
 const PROJ_WINDOW_MS = 45 * 60 * 1000 // only fit recent samples — pace changes

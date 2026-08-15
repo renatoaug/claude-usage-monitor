@@ -33,7 +33,9 @@ Knowing you're at **82%** with **1h 12m** left on the window still leaves you do
 - **`~35m left at this pace`** (in coral) — you'd run out before the window resets. Ease off, or wrap up.
 - **`resets before you run out`** — the reset gets there first. Carry on.
 
-The slope is fitted over your **session tokens** rather than the account %. The % is the number you care about, but it arrives as a whole number every ~5 minutes — over a short window the whole signal is a single `16 → 17` step, which throws the fitted pace off by multiples. Local-log tokens move continuously, so the slope is far steadier; the account % then anchors it, converting tokens into % and re-calibrating on every poll.
+The slope is fitted over your **session tokens** rather than the account %. The % is the number you care about, but it arrives as a whole number every ~5 minutes — over a short window the whole signal is a single `16 → 17` step, which throws the fitted pace off by multiples. Local-log tokens step too — one jump per assistant turn — but in increments some 10–20× finer, so the slope is far steadier; the account % then anchors it, converting tokens into % and re-calibrating on every poll.
+
+It reads your **recent** pace, not the session average: go quiet for a few minutes and the projection eases off, which is the point.
 
 It only appears once there's enough to say honestly — roughly 5 minutes into a session — and stays hidden while you're idle, when the pace is flat, or right after a reset. A projection is a projection: change your pace and it changes with you.
 
