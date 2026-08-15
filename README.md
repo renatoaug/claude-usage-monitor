@@ -217,6 +217,11 @@ Everything lives on your machine, in `~/.claude-usage-monitor/`:
 
 Nothing leaves your machine except the OAuth calls to Anthropic's own login and usage endpoints.
 
+## Contributing
+
+Bug reports and ideas are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**
+for setup and the few gotchas worth knowing before a first PR.
+
 ## Dev tooling
 
 - **Bun** for install/scripts, **Node 24** pinned in `.nvmrc`

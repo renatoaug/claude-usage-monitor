@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest something the pet should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem
+      description: >-
+        The situation you're in when you'd want this — not the solution yet.
+        Clauddy already shows a lot of numbers; the useful additions are the
+        ones that answer a question you actually have mid-session.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd expect
+      description: What it would look like, or what the pet would do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you already tried or considered
+      description: Including "I just do it by hand today" — that's useful to know.

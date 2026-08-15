@@ -1,0 +1,76 @@
+name: Bug report
+description: Something in the widget doesn't work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (x64)
+        - Linux (x64)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      description: The install path matters — each one updates and starts differently.
+      options:
+        - install.sh (the one-line installer)
+        - bunx clauddy / npx clauddy
+        - Downloaded zip / AppImage / tar.gz
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown on the button in ⚙ Settings.
+      placeholder: "1.12.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connected
+    attributes:
+      label: Is your account connected?
+      description: >-
+        Percentages come from the account; token counts come from your local
+        logs. Which one is wrong narrows the cause a lot.
+      options:
+        - "Yes — logged in via ⚙ Settings"
+        - "No — token counts only"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Display mode
+      options:
+        - Floating pet
+        - Menu bar / system tray
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshot or anything else
+      description: >-
+        A screenshot of the widget usually says it all. Please don't paste the
+        contents of auth.json — it holds your token.
