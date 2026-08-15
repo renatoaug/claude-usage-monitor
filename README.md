@@ -28,12 +28,14 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
 
 ## Burn rate
 
-Knowing you're at **82%** with **1h 12m** left on the window still leaves you doing arithmetic in your head. So Clauddy does it for you: it keeps a short trail of your session %, fits the slope, and projects when you'd hit 100% — showing one extra line under the session bar:
+Knowing you're at **82%** with **1h 12m** left on the window still leaves you doing arithmetic in your head. So Clauddy does it for you: it fits the slope of your recent usage and projects when you'd hit 100% — showing one extra line under the session bar:
 
 - **`~35m left at this pace`** (in coral) — you'd run out before the window resets. Ease off, or wrap up.
 - **`resets before you run out`** — the reset gets there first. Carry on.
 
-It only appears once there's enough to say honestly: the account % is polled every ~5 minutes, so the line shows up roughly 10–15 minutes into a session, and stays hidden when you're idle, when the pace is flat, or right after a reset. A projection is a projection — change your pace and it changes with you.
+The slope is fitted over your **session tokens** rather than the account %. The % is the number you care about, but it arrives as a whole number every ~5 minutes — over a short window the whole signal is a single `16 → 17` step, which throws the fitted pace off by multiples. Local-log tokens move continuously, so the slope is far steadier; the account % then anchors it, converting tokens into % and re-calibrating on every poll.
+
+It only appears once there's enough to say honestly — roughly 5 minutes into a session — and stays hidden while you're idle, when the pace is flat, or right after a reset. A projection is a projection: change your pace and it changes with you.
 
 ## The pet's states
 
