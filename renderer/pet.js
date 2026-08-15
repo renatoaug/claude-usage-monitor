@@ -823,3 +823,19 @@ window.addEventListener('mouseout', (e) => {
 // welcome wave
 document.body.classList.add('greet')
 setTimeout(() => document.body.classList.remove('greet'), 1200)
+
+// Loaded as a plain <script> by the widget, where `module` doesn't exist. The
+// tests import it instead, against a happy-dom document and a stub bridge —
+// same dual export as burn.js.
+if (typeof module === 'object' && module.exports) {
+  module.exports = {
+    render,
+    fmtTokens,
+    fmtReset,
+    setState,
+    renderModels,
+    renderHeat,
+    showProfile,
+    burn,
+  }
+}

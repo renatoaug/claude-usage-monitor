@@ -43,7 +43,7 @@ jobs:
         run: bunx biome ci .
 
       - name: Test
-        run: bun test
+        run: bun run test
 
       - name: Dry-run semantic-release
         id: next
