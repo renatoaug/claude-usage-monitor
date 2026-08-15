@@ -414,10 +414,25 @@ describe('menu-bar mode', () => {
     expect(winMock.visible).toBe(false)
   })
 
-  test('the tray title shows the live session %, with fire near the limit', () => {
+  test('the tray tooltip shows the live session %', () => {
     // sessionPct comes from the OAuth poll, pushed at startup (40%)
     expect(trayState.tooltip).toContain('40%')
-    expect(trayState.title).toBe(' 40%')
+  })
+
+  test('the macOS tray title shows the %, turning to fire near the limit', () => {
+    // only macOS renders text beside the icon, so pin the platform rather than
+    // letting the result depend on which OS runs the suite
+    const real = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+    try {
+      fire('save-config', { mode: 'menubar', fireThreshold: 90 })
+      expect(trayState.title).toBe(' 40%')
+      fire('save-config', { mode: 'menubar', fireThreshold: 10 }) // 40% is now "hot"
+      expect(trayState.title).toBe(' 40% 🔥')
+    } finally {
+      Object.defineProperty(process, 'platform', { value: real, configurable: true })
+      fire('save-config', { mode: 'menubar', fireThreshold: 90 })
+    }
   })
 
   test('clicking the tray toggles the popover under the icon', () => {
@@ -568,13 +583,19 @@ describe('update check', () => {
   })
 
   test('macOS runs the installer script and steps aside for it', () => {
-    fire('do-update')
-    expect(lastOf('update-status')).toEqual({ state: 'updating' })
-    expect(spawned.at(-1).cmd).toBe('/bin/bash')
-    expect(spawned.at(-1).args[1]).toContain('install.sh')
-    expect(spawned.at(-1).opts.detached).toBe(true)
-    // it quits ~1.5s later so the installer can replace the running .app
-    expect(timers.timeouts.some((t) => t.fn)).toBe(true)
+    const real = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+    try {
+      fire('do-update')
+      expect(lastOf('update-status')).toEqual({ state: 'updating' })
+      expect(spawned.at(-1).cmd).toBe('/bin/bash')
+      expect(spawned.at(-1).args[1]).toContain('install.sh')
+      expect(spawned.at(-1).opts.detached).toBe(true)
+      // it quits ~1.5s later so the installer can replace the running .app
+      expect(timers.timeouts.some((t) => t.fn)).toBe(true)
+    } finally {
+      Object.defineProperty(process, 'platform', { value: real, configurable: true })
+    }
   })
 
   test('non-macOS is sent to the releases page instead', () => {
