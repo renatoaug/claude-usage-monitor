@@ -44,8 +44,7 @@ bun run check      # Biome format + lint (autofix)
 > reliably cross-build them from macOS. `release.yml` handles that in three stages:
 > `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the
 > computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs
-> semantic-release for real). The `Build (manual)` workflow (`.github/workflows/build.yml`) stays
-> as a quick on-demand build path.
+> semantic-release for real).
 
 ## Data & secrets
 
