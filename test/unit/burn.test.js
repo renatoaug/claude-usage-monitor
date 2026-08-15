@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createBurnTracker } from '../renderer/burn.js'
+import { createBurnTracker } from '../../renderer/burn.js'
 
 const MIN = 60_000
 const HOUR = 3_600_000

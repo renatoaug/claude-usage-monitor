@@ -8,7 +8,7 @@ import path from 'node:path'
 // fake `electron` and assert on what it *does*: the windows it opens, the
 // notifications it fires, the messages it sends the renderer.
 //
-// This lives in test-main/ and runs as its own `bun test` process: mocking
+// This lives in test/main/ and runs as its own `bun test` process: mocking
 // `electron`, `./usage` and `./auth` replaces those modules for the whole
 // runtime, and bun loads every test file before running any of them — so these
 // mocks would otherwise reach the suites that test the real modules.
@@ -167,13 +167,13 @@ const authState = {
   cleared: 0,
 }
 
-mock.module('../usage.js', () => ({
+mock.module('../../usage.js', () => ({
   getUsage: () => {
     if (usageThrows) throw usageThrows
     return usageData
   },
 }))
-mock.module('../auth.js', () => ({
+mock.module('../../auth.js', () => ({
   isConnected: () => authState.connected,
   begin: () => 'https://claude.ai/oauth/authorize?x=1',
   complete: async () => {
@@ -218,7 +218,7 @@ globalThis.setTimeout = (fn, ms) => {
   return id
 }
 
-await import('../main.js')
+await import('../../main.js')
 await Promise.resolve() // let app.whenReady().then(createWindow) run
 await new Promise((r) => realSetTimeout(r, 0))
 

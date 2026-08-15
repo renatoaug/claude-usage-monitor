@@ -7,7 +7,7 @@ import path from 'node:path'
 // so the fixture root has to exist and be exported before it loads.
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-test-'))
 process.env.CLAUDE_CONFIG_DIR = ROOT
-const { getUsage, labelFor, tokensOf, detectActivity } = await import('../usage.js')
+const { getUsage, labelFor, tokensOf, detectActivity } = await import('../../usage.js')
 
 afterAll(() => fs.rmSync(ROOT, { recursive: true, force: true }))
 

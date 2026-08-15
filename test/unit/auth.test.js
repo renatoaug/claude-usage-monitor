@@ -7,7 +7,7 @@ import path from 'node:path'
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-auth-'))
 process.env.CLAUDE_CONFIG_DIR = ROOT
 const TOKEN_PATH = path.join(ROOT, 'usage-monitor', 'auth.json')
-const auth = await import('../auth.js')
+const auth = await import('../../auth.js')
 
 afterAll(() => fs.rmSync(ROOT, { recursive: true, force: true }))
 

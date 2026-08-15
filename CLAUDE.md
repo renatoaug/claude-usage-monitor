@@ -53,12 +53,14 @@ bun run test:coverage
 
 `bun run test` — three processes, not plain `bun test`:
 
-- `test/` — `usage.js`, `auth.js`, `renderer/burn.js` (no mocks)
-- `test-main/` — `main.js` (mocks `electron`, `./usage`, `./auth`)
-- `test-dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
+- `test/unit/` — `usage.js`, `auth.js`, `renderer/burn.js` (no mocks)
+- `test/main/` — `main.js` (mocks `electron`, `./usage`, `./auth`)
+- `test/dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
 
 Split because bun mocks are per-runtime and it loads every test file before
-running any, so a mock in one file reaches the others.
+running any, so a mock in one file reaches the others. Each group must be run
+by its own path — `bun test` (or `bun test test/`) globs all three into one
+process and fails.
 
 `bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js`
 without coverage. Runs on every PR.

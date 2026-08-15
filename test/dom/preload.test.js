@@ -20,7 +20,7 @@ mock.module('electron', () => ({
   },
 }))
 
-await import('../preload.js')
+await import('../../preload.js')
 const api = exposed.api
 
 describe('the preload bridge', () => {

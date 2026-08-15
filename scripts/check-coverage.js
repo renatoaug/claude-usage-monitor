@@ -19,7 +19,7 @@ const os = require('node:os')
 const path = require('node:path')
 
 const ROOT = path.join(__dirname, '..')
-const GROUPS = ['test/', 'test-main/', 'test-dom/']
+const GROUPS = ['test/unit/', 'test/main/', 'test/dom/']
 const TOTAL_MIN = 80
 const PER_FILE_MIN = 60
 // The source list is *discovered*, never hand-maintained: it comes from the

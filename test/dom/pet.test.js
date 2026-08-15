@@ -13,7 +13,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 // every global, which the non-DOM suites should not inherit.
 GlobalRegistrator.register()
 
-const ROOT = path.join(import.meta.dir, '..')
+const ROOT = path.join(import.meta.dir, '..', '..')
 const html = fs.readFileSync(path.join(ROOT, 'renderer', 'index.html'), 'utf8')
 const body = html
   .match(/<body[^>]*>([\s\S]*)<\/body>/i)[1]
@@ -73,8 +73,8 @@ window.api = api
 // Imported rather than eval'd so the coverage tool can see it. burn.js takes
 // its CommonJS branch under import, so the global the widget relies on has to
 // be planted before pet.js loads.
-globalThis.Burn = await import('../renderer/burn.js')
-const pet = await import('../renderer/pet.js')
+globalThis.Burn = await import('../../renderer/burn.js')
+const pet = await import('../../renderer/pet.js')
 
 afterAll(() => GlobalRegistrator.unregister())
 
