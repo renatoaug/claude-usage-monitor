@@ -154,6 +154,64 @@ function fmtReset(ms) {
   const m = Math.floor((ms % 3600000) / 60000)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+// ---- burn-rate projection ----
+// The panel knows where you are (82%) and when the window resets (1h 12m); it
+// can also say where you're headed. We keep a short trail of session-% samples
+// (real usage is polled every ~5 min) and fit a line through it to project the
+// crossing of 100%. If the reset lands first there's nothing to worry about —
+// which is worth saying out loud, not leaving blank.
+const PROJ_WINDOW_MS = 45 * 60 * 1000 // only fit recent samples — pace changes
+const PROJ_MIN_SAMPLES = 3
+const PROJ_MIN_SPAN_MS = 8 * 60 * 1000 // ~2 polls: less is noise, not a trend
+let pctTrail = []
+
+function notePct(pct, active) {
+  if (!active) {
+    pctTrail = [] // no session, no trend
+    return
+  }
+  const last = pctTrail[pctTrail.length - 1]
+  // session % only climbs within a window — a drop means it rolled over
+  if (last && pct < last.pct - 1) pctTrail = []
+  pctTrail.push({ t: Date.now(), pct })
+  const cutoff = Date.now() - PROJ_WINDOW_MS
+  pctTrail = pctTrail.filter((s) => s.t >= cutoff)
+}
+
+// least-squares slope in % per ms, or null when there isn't enough to say
+function burnSlope() {
+  if (pctTrail.length < PROJ_MIN_SAMPLES) return null
+  const span = pctTrail[pctTrail.length - 1].t - pctTrail[0].t
+  if (span < PROJ_MIN_SPAN_MS) return null
+  const n = pctTrail.length
+  const t0 = pctTrail[0].t
+  let sx = 0
+  let sy = 0
+  let sxy = 0
+  let sxx = 0
+  for (const s of pctTrail) {
+    const x = s.t - t0
+    sx += x
+    sy += s.pct
+    sxy += x * s.pct
+    sxx += x * x
+  }
+  const denom = n * sxx - sx * sx
+  if (denom === 0) return null
+  return (n * sxy - sx * sy) / denom
+}
+
+// → { kind: 'eta', ms } when you'd run out first, { kind: 'safe' } when the
+// reset beats you there, or null when we can't tell yet.
+function project(pct, resetMs) {
+  const slope = burnSlope()
+  if (slope == null || slope <= 0) return null // idle or flat — nothing to project
+  const eta = (100 - pct) / slope
+  if (!Number.isFinite(eta) || eta <= 0) return null
+  if (resetMs != null && eta >= resetMs) return { kind: 'safe' }
+  return { kind: 'eta', ms: eta }
+}
+
 function setState(name) {
   const b = document.body
   ;[...b.classList].forEach((c) => {
@@ -500,6 +558,16 @@ function render(d) {
     ? `resets in ${fmtReset(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
     : 'no active session'
 
+  // where this pace is taking you — hidden until there's enough trail to tell
+  const proj = sessActive && sessPct < 100 ? project(sessPct, sessReset) : null
+  const pe = el('session-proj')
+  pe.hidden = !proj
+  pe.classList.toggle('tight', proj?.kind === 'eta')
+  if (proj) {
+    pe.textContent =
+      proj.kind === 'eta' ? `~${fmtReset(proj.ms)} left at this pace` : 'resets before you run out'
+  }
+
   el('week-pct').textContent = `${Math.round(wkPct)}%`
   const wf = el('week-fill')
   wf.style.width = `${wkPct}%`
@@ -564,6 +632,7 @@ window.api.onConfig((cfg) => {
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
+  notePct(realUsage?.session?.pct ?? 0, !!realUsage && realUsage.session?.resetMs != null)
   if (lastData) render(lastData)
 })
 window.api.onAuthState((s) => {

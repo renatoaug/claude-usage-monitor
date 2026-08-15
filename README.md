@@ -9,7 +9,7 @@ A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mi
 
 ## What it shows
 
-- **Current session** — real % used + **"resets in Xh Ym"** + session tokens
+- **Current session** — real % used + **"resets in Xh Ym"** + session tokens, and a projection of where that pace is taking you (see [Burn rate](#burn-rate))
 - **Weekly · all models** — real % used + tokens over the last 7 days
 - **Status line** under the pet: `● working · 1.6M tok/min` (or today's tokens when idle)
 - **By model · 7 days** — Opus / Sonnet / Haiku / Fable, in tokens
@@ -25,6 +25,15 @@ The session/weekly **%** comes straight from your Anthropic account, so it match
 2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
 
 The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a _"Connect your account"_ prompt instead of percentages.
+
+## Burn rate
+
+Knowing you're at **82%** with **1h 12m** left on the window still leaves you doing arithmetic in your head. So Clauddy does it for you: it keeps a short trail of your session %, fits the slope, and projects when you'd hit 100% — showing one extra line under the session bar:
+
+- **`~35m left at this pace`** (in coral) — you'd run out before the window resets. Ease off, or wrap up.
+- **`resets before you run out`** — the reset gets there first. Carry on.
+
+It only appears once there's enough to say honestly: the account % is polled every ~5 minutes, so the line shows up roughly 10–15 minutes into a session, and stays hidden when you're idle, when the pace is flat, or right after a reset. A projection is a projection — change your pace and it changes with you.
 
 ## The pet's states
 
@@ -109,9 +118,7 @@ The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node
 bunx clauddy   # or: npx clauddy
 ```
 
-Prefer a standalone app with no Node/Bun? Grab the **portable zip** (`Clauddy-<version>-win.zip`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), unzip it anywhere, and run `Clauddy.exe`. Because the app is unsigned, Windows **SmartScreen** shows a "Windows protected your PC" prompt the first time — click **More info → Run anyway**. From then on it starts with Windows.
-
-> Windows builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
+Prefer a standalone app with no Node/Bun? Grab the **portable zip** (`Clauddy-<version>-win-x64.zip`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), unzip it anywhere, and run `Clauddy.exe`. Because the app is unsigned, Windows **SmartScreen** shows a "Windows protected your PC" prompt the first time — click **More info → Run anyway**. From then on it starts with Windows.
 
 ### Linux (x64)
 
@@ -121,14 +128,12 @@ The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node
 bunx clauddy   # or: npx clauddy
 ```
 
-Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>.AppImage` / `clauddy-<version>.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
+Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>-linux-x64.AppImage` / `Clauddy-<version>-linux-x64.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
 
 ```bash
 chmod +x Clauddy-*.AppImage
 ./Clauddy-*.AppImage
 ```
-
-> Linux builds are produced by the **Build** workflow (Actions ▸ Build) — attaching them to every release automatically is on the roadmap.
 
 > The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login is wired up via an XDG `.desktop` entry in `~/.config/autostart/`.
 
@@ -218,9 +223,15 @@ Nothing leaves your machine except the OAuth calls to Anthropic's own login and 
 Releases are **fully automated**. Every push to `main` runs
 [semantic-release](https://semantic-release.gitbook.io) (`.github/workflows/release.yml`):
 it reads the **Conventional Commits** and, when there's something to ship,
-computes the version, builds the macOS app, publishes `clauddy` to npm, and
-cuts a GitHub Release with the `.app` zip. Nothing to do by hand — just merge
-your PRs.
+computes the version, builds the app for **macOS, Windows and Linux** on their
+own runners, publishes `clauddy` to npm, and cuts a GitHub Release with every
+artifact attached. Nothing to do by hand — just merge your PRs.
+
+The pipeline runs in three stages, because electron-builder can't cross-build
+Windows/Linux from macOS: `version` (a semantic-release dry-run that computes
+the next version) → `build` (a matrix that stamps that version into
+`package.json` so the filenames are right) → `publish` (downloads every
+artifact and runs semantic-release for real).
 
 - `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE` → major.
 - `docs:`/`chore:`/`ci:` etc. don't trigger a release.
