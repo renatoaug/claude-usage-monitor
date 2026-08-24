@@ -84,6 +84,7 @@ const usage = (over = {}) => ({
   week: { pct: 0, tokens: 5000, resetMs: null },
   today: { tokens: 2000 },
   byModel: [],
+  byProject: [],
   days30: new Array(30).fill(0),
   monthTokens: 9000,
   tokensPerMin: 0,
@@ -235,6 +236,27 @@ describe('the model and month panels', () => {
     expect(rows).toContain('Opus 5')
     expect(rows).toContain('1.0M')
     expect(rows).toContain('Sonnet 5')
+  })
+
+  test('ranks projects and keeps the full name on the row', () => {
+    pet.renderProjects([
+      { label: 'claude-usage-monitor', tokens: 900_000 },
+      { label: 'other · 3', tokens: 12_000 },
+    ])
+    const rows = el('byproject-list')
+    expect(rows.children.length).toBe(2)
+    expect(rows.textContent).toContain('claude-usage-monitor')
+    expect(rows.textContent).toContain('other · 3')
+    // the column is clipped by CSS, so the untruncated label lives on the title
+    expect(rows.children[0].firstChild.title).toBe('claude-usage-monitor')
+  })
+
+  test('escapes a label instead of injecting it as markup', () => {
+    // project labels come from directory names, which are not ours to trust
+    pet.renderProjects([{ label: '<img src=x onerror=alert(1)>', tokens: 1 }])
+    const name = el('byproject-list').querySelector('.mname')
+    expect(name.querySelector('img')).toBe(null)
+    expect(name.textContent).toBe('<img src=x onerror=alert(1)>')
   })
 
   test('draws one square per day of the month map', () => {

@@ -141,6 +141,14 @@ const SPRITE = [
 })()
 
 // helpers
+// labels come from log fields and directory names — neither is ours to trust
+function esc(s) {
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  )
+}
+
 function fmtTokens(t) {
   t = t || 0
   if (t >= 1e9) return `${(t / 1e9).toFixed(2)}B`
@@ -348,24 +356,37 @@ function renderHeat(days) {
   })
 }
 
-// by model (7 days)
-function renderModels(list) {
-  const box = el('bymodel-list')
+// ranked bar list — shared by the model and project panels
+function renderBars(boxId, list, limit) {
+  const box = el(boxId)
   box.innerHTML = ''
-  const top = list.slice(0, 4)
+  const top = list.slice(0, limit)
   const max = Math.max(1, ...top.map((m) => m.tokens))
   for (const m of top) {
     const row = document.createElement('div')
     row.className = 'mrow'
     row.innerHTML =
-      `<span class="mname">${m.label}</span>` +
+      `<span class="mname">${esc(m.label)}</span>` +
       `<span class="mbar"><i style="width:${(m.tokens / max) * 100}%"></i></span>` +
       `<span class="mval">${fmtTokens(m.tokens)}</span>`
+    // the label is truncated by CSS, so keep the full one reachable
+    row.firstChild.title = m.label
     box.appendChild(row)
   }
   if (!top.length) {
     box.innerHTML = '<div class="mrow" style="opacity:.5">no activity</div>'
   }
+}
+
+// by model (7 days)
+function renderModels(list) {
+  renderBars('bymodel-list', list, 4)
+}
+
+// by project (7 days) — usage.js already folds everything past the top few
+// into a single `other` row, so whatever arrives here is meant to be drawn
+function renderProjects(list) {
+  renderBars('byproject-list', list, 6)
 }
 
 // one-shot reaction (adds a class, removes after ms)
@@ -525,6 +546,7 @@ function render(d) {
       : `${fmtTokens(d.week.tokens)} tokens · last 7 days`
 
   renderModels(d.byModel || [])
+  renderProjects(d.byProject || [])
   renderHeat(d.days30 || [])
   el('month-total').textContent = `${fmtTokens(d.monthTokens)} tokens`
 
@@ -834,6 +856,7 @@ if (typeof module === 'object' && module.exports) {
     fmtReset,
     setState,
     renderModels,
+    renderProjects,
     renderHeat,
     showProfile,
     burn,

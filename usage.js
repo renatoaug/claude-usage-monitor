@@ -28,6 +28,86 @@ function labelFor(model) {
   return fam
 }
 
+// Claude Code names each project directory after the working directory with
+// every `/` and `.` flattened to `-`, so `-Users-me-my-projects-clauddy` cannot
+// be reversed by string surgery alone: the separator and the names use the same
+// character. Instead of guessing, we walk the real filesystem and let it be the
+// dictionary — at each level we ask which actual child directory, once encoded
+// the same way, starts the remaining string. Longest match first, because `my`
+// and `my-projects` can both be candidates and only the longer one is right.
+const projectLabelCache = new Map()
+
+function encodePathSegment(name) {
+  return name.replace(/[/.]/g, '-')
+}
+
+// Walks as far as the filesystem allows and reports where it stopped. A project
+// that has since been moved or deleted still resolves its surviving ancestors,
+// which is what keeps the fallback label readable instead of a raw blob.
+//
+// `consumed` is the remainder as it stood *before* the last successful step.
+// That step is the only one that can have eaten into the name of a directory
+// that no longer exists — matching `qulture-identity` out of the encoded
+// `qulture-identity-web` leaves a bare `web`, which reads like a real project
+// and is not one. When the walk ends short, the caller rewinds to `consumed`
+// and shows a longer label rather than a confidently wrong one.
+function resolveProjectPath(dirName) {
+  let cur = path.sep
+  let rest = dirName
+  let consumed = null
+  while (rest) {
+    if (!rest.startsWith('-')) break
+    const tail = rest.slice(1)
+    let kids
+    try {
+      kids = fs.readdirSync(cur, { withFileTypes: true })
+    } catch {
+      break
+    }
+    let match = null
+    for (const k of kids) {
+      // symlinks count: /var is one on macOS, and people do symlink project trees
+      if (!k.isDirectory() && !k.isSymbolicLink()) continue
+      const enc = encodePathSegment(k.name)
+      // `my` and `my-projects` can both start the remainder — the longer one wins
+      if (tail !== enc && !tail.startsWith(`${enc}-`)) continue
+      if (!match || enc.length > encodePathSegment(match).length) match = k.name
+    }
+    if (!match) break
+    consumed = tail
+    cur = path.join(cur, match)
+    rest = tail.slice(encodePathSegment(match).length)
+  }
+  return { full: rest ? null : cur, consumed }
+}
+
+const LABEL_MAX = 26
+
+// The readable name for a project directory: its basename when the path still
+// exists, otherwise the raw tail. A moved or deleted project is shown as-is
+// rather than guessed at — a wrong name is worse than an ugly one.
+function projectLabel(dirName) {
+  const hit = projectLabelCache.get(dirName)
+  if (hit !== undefined) return hit
+  const { full, consumed } = resolveProjectPath(dirName)
+  let label
+  if (full) {
+    label = path.basename(full) || full
+  } else {
+    // whatever the filesystem could not account for, shown as-is
+    label = (consumed || dirName).replace(/^-+/, '')
+    if (label.length > LABEL_MAX) label = `…${label.slice(-(LABEL_MAX - 1))}`
+  }
+  projectLabelCache.set(dirName, label)
+  return label
+}
+
+function projectDirOf(file) {
+  const rel = path.relative(PROJECTS_DIR, file)
+  const first = rel.split(path.sep)[0]
+  return first && first !== '..' ? first : null
+}
+
 function tokensOf(entry) {
   const u = entry.usage || {}
   return (
@@ -100,6 +180,8 @@ function parseFile(full, st) {
 }
 
 const DAYS = 30
+// how many projects the panel ranks before folding the rest into `other`
+const TOP_PROJECTS = 5
 const SESSION_MS = 5 * 3600 * 1000
 
 // map a Claude Code tool name to what the pet is "doing"
@@ -213,12 +295,15 @@ function getUsage(config) {
   let weekTokens = 0
   let monthTokens = 0
   const byModel = new Map() // tokens per model, 7 days
+  const byProject = new Map() // tokens per project, 7 days
   const days30 = new Array(DAYS).fill(0) // tokens per day
   const recent = [] // last 12h, to detect the 5h session
   let last5mTokens = 0
 
   for (const f of files) {
     const entries = parseFile(f.full, f.st)
+    const dir = projectDirOf(f.full)
+    const proj = dir ? projectLabel(dir) : null
     for (const e of entries) {
       if (e.ts < start30) continue
       if (e.key && e.key !== ':' && seen.has(e.key)) continue
@@ -233,6 +318,7 @@ function getUsage(config) {
         weekTokens += t
         const lbl = labelFor(e.model)
         byModel.set(lbl, (byModel.get(lbl) || 0) + t)
+        if (proj) byProject.set(proj, (byProject.get(proj) || 0) + t)
       }
       if (e.ts >= todayMs) todayTokens += t
       if (e.ts >= recentCutoff) recent.push({ ts: e.ts, tokens: t })
@@ -277,11 +363,26 @@ function getUsage(config) {
     .map(([label, tokens]) => ({ label, tokens }))
     .sort((a, b) => b.tokens - a.tokens)
 
+  // ranked, then everything past the top N folded into one row — a machine with
+  // 40 project directories must not turn the panel into a 40-row list.
+  const ranked = [...byProject.entries()]
+    .map(([label, tokens]) => ({ label, tokens }))
+    .sort((a, b) => b.tokens - a.tokens)
+  const byProjectArr = ranked.slice(0, TOP_PROJECTS)
+  const rest = ranked.slice(TOP_PROJECTS)
+  if (rest.length) {
+    byProjectArr.push({
+      label: `other · ${rest.length}`,
+      tokens: rest.reduce((n, p) => n + p.tokens, 0),
+    })
+  }
+
   return {
     session,
     week: { tokens: weekTokens, pct: weekPct, resetMs: weekResetMs },
     today: { tokens: todayTokens },
     byModel: byModelArr,
+    byProject: byProjectArr,
     days30,
     monthTokens,
     tokensPerMin: Math.round(last5mTokens / 5),
@@ -296,4 +397,4 @@ function getUsage(config) {
 // labelFor/tokensOf/detectActivity are exported for the tests — they're the
 // parts that decode Claude Code's log format, which is the thing most likely
 // to change out from under us.
-module.exports = { getUsage, labelFor, tokensOf, detectActivity, PLAN_BUDGETS }
+module.exports = { getUsage, labelFor, projectLabel, tokensOf, detectActivity, PLAN_BUDGETS }

@@ -1685,7 +1685,7 @@ body.state-tired #status-text {
 .meter-top {
   display: flex;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -1722,7 +1722,7 @@ body.state-tired #status-text {
   background: linear-gradient(90deg, #e98a68, #d8442f);
 }
 
-/* by model */
+/* by model / by project */
 .bymodel-title {
   font-size: 9.5px;
   color: var(--muted);
@@ -1740,6 +1740,17 @@ body.state-tired #status-text {
 .mrow .mname {
   flex: 0 0 64px;
   font-weight: 500;
+}
+/* project names are paths, not four-letter families — give them room and clip
+   the rest, with the full name on the row's title attribute */
+#byproject .mrow {
+  font-size: 10px;
+}
+#byproject .mrow .mname {
+  flex: 0 0 126px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mrow .mbar {
   flex: 1;
