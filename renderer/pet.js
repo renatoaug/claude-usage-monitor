@@ -141,6 +141,14 @@ const SPRITE = [
 })()
 
 // helpers
+// labels come from log fields and directory names — neither is ours to trust
+function esc(s) {
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  )
+}
+
 function fmtTokens(t) {
   t = t || 0
   if (t >= 1e9) return `${(t / 1e9).toFixed(2)}B`
@@ -348,24 +356,60 @@ function renderHeat(days) {
   })
 }
 
-// by model (7 days)
-function renderModels(list) {
-  const box = el('bymodel-list')
+// ranked bar list — shared by the model and project panels
+//
+// The name column is one width for the whole list, never per row: the bars are
+// only comparable if every track starts and ends at the same x. So it is sized
+// to the widest label actually present, clamped so a long path cannot squeeze
+// the bars into stubs, and anything past the clamp is clipped with an ellipsis.
+const NAME_MIN = 64
+const BAR_MIN = 96 // room left for the track and the token count
+
+function renderBars(boxId, list, limit) {
+  const box = el(boxId)
   box.innerHTML = ''
-  const top = list.slice(0, 4)
+  const top = list.slice(0, limit)
   const max = Math.max(1, ...top.map((m) => m.tokens))
   for (const m of top) {
     const row = document.createElement('div')
     row.className = 'mrow'
     row.innerHTML =
-      `<span class="mname">${m.label}</span>` +
+      `<span class="mname">${esc(m.label)}</span>` +
       `<span class="mbar"><i style="width:${(m.tokens / max) * 100}%"></i></span>` +
       `<span class="mval">${fmtTokens(m.tokens)}</span>`
+    // the column can clip, so keep the full label reachable
+    row.firstChild.title = m.label
     box.appendChild(row)
   }
   if (!top.length) {
     box.innerHTML = '<div class="mrow" style="opacity:.5">no activity</div>'
+    return
   }
+  fitNames(box)
+}
+
+// measure the labels unconstrained, then lock the column to the widest one
+function fitNames(box) {
+  const names = [...box.querySelectorAll('.mname')]
+  // a collapsed section measures zero — it re-fits when it opens
+  if (!names.length || !box.getBoundingClientRect().width) return
+  box.style.setProperty('--name-w', 'auto')
+  let widest = 0
+  for (const n of names) widest = Math.max(widest, n.getBoundingClientRect().width)
+  const room = box.getBoundingClientRect().width - BAR_MIN
+  const w = Math.max(NAME_MIN, Math.min(Math.ceil(widest) + 1, room))
+  box.style.setProperty('--name-w', `${w}px`)
+}
+
+// by model (7 days)
+function renderModels(list) {
+  renderBars('bymodel-list', list, 4)
+}
+
+// by project (7 days) — usage.js already folds everything past the top few
+// into a single `other` row, so whatever arrives here is meant to be drawn
+function renderProjects(list) {
+  renderBars('byproject-list', list, 6)
 }
 
 // one-shot reaction (adds a class, removes after ms)
@@ -525,6 +569,7 @@ function render(d) {
       : `${fmtTokens(d.week.tokens)} tokens · last 7 days`
 
   renderModels(d.byModel || [])
+  renderProjects(d.byProject || [])
   renderHeat(d.days30 || [])
   el('month-total').textContent = `${fmtTokens(d.monthTokens)} tokens`
 
@@ -634,6 +679,50 @@ window.api.onAuthResult((r) => {
   }
   fitSize()
 })
+
+// collapsible panel sections — the widget is a desktop pet, not a dashboard, so
+// each breakdown can be folded away and the choice is remembered per machine
+const SEC_KEY = 'clauddy.folded'
+
+function readFolded() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEC_KEY) || '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
+function toggleSection(id, force) {
+  const sec = el(id)
+  if (!sec) return
+  // `folded`, not `collapsed` — the body already uses that word for the pet
+  const folded = force !== undefined ? force : !sec.classList.contains('folded')
+  sec.classList.toggle('folded', folded)
+  const head = sec.querySelector('.sec-head')
+  if (head) head.setAttribute('aria-expanded', String(!folded))
+  // the column width could not be measured while hidden
+  if (!folded) fitNames(sec.querySelector('.sec-body'))
+  // the card just changed height, and the next usage poll is seconds away —
+  // without this the window keeps its old size and clips the content
+  fitSize()
+}
+
+for (const head of document.querySelectorAll('.sec-head')) {
+  head.addEventListener('click', () => {
+    const id = head.dataset.sec
+    toggleSection(id)
+    const open = readFolded()
+    if (el(id).classList.contains('folded')) open.add(id)
+    else open.delete(id)
+    try {
+      localStorage.setItem(SEC_KEY, JSON.stringify([...open]))
+    } catch {
+      // private mode or a wiped profile — the panel just forgets, which is fine
+    }
+  })
+}
+
+for (const id of readFolded()) toggleSection(id, true)
 
 el('close').addEventListener('click', () => window.api.quit())
 el('usage').addEventListener('click', () => window.api.openUsage())
@@ -834,6 +923,7 @@ if (typeof module === 'object' && module.exports) {
     fmtReset,
     setState,
     renderModels,
+    renderProjects,
     renderHeat,
     showProfile,
     burn,

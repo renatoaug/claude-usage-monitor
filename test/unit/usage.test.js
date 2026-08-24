@@ -7,7 +7,9 @@ import path from 'node:path'
 // so the fixture root has to exist and be exported before it loads.
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-test-'))
 process.env.CLAUDE_CONFIG_DIR = ROOT
-const { getUsage, labelFor, tokensOf, detectActivity } = await import('../../usage.js')
+const { getUsage, labelFor, projectLabel, tokensOf, detectActivity } = await import(
+  '../../usage.js'
+)
 
 afterAll(() => fs.rmSync(ROOT, { recursive: true, force: true }))
 
@@ -41,8 +43,8 @@ beforeEach(() => {
   fs.rmSync(path.join(ROOT, 'projects'), { recursive: true, force: true })
 })
 
-function writeLog(lines, name = 'session.jsonl') {
-  const dir = path.join(ROOT, 'projects', `-proj-${dirSeq++}`)
+function writeLog(lines, name = 'session.jsonl', project = null) {
+  const dir = path.join(ROOT, 'projects', project ?? `-proj-${dirSeq++}`)
   fs.mkdirSync(dir, { recursive: true })
   const file = path.join(dir, name)
   fs.writeFileSync(file, `${lines.join('\n')}\n`)
@@ -131,6 +133,84 @@ describe('model labels', () => {
       { label: 'Opus 5', tokens: 150 },
       { label: 'Sonnet 5', tokens: 20 },
     ])
+  })
+})
+
+describe('project labels', () => {
+  // the directory name flattens `/` and `.` to `-`, so it cannot be reversed by
+  // string surgery — usage.js walks the real filesystem instead. These fixtures
+  // build actual directories so the walk has something true to find.
+  const enc = (p) => p.replace(/[/.]/g, '-')
+
+  test('resolves an existing path down to its basename', () => {
+    const dir = path.join(ROOT, 'fs', 'my-projects', 'claude-usage-monitor')
+    fs.mkdirSync(dir, { recursive: true })
+    expect(projectLabel(enc(dir))).toBe('claude-usage-monitor')
+  })
+
+  test('handles a dash inside a directory name', () => {
+    // `my-projects` and `my` would both start the remainder; only the longer wins
+    const dir = path.join(ROOT, 'fs', 'my', 'x')
+    fs.mkdirSync(dir, { recursive: true })
+    expect(projectLabel(enc(path.join(ROOT, 'fs', 'my-projects')))).toBe('my-projects')
+  })
+
+  test('handles a dot inside a directory name', () => {
+    const dir = path.join(ROOT, 'fs', 'nord', '.worktrees', 'sup-441')
+    fs.mkdirSync(dir, { recursive: true })
+    expect(projectLabel(enc(dir))).toBe('sup-441')
+  })
+
+  test('falls back to the raw tail when the project is gone', () => {
+    const gone = enc(path.join(ROOT, 'fs', 'my-projects', 'deleted-thing'))
+    expect(projectLabel(gone)).toContain('deleted-thing')
+  })
+
+  test('does not eat into the name of a directory that no longer exists', () => {
+    // `identity` survives, `identity-web` does not — reporting `web` would look
+    // like a real project and be the wrong one
+    fs.mkdirSync(path.join(ROOT, 'fs', 'q', 'identity'), { recursive: true })
+    const label = projectLabel(enc(path.join(ROOT, 'fs', 'q', 'identity-web')))
+    expect(label).not.toBe('web')
+    expect(label).toContain('identity-web')
+  })
+})
+
+describe('usage by project', () => {
+  test('aggregates weekly tokens per project directory', () => {
+    const a = path.join(ROOT, 'fs', 'alpha')
+    const b = path.join(ROOT, 'fs', 'beta')
+    fs.mkdirSync(a, { recursive: true })
+    fs.mkdirSync(b, { recursive: true })
+    const enc = (p) => p.replace(/[/.]/g, '-')
+    writeLog([line({ tokens: 100 }), line({ tokens: 50 })], 'session.jsonl', enc(a))
+    writeLog([line({ tokens: 20 })], 'session.jsonl', enc(b))
+    expect(getUsage(BUDGET).byProject).toEqual([
+      { label: 'alpha', tokens: 150 },
+      { label: 'beta', tokens: 20 },
+    ])
+  })
+
+  test('folds everything past the top five into one `other` row', () => {
+    for (let i = 0; i < 8; i++) {
+      writeLog([line({ tokens: 100 - i })], 'session.jsonl', `-nope-p${i}`)
+    }
+    const list = getUsage(BUDGET).byProject
+    expect(list.length).toBe(6)
+    expect(list[5].label).toBe('other · 3')
+    // 8 projects at 100-i tokens: the tail is p5+p6+p7 = 95+94+93
+    expect(list[5].tokens).toBe(95 + 94 + 93)
+  })
+
+  test('counts only the weekly window, like by-model', () => {
+    const old = path.join(ROOT, 'fs', 'stale')
+    fs.mkdirSync(old, { recursive: true })
+    writeLog(
+      [line({ ts: Date.now() - 20 * DAY, tokens: 999 })],
+      'session.jsonl',
+      old.replace(/[/.]/g, '-'),
+    )
+    expect(getUsage(BUDGET).byProject).toEqual([])
   })
 })
 

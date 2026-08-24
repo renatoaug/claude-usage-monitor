@@ -15,9 +15,10 @@ https://github.com/user-attachments/assets/76d87b6f-2876-4000-b6db-13ba2207ae31
 - **Weekly · all models** — real % used + tokens over the last 7 days
 - **Status line** under the pet: `● working · 1.6M tok/min` (or today's tokens when idle)
 - **By model · 7 days** — Opus / Sonnet / Haiku / Fable, in tokens
+- **By project · 7 days** — which repo actually ate the week, ranked, with the tail folded into `other`
 - **30-day map** — colored squares by daily tokens (green = light → red = heavy), with the monthly total
 
-The **percentages are real**, pulled from your account (you log in once — see below). The token counts, by-model breakdown, activity status, and 30-day map come from your local logs (`~/.claude/projects/**/*.jsonl`). Everything is token-based — no dollars.
+The **percentages are real**, pulled from your account (you log in once — see below). The token counts, the by-model and by-project breakdowns, activity status, and 30-day map come from your local logs (`~/.claude/projects/**/*.jsonl`). Everything is token-based — no dollars.
 
 ## Account & live usage
 
@@ -204,7 +205,7 @@ live. (Installed globally? Drop the `bunx`: `clauddy poke`. Working on the repo?
 ## How it works
 
 - **`main.js`** — Electron main process: frameless, transparent, always-on-top window; polls usage; fires macOS notifications; watches `config.json` and `debug.json`.
-- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/day, detects the rolling 5-hour session window, the working/sleeping status, and which activity (reading/editing/running/…) Claude is on from its latest tool use.
+- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/project/day, detects the rolling 5-hour session window, the working/sleeping status, and which activity (reading/editing/running/…) Claude is on from its latest tool use.
 - **`auth.js`** — OAuth login (PKCE, same public client as Claude Code) that fetches the authoritative usage %. Token stored locally, never committed.
 - **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles.
 - **`make-icon.js`** — generates the app icon from the pixel sprite (`build/icon.icns`).

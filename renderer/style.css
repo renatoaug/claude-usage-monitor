@@ -1685,7 +1685,7 @@ body.state-tired #status-text {
 .meter-top {
   display: flex;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -1722,12 +1722,44 @@ body.state-tired #status-text {
   background: linear-gradient(90deg, #e98a68, #d8442f);
 }
 
-/* by model */
-.bymodel-title {
+/* by model / by project — collapsible sections */
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
   font-size: 9.5px;
   color: var(--muted);
   letter-spacing: 0.3px;
-  margin-bottom: 6px;
+  -webkit-app-region: no-drag;
+}
+.sec-head:hover {
+  color: var(--text);
+}
+.sec-chev {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.22s ease;
+}
+.sec.folded .sec-chev {
+  transform: rotate(-90deg);
+}
+.sec.folded .sec-body {
+  display: none;
+}
+.sec.folded .sec-head {
+  margin-bottom: 0;
 }
 .mrow {
   display: flex;
@@ -1738,8 +1770,18 @@ body.state-tired #status-text {
   margin-bottom: 5px;
 }
 .mrow .mname {
-  flex: 0 0 64px;
+  /* one width for the whole list, measured at render time — the bars are only
+     comparable if every track starts at the same x */
+  flex: 0 0 var(--name-w, 64px);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* project names are paths, not four-letter families — give them room and clip
+   the rest, with the full name on the row's title attribute */
+#byproject .mrow {
+  font-size: 10px;
 }
 .mrow .mbar {
   flex: 1;
