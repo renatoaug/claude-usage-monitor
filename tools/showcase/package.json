@@ -1,0 +1,9 @@
+{
+  "name": "clauddy-showcase",
+  "private": true,
+  "type": "module",
+  "description": "Produces the narrated README tour — see README.md",
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

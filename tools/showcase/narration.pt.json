@@ -1,0 +1,97 @@
+{
+  "lang": "pt",
+  "title": "Clauddy",
+  "tagline": "um bichinho de mesa que acompanha seu uso do Claude Code",
+  "outro": "github.com/renatoaug/claude-usage-monitor",
+  "beats": [
+    {
+      "id": "b0_title",
+      "kicker": "",
+      "take": "TITLE",
+      "text": "Você está no meio de uma sessão do Claude Code e não faz ideia de quanto ainda sobra do seu limite. É isso que o Clauddy resolve.",
+      "note": "Title card.",
+      "emph": ["limite"]
+    },
+    {
+      "id": "b1_open",
+      "kicker": "Clauddy",
+      "take": "A_widget",
+      "text": "Ele mora num canto da sua tela e mostra exatamente onde você está.",
+      "note": "Card expands from the face into the full widget.",
+      "emph": ["exatamente"]
+    },
+    {
+      "id": "b2_session",
+      "kicker": "Uso real",
+      "take": "A_widget",
+      "text": "A barra de sessão é a porcentagem real da sua conta, o mesmo número que aparece no painel oficial de uso. Embaixo, quanto falta pra janela resetar e quantos tokens você já queimou.",
+      "note": "Highlight the session block.",
+      "emph": ["real"]
+    },
+    {
+      "id": "b3_burn",
+      "kicker": "Ritmo de queima",
+      "take": "A_widget",
+      "text": "Essa linha faz a conta que você faria de cabeça. O Clauddy mede o seu ritmo recente e projeta quando você bateria no limite. Aqui, o seu crédito acaba antes da janela resetar.",
+      "note": "Highlight the burn-rate projection line only.",
+      "emph": ["limite"]
+    },
+    {
+      "id": "b4_week",
+      "kicker": "Uso real",
+      "take": "A_widget",
+      "text": "A barra semanal funciona igual, somando todos os modelos, nos últimos sete dias.",
+      "note": "Highlight the weekly block.",
+      "emph": ["todos"]
+    },
+    {
+      "id": "b5_status",
+      "kicker": "Status ao vivo",
+      "take": "A_widget",
+      "text": "A linha de status embaixo do bichinho vem dos seus logs locais do Claude Code. Ela mostra o que o Claude está fazendo agora, lendo, editando, rodando um comando, e a que velocidade ele está comendo tokens.",
+      "note": "Cycle activities. Highlight status line.",
+      "emph": ["agora"]
+    },
+    {
+      "id": "b6_states",
+      "kicker": "Ele reage",
+      "take": "A_widget",
+      "text": "O bichinho reage a tudo isso. Ele tira um cochilo quando você para, e pega fogo quando a sessão chega perto do seu limite.",
+      "note": "sleeping state, then stressed at 94%.",
+      "emph": ["fogo"]
+    },
+    {
+      "id": "b7_history",
+      "kicker": "Histórico",
+      "take": "A_widget",
+      "text": "Mais abaixo, a divisão por modelo na semana e um mapa de trinta dias. Um quadradinho por dia, verde quando o dia foi leve, vermelho quando não foi.",
+      "note": "Highlight by-model, then the heat map.",
+      "emph": ["verde", "vermelho"]
+    },
+    {
+      "id": "b8_small",
+      "kicker": "Sem atrapalhar",
+      "take": "B_compact",
+      "text": "Ninguém quer o painel aberto o tempo todo. Dá pra encolher até sobrar só a carinha com a sua porcentagem ao vivo, ou mandar ele pra barra de menu.",
+      "note": "Collapse to mini, then the menu bar.",
+      "emph": ["menu"]
+    },
+    {
+      "id": "b9_close",
+      "kicker": "Livre e open source",
+      "take": "B_compact",
+      "text": "Ele é gratuito e open source. Um comando instala e ele já sobe junto com o seu Mac. Windows e Linux também funcionam.",
+      "note": "Install command card on screen.",
+      "emph": ["gratuito"]
+    },
+    {
+      "id": "b10_end",
+      "kicker": "",
+      "take": "OUTRO",
+      "text": "É isso. Pega no repositório aqui embaixo, e se tiver alguma ideia, issues e pull requests são muito bem-vindos.",
+      "note": "Outro card.",
+      "emph": ["issues"]
+    }
+  ],
+  "invite": "issues e pull requests são bem-vindos"
+}

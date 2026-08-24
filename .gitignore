@@ -9,3 +9,12 @@ debug.json
 
 .DS_Store
 *.log
+
+# showcase workspace — generated clips, takes and renders (the sources are tracked)
+tools/showcase/node_modules/
+tools/showcase/clips/
+tools/showcase/takes/
+tools/showcase/tmp/
+tools/showcase/frames/
+tools/showcase/out/
+tools/showcase/__pycache__/

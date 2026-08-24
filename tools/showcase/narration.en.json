@@ -1,0 +1,97 @@
+{
+  "lang": "en",
+  "title": "Clauddy",
+  "tagline": "a desktop pet that tracks your Claude Code usage",
+  "outro": "github.com/renatoaug/claude-usage-monitor",
+  "beats": [
+    {
+      "id": "b0_title",
+      "kicker": "",
+      "take": "TITLE",
+      "text": "You're deep into a Claude Code session and you have no idea how much of your limit is left. That's the thing Clauddy fixes.",
+      "note": "Title card — the pet's face, big, wordmark and tagline underneath.",
+      "emph": ["limit"]
+    },
+    {
+      "id": "b1_open",
+      "kicker": "Clauddy",
+      "take": "A_widget",
+      "text": "It lives in the corner of your screen and shows exactly where you stand.",
+      "note": "Card expands from the face into the full widget.",
+      "emph": ["exactly"]
+    },
+    {
+      "id": "b2_session",
+      "kicker": "Real usage",
+      "take": "A_widget",
+      "text": "The session bar is the real percentage from your account, the same number the official usage panel shows. Under it, how long until the window resets, and the tokens you've burned so far.",
+      "note": "Highlight the session block.",
+      "emph": ["real"]
+    },
+    {
+      "id": "b3_burn",
+      "kicker": "Burn rate",
+      "take": "A_widget",
+      "text": "This line does the arithmetic you'd otherwise do in your head. Clauddy fits your recent pace and projects when you'd hit the limit. Here, you'd run out before the window resets.",
+      "note": "Highlight the burn-rate projection line only.",
+      "emph": ["limit"]
+    },
+    {
+      "id": "b4_week",
+      "kicker": "Real usage",
+      "take": "A_widget",
+      "text": "The weekly bar works the same way, across every model, over the last seven days.",
+      "note": "Highlight the weekly block.",
+      "emph": ["every"]
+    },
+    {
+      "id": "b5_status",
+      "kicker": "Live status",
+      "take": "A_widget",
+      "text": "The status line under the pet comes from your local Claude Code logs. It tells you what Claude is on right now, reading, editing, running a command, and how fast it's eating tokens.",
+      "note": "Cycle activities. Highlight status line.",
+      "emph": ["now"]
+    },
+    {
+      "id": "b6_states",
+      "kicker": "It reacts",
+      "take": "A_widget",
+      "text": "The pet reacts to all of it. It naps when you go quiet, and it catches fire when the session gets close to your limit.",
+      "note": "sleeping state, then stressed at 94%.",
+      "emph": ["fire"]
+    },
+    {
+      "id": "b7_history",
+      "kicker": "History",
+      "take": "A_widget",
+      "text": "Further down, the split by model over a week, and a thirty day map. One square per day, green when it was a light day, red when it wasn't.",
+      "note": "Highlight by-model, then the heat map.",
+      "emph": ["green", "red"]
+    },
+    {
+      "id": "b8_small",
+      "kicker": "Out of the way",
+      "take": "B_compact",
+      "text": "Most of the time you want it out of the way. Minimize it down to the face with your live percentage, or move it into the menu bar entirely.",
+      "note": "Collapse to mini, then the menu bar.",
+      "emph": ["menu"]
+    },
+    {
+      "id": "b9_close",
+      "kicker": "Free & open source",
+      "take": "B_compact",
+      "text": "It's free and open source. One command installs it and it starts with your Mac, and Windows and Linux work too.",
+      "note": "Install command card on screen.",
+      "emph": ["free"]
+    },
+    {
+      "id": "b10_end",
+      "kicker": "",
+      "take": "OUTRO",
+      "text": "That's the whole thing. Grab it from the repo below, and if you have an idea for it, issues and pull requests are welcome.",
+      "note": "Outro card — pet celebrating, repo URL and install command.",
+      "emph": ["issues"]
+    }
+  ],
+  "invite": "issues and pull requests welcome"
+}
