@@ -259,6 +259,27 @@ describe('the model and month panels', () => {
     expect(name.textContent).toBe('<img src=x onerror=alert(1)>')
   })
 
+  test('folds a section away and back, and says so for assistive tech', () => {
+    const sec = el('byproject')
+    const head = sec.querySelector('.sec-head')
+    expect(sec.classList.contains('folded')).toBe(false)
+
+    head.click()
+    expect(sec.classList.contains('folded')).toBe(true)
+    expect(head.getAttribute('aria-expanded')).toBe('false')
+
+    head.click()
+    expect(sec.classList.contains('folded')).toBe(false)
+    expect(head.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  test('remembers which sections were folded', () => {
+    el('bymodel').querySelector('.sec-head').click()
+    expect(JSON.parse(localStorage.getItem('clauddy.folded'))).toEqual(['bymodel'])
+    el('bymodel').querySelector('.sec-head').click()
+    expect(JSON.parse(localStorage.getItem('clauddy.folded'))).toEqual([])
+  })
+
   test('draws one square per day of the month map', () => {
     const days = new Array(30).fill(0).map((_, i) => i * 1000)
     pet.renderHeat(days)
