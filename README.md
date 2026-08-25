@@ -142,6 +142,18 @@ chmod +x Clauddy-*.AppImage
 ./Clauddy-*.AppImage
 ```
 
+Want the pet icon to show up in your app menu / taskbar too, instead of a generic icon? Running the AppImage directly doesn't register it anywhere — GNOME (and most Wayland desktops) only pick up an app's icon from an installed `.desktop` entry. One-time setup, right next to the AppImage:
+
+```bash
+./Clauddy-*.AppImage --appimage-extract clauddy.desktop >/dev/null
+./Clauddy-*.AppImage --appimage-extract usr/share/icons/hicolor/512x512/apps/clauddy.png >/dev/null
+mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
+cp squashfs-root/usr/share/icons/hicolor/512x512/apps/clauddy.png ~/.local/share/icons/hicolor/512x512/apps/clauddy.png
+sed "s|^Exec=.*|Exec=$(readlink -f Clauddy-*.AppImage) --no-sandbox %U|" squashfs-root/clauddy.desktop > ~/.local/share/applications/clauddy.desktop
+rm -rf squashfs-root
+update-desktop-database ~/.local/share/applications 2>/dev/null
+```
+
 > The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login is wired up via an XDG `.desktop` entry in `~/.config/autostart/`.
 
 > The app keeps its data in `~/.claude-usage-monitor`, regardless of platform or how you run it.
