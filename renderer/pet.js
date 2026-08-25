@@ -392,12 +392,15 @@ function renderBars(boxId, list, limit) {
 function fitNames(box) {
   const names = [...box.querySelectorAll('.mname')]
   // a collapsed section measures zero — it re-fits when it opens
-  if (!names.length || !box.getBoundingClientRect().width) return
+  if (!names.length || !box.offsetWidth) return
   box.style.setProperty('--name-w', 'auto')
+  // offsetWidth, not getBoundingClientRect: the width we hand back is a layout px,
+  // so it has to be measured in layout px too. A CSS transform on an ancestor
+  // (the video stage scales the card) inflates the rect and squeezes the bars away.
   let widest = 0
-  for (const n of names) widest = Math.max(widest, n.getBoundingClientRect().width)
-  const room = box.getBoundingClientRect().width - BAR_MIN
-  const w = Math.max(NAME_MIN, Math.min(Math.ceil(widest) + 1, room))
+  for (const n of names) widest = Math.max(widest, n.offsetWidth)
+  const room = box.offsetWidth - BAR_MIN
+  const w = Math.max(NAME_MIN, Math.min(widest + 2, room))
   box.style.setProperty('--name-w', `${w}px`)
 }
 
