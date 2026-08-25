@@ -65,6 +65,7 @@ function publicConfig(c) {
     alerts: c.alerts,
     alertThresholds: c.alertThresholds,
     fireThreshold: c.fireThreshold,
+    zoom: c.zoom,
   }
 }
 
@@ -78,6 +79,7 @@ function loadConfig() {
     alerts: true,
     alertThresholds: [80, 95],
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
+    zoom: 100, // widget scale %, 100-200
     pollIntervalMs: 4000,
     activeThresholdMs: 20000,
     sleepThresholdMs: 300000,

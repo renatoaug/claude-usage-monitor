@@ -4,6 +4,7 @@
   "alerts": true,
   "alertThresholds": [80, 95],
   "fireThreshold": 90,
+  "zoom": 100,
   "pollIntervalMs": 4000,
   "activeThresholdMs": 20000,
   "sleepThresholdMs": 300000

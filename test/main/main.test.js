@@ -497,6 +497,13 @@ describe('settings', () => {
     fire('open-usage')
     expect(opened[0]).toContain('claude.ai/settings/usage')
   })
+
+  test('persists zoom and re-broadcasts it', () => {
+    fire('save-config', { zoom: 150 })
+    expect(JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')).zoom).toBe(150)
+    expect(lastOf('config').zoom).toBe(150)
+    fire('save-config', { zoom: 100 }) // restore default for later tests
+  })
 })
 
 describe('login', () => {

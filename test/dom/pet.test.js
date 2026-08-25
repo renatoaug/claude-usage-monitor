@@ -370,6 +370,11 @@ describe('settings and updates', () => {
     expect(document.body.classList.contains('is-menubar')).toBe(false)
   })
 
+  test('reflects the zoom it is given', () => {
+    api.handlers.onConfig({ mode: 'floating', zoom: 150 })
+    expect(document.body.style.zoom).toBe('1.5')
+  })
+
   test('surfaces an update when one is available', () => {
     api.handlers.onUpdateStatus({ state: 'available', latest: 'v9.9.9' })
     expect(document.body.textContent).toContain('9.9.9')
