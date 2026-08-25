@@ -40,9 +40,33 @@
       "id": "b4_week",
       "kicker": "Real usage",
       "take": "A_widget",
-      "text": "The weekly bar works the same way, across every model, over the last seven days.",
+      "text": "The weekly bar is the same idea for your seven-day limit, across every model. It tracks the current window, from the last reset to the next one.",
       "note": "Highlight the weekly block.",
-      "emph": ["every"]
+      "emph": ["window"]
+    },
+    {
+      "id": "b7_history",
+      "kicker": "History",
+      "take": "A_widget",
+      "text": "Further down, the split by model over the last seven days.",
+      "note": "Highlight by-model.",
+      "emph": ["model"]
+    },
+    {
+      "id": "b7b_project",
+      "kicker": "By project",
+      "take": "A_widget",
+      "text": "And right under it, the same week split by project, so you can see which repo actually ate your limit. The busiest ones ranked, everything else folded into one row.",
+      "note": "Highlight by-project panel.",
+      "emph": ["project"]
+    },
+    {
+      "id": "b7c_heat",
+      "kicker": "History",
+      "take": "A_widget",
+      "text": "Then a thirty day map. One square per day, green when it was a light day, red when it wasn't.",
+      "note": "Highlight the heat map.",
+      "emph": ["green", "red"]
     },
     {
       "id": "b5_status",
@@ -56,24 +80,24 @@
       "id": "b6_states",
       "kicker": "It reacts",
       "take": "A_widget",
-      "text": "The pet reacts to all of it. It naps when you go quiet, and it catches fire when the session gets close to your limit.",
-      "note": "sleeping state, then stressed at 94%.",
+      "text": "The pet reacts to all of it. It naps when you go quiet, it catches fire when the session gets close to your limit, and it collapses when you hit a hundred percent.",
+      "note": "sleeping, then stressed at 94%, then tired at 100%.",
       "emph": ["fire"]
-    },
-    {
-      "id": "b7_history",
-      "kicker": "History",
-      "take": "A_widget",
-      "text": "Further down, the split by model over a week, and a thirty day map. One square per day, green when it was a light day, red when it wasn't.",
-      "note": "Highlight by-model, then the heat map.",
-      "emph": ["green", "red"]
     },
     {
       "id": "b8_small",
       "kicker": "Out of the way",
       "take": "B_compact",
-      "text": "Most of the time you want it out of the way. Minimize it down to the face with your live percentage, or move it into the menu bar entirely.",
-      "note": "Collapse to mini, then the menu bar.",
+      "text": "Most of the time you want it out of the way. Fold the breakdowns shut, or shrink it down to just the face with your live percentage.",
+      "note": "Fold both sections, then collapse to the face.",
+      "emph": ["face"]
+    },
+    {
+      "id": "b8b_menubar",
+      "kicker": "Out of the way",
+      "take": "B_compact",
+      "text": "Or move it into the menu bar entirely. The pet becomes the icon, your session percentage becomes the title, and a click brings the whole panel back.",
+      "note": "Menu bar + popover.",
       "emph": ["menu"]
     },
     {

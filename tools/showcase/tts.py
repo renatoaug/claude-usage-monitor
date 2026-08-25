@@ -108,9 +108,22 @@ ALIASES = {"cloud": "claude", "clode": "claude", "claudy": "clauddy", "cloudy": 
            "cloudi": "clauddy", "claud": "claude", "claudia": "clauddy"}
 
 
+# ...and its habit of writing numbers as digits, which no 1:1 word alias can bridge:
+# "a hundred percent" comes back as "100%". Applied to both sides before tokenizing.
+PHRASES = {"a hundred percent": "100", "one hundred percent": "100",
+           "cem por cento": "100", "100 por cento": "100", "100 percent": "100"}
+
+
+def fold_phrases(s):
+    out = s.lower()
+    for k, v in PHRASES.items():
+        out = out.replace(k, v)
+    return out
+
+
 def coverage(said, want):
-    got = [ALIASES.get(w, w) for w in words(said)]
-    exp = [ALIASES.get(w, w) for w in words(want)]
+    got = [ALIASES.get(w, w) for w in words(fold_phrases(said))]
+    exp = [ALIASES.get(w, w) for w in words(fold_phrases(want))]
     pool = list(got)
     missing = []
     for w in exp:

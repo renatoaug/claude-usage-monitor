@@ -40,9 +40,33 @@
       "id": "b4_week",
       "kicker": "Uso real",
       "take": "A_widget",
-      "text": "A barra semanal funciona igual, somando todos os modelos, nos últimos sete dias.",
+      "text": "A barra semanal é a mesma ideia pro seu limite de sete dias, somando todos os modelos. Ela mostra a janela atual, do último reset até o próximo.",
       "note": "Highlight the weekly block.",
-      "emph": ["todos"]
+      "emph": ["janela"]
+    },
+    {
+      "id": "b7_history",
+      "kicker": "Histórico",
+      "take": "A_widget",
+      "text": "Mais abaixo, a divisão por modelo nos últimos sete dias.",
+      "note": "Highlight by-model.",
+      "emph": ["modelo"]
+    },
+    {
+      "id": "b7b_project",
+      "kicker": "Por projeto",
+      "take": "A_widget",
+      "text": "E logo embaixo, a mesma semana dividida por projeto, pra você ver qual repositório comeu o seu limite. Os mais pesados no topo, e o resto agrupado numa linha só.",
+      "note": "Highlight by-project panel.",
+      "emph": ["projeto"]
+    },
+    {
+      "id": "b7c_heat",
+      "kicker": "Histórico",
+      "take": "A_widget",
+      "text": "Depois, um mapa de trinta dias. Um quadradinho por dia, verde quando o dia foi leve, vermelho quando não foi.",
+      "note": "Highlight the heat map.",
+      "emph": ["verde", "vermelho"]
     },
     {
       "id": "b5_status",
@@ -56,24 +80,24 @@
       "id": "b6_states",
       "kicker": "Ele reage",
       "take": "A_widget",
-      "text": "O bichinho reage a tudo isso. Ele tira um cochilo quando você para, e pega fogo quando a sessão chega perto do seu limite.",
-      "note": "sleeping state, then stressed at 94%.",
+      "text": "O bichinho reage a tudo isso. Ele tira um cochilo quando você para, pega fogo quando a sessão chega perto do limite, e desaba quando você bate os cem por cento.",
+      "note": "sleeping, then stressed at 94%, then tired at 100%.",
       "emph": ["fogo"]
-    },
-    {
-      "id": "b7_history",
-      "kicker": "Histórico",
-      "take": "A_widget",
-      "text": "Mais abaixo, a divisão por modelo na semana e um mapa de trinta dias. Um quadradinho por dia, verde quando o dia foi leve, vermelho quando não foi.",
-      "note": "Highlight by-model, then the heat map.",
-      "emph": ["verde", "vermelho"]
     },
     {
       "id": "b8_small",
       "kicker": "Sem atrapalhar",
       "take": "B_compact",
-      "text": "Ninguém quer o painel aberto o tempo todo. Dá pra encolher até sobrar só a carinha com a sua porcentagem ao vivo, ou mandar ele pra barra de menu.",
-      "note": "Collapse to mini, then the menu bar.",
+      "text": "Ninguém quer o painel aberto o tempo todo. Dá pra fechar as divisões, ou encolher até sobrar só a carinha com a sua porcentagem ao vivo.",
+      "note": "Fold both sections, then collapse to the face.",
+      "emph": ["carinha"]
+    },
+    {
+      "id": "b8b_menubar",
+      "kicker": "Sem atrapalhar",
+      "take": "B_compact",
+      "text": "Ou mandar ele de vez pra barra de menu. O bichinho vira o ícone, a sua porcentagem vira o título, e um clique traz o painel inteiro de volta.",
+      "note": "Menu bar + popover.",
       "emph": ["menu"]
     },
     {

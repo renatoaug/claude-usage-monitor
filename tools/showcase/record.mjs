@@ -37,6 +37,14 @@ const usage = (o = {}) => ({
     { label: 'Haiku', tokens: 18_300_000 },
     { label: 'Fable', tokens: 6_200_000 },
   ],
+  byProject: [
+    { label: 'claude-usage-monitor', tokens: 74_300_000 },
+    { label: 'nova-checkout', tokens: 52_100_000 },
+    { label: 'orbit-api', tokens: 38_600_000 },
+    { label: 'design-system', tokens: 21_400_000 },
+    { label: 'infra-terraform', tokens: 14_900_000 },
+    { label: 'other · 6', tokens: 13_500_000 },
+  ],
   days30,
   monthTokens: 892_000_000,
   ...o,
@@ -94,7 +102,7 @@ const STAGE = `
   }
   #card {
     position: fixed !important; top: 50% !important; left: 1330px !important;
-    transform: translate(-50%, -50%) scale(var(--vs, 2.05));
+    transform: translate(-50%, -50%) scale(var(--vs, 1.5));
     transform-origin: center; z-index: 5;
     transition: transform .55s cubic-bezier(.4,0,.2,1),
                 top .55s cubic-bezier(.4,0,.2,1), left .55s cubic-bezier(.4,0,.2,1);
@@ -150,21 +158,30 @@ const STAGE = `
                 border: 1px solid rgba(217,119,87,.28);
                 border-radius: 9px; padding: 14px 18px; white-space: pre; text-align: left; }
   #invite { margin-top: 20px; font-size: 21px; color: #9d9085; }
+  /* A stand-in macOS menu bar. The Clauddy item is the real tray asset
+     (build/trayTemplate.png) inverted the way macOS renders a template icon on a
+     dark bar, and the title matches what main.js actually sets: ' 63%'. */
   #mbar { position: absolute; top: 0; left: 0; right: 0; height: 34px;
-          background: rgba(24,19,16,.94); border-bottom: 1px solid rgba(255,255,255,.06);
-          display: flex; align-items: center; justify-content: flex-end; gap: 22px;
-          padding-right: 40px; transform: translateY(-100%);
+          background: rgba(22,18,15,.88); backdrop-filter: blur(20px);
+          border-bottom: 1px solid rgba(255,255,255,.07);
+          display: flex; align-items: center; justify-content: flex-end; gap: 20px;
+          padding-right: 34px; transform: translateY(-100%); z-index: 6;
           transition: transform .45s cubic-bezier(.4,0,.2,1); }
   #mbar.on { transform: none; }
-  .mb-pet { position: relative; width: 20px; height: 15px; background: #cfc7bf;
-            border-radius: 3px; display: inline-block; }
-  .mb-pet i { position: absolute; top: 5px; width: 3px; height: 3px; background: #181310; }
-  .mb-pet i:nth-child(1) { left: 5px; }
-  .mb-pet i:nth-child(2) { right: 5px; }
-  .mb-pct { font: 600 15px/1 -apple-system, system-ui; color: #e8e0d8; }
-  .mb-clock { font: 500 15px/1 -apple-system, system-ui; color: #9d9085; }
-  html.mb #card { top: 268px !important; left: 1720px !important;
-                  transform: translate(-50%, -50%) scale(var(--vs, 2.9)); }
+  .mb-item { display: flex; align-items: center; gap: 5px; }
+  .mb-item.hot { background: rgba(255,255,255,.16); border-radius: 6px;
+                 padding: 4px 8px; margin: 0 -8px; }
+  .mb-icon { width: 19px; height: 17px; image-rendering: pixelated;
+             filter: brightness(0) invert(1); opacity: .92; }
+  .mb-pct { font: 500 14px/1 -apple-system, "SF Pro Text", system-ui; color: #f0ece8; }
+  .mb-sys { width: 17px; height: 17px; fill: none; stroke: #f0ece8; stroke-width: 1.6;
+            stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+  .mb-clock { font: 400 14px/1 -apple-system, "SF Pro Text", system-ui; color: #f0ece8; }
+
+  /* the popover hangs off the tray icon, notch and all */
+  html.mb #card { top: 42px !important; left: var(--pop-x, 1720px) !important;
+                  transform: translate(-50%, 0) scale(var(--mbs, 1.45));
+                  transform-origin: top center; }
 
   /* title + outro cards: the real pet tile, centered, with typography under it */
   #title, #outro { position: absolute; left: 0; right: 0; top: 700px; text-align: center;
@@ -197,15 +214,21 @@ async function boot() {
   await page.waitForFunction(() => !!document.body && !!document.getElementById('card'))
   await page.addStyleTag({ content: STAGE })
   await page.evaluate(
-    ([tagline, url, install, invite]) => {
+    ([tagline, url, install, invite, icon]) => {
       const v = document.createElement('div')
       v.id = 'vfx'
       v.innerHTML =
         '<div id="ring"></div>' +
         '<div id="copy"><div id="kicker"></div><div id="cap"></div></div>' +
         `<div id="brand"><code>${install}</code></div>` +
-        '<div id="mbar"><span class="mb-pet"><i></i><i></i></span>' +
-        '<span class="mb-pct">63%</span><span class="mb-clock">9:41</span></div>' +
+        '<div id="mbar">' +
+        `<span class="mb-item hot"><img class="mb-icon" src="file://${icon}">` +
+        '<span class="mb-pct">63%</span></span>' +
+        '<svg class="mb-sys" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/>' +
+        '<path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>' +
+        '<svg class="mb-sys" viewBox="0 0 24 24"><rect x="2" y="8" width="16" height="9" rx="2.5"/>' +
+        '<path d="M20.5 11.5v3"/><rect x="4" y="10" width="10" height="5" rx="1" fill="#f0ece8" stroke="none"/></svg>' +
+        '<span class="mb-clock">Fri 9:41</span></div>' +
         `<div id="title"><div id="wordmark">Clauddy</div><div id="tagline">${tagline}</div></div>` +
         `<div id="outro"><div id="outro-url">${url}</div>` +
         `<div id="outro-cmd"><code>${install}</code></div>` +
@@ -222,6 +245,8 @@ async function boot() {
       'curl -fsSL https://raw.githubusercontent.com/renatoaug/\\\n' +
         '  claude-usage-monitor/main/install.sh | bash',
       script.invite,
+      // the real menu-bar asset, so the bar shows the icon the app actually ships
+      `${REPO}/build/trayTemplate@2x.png`,
     ],
   )
   await page.evaluate(() => {
@@ -375,9 +400,14 @@ async function takeA() {
   await revealCopy()
   await hold('b1_open')
 
+  // The tour opens on the number people actually came for — the session bar — then
+  // walks down the card. The live status line belongs with the pet's reactions, so
+  // both wait until the end, once there is something to react to.
+
   // b2 — session bar
   await exitCopy()
   await prepare('b2_session')
+  await push(usage(), real(63, 74), null)
   await ring('#limits-meters .meter:nth-child(1)')
   await marker('b2_session')
   await revealCopy()
@@ -401,6 +431,30 @@ async function takeA() {
   await revealCopy()
   await hold('b4_week')
 
+  // b7 — by model
+  await exitCopy()
+  await prepare('b7_history')
+  await ring('#bymodel')
+  await marker('b7_history')
+  await revealCopy()
+  await hold('b7_history')
+
+  // b7b — by project
+  await exitCopy()
+  await prepare('b7b_project')
+  await ring('#byproject')
+  await marker('b7b_project')
+  await revealCopy()
+  await hold('b7b_project')
+
+  // b7c — the 30-day map, the bottom of the card
+  await exitCopy()
+  await prepare('b7c_heat')
+  await ring('#heat')
+  await marker('b7c_heat')
+  await revealCopy()
+  await hold('b7c_heat')
+
   // b5 — status line, activities cycling underneath it
   await exitCopy()
   await prepare('b5_status')
@@ -418,48 +472,66 @@ async function takeA() {
     await sleep(Math.round(slice))
   }
 
-  // b6 — asleep, then on fire
+  // b6 — the three reactions: asleep, on fire, then flat out at the limit
   await exitCopy()
   await prepare('b6_states')
   await ring(null)
   await marker('b6_states')
   await revealCopy()
+  const beat3 = clipMs('b6_states') / 3
   await push(usage({ active: false, sleeping: true, activity: null }), real(63, 74), null)
-  await sleep(Math.round(clipMs('b6_states') * 0.5))
+  await sleep(Math.round(beat3))
   await push(usage({ active: false, sleeping: false, activity: null }), real(94, 26), null)
-  await sleep(Math.round(clipMs('b6_states') * 0.5))
-
-  // b7 — by model, then the 30-day map
-  await exitCopy()
-  await prepare('b7_history')
+  await sleep(Math.round(beat3))
+  // 100% is what pet.js turns into `tired` — no debug override needed
+  await push(usage({ active: false, sleeping: false, activity: null }), real(100, 4), null)
+  await sleep(Math.round(beat3))
+  // back to a calm card before the widget shrinks away
   await push(usage(), real(63, 74), { kind: 'eta', ms: 35 * 60_000 })
-  await ring('#bymodel')
-  await marker('b7_history')
-  await revealCopy()
-  await sleep(Math.round(clipMs('b7_history') * 0.48))
-  await ring('#heat')
-  await sleep(Math.round(clipMs('b7_history') * 0.52))
-  await ring(null)
   await sleep(400)
 }
 
 async function takeB() {
-  // b8 — collapsed, then the menu bar
+  // b8 — fold the breakdowns, then shrink to the face
   await exitCopy()
   await prepare('b8_small')
   await ring(null)
   await marker('b8_small')
   await revealCopy()
-  const half = clipMs('b8_small') / 2
-  await sleep(Math.round(half * 0.5))
+  // paced against the clip, not on top of it: hold() sleeps a whole clip, so the
+  // steps below have to add up to it rather than precede it
+  const C = clipMs('b8_small')
+  await sleep(Math.round(C * 0.3))
+  // fold both breakdowns, one after the other, the way a user would
+  for (const sec of ['byproject', 'bymodel']) {
+    await page.evaluate((x) => document.querySelector(`.sec-head[data-sec="${x}"]`).click(), sec)
+    await sleep(420)
+  }
+  await sleep(Math.round(C * 0.22))
   await page.evaluate(() => {
     document.body.classList.add('collapsed')
     document.documentElement.style.setProperty('--vs', '2.9')
   })
-  await sleep(Math.round(half))
+  await sleep(Math.round(C * 0.3) + 500)
+
+  // b8b — into the menu bar, panel and all
+  await exitCopy()
+  await prepare('b8b_menubar')
+  await marker('b8b_menubar')
+  await revealCopy()
   await show('#mbar', true)
+  await sleep(520)
+  // the popover hangs off the tray icon, so anchor it where the icon actually landed
+  await page.evaluate(() => {
+    const r = document.querySelector('.mb-item.hot').getBoundingClientRect()
+    document.documentElement.style.setProperty('--pop-x', `${Math.round(r.left + r.width / 2)}px`)
+  })
+  await sleep(320)
   await cls('mb', true)
-  await sleep(Math.round(half * 0.7))
+  await sleep(420)
+  // in menu-bar mode the widget lives behind the icon and a click opens the panel
+  await page.evaluate(() => document.body.classList.remove('collapsed'))
+  await sleep(Math.max(600, clipMs('b8b_menubar') - 1260 + 500))
 
   // b9 — install
   await show('#mbar', false)

@@ -54,8 +54,10 @@ non-zero and names the beat — **rephrase it rather than retrying**, expressive
 models mangle the same phrase consistently.
 
 `ALIASES` in `tts.py` absorbs the transcriber's own biases (it hears "Claude" as
-"cloud"); that is not the voice mispronouncing anything. Extend it, don't lower
-the coverage threshold.
+"cloud"); that is not the voice mispronouncing anything. `PHRASES` does the same
+for spans no 1:1 word alias can bridge — the transcriber writes numbers as
+digits, so "a hundred percent" comes back as "100%". Extend either one; don't
+lower the coverage threshold.
 
 Before shipping a round, tile the render and look at every frame:
 
