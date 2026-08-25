@@ -262,6 +262,10 @@ describe('startup', () => {
     expect(loadedFile).toContain(path.join('renderer', 'index.html'))
   })
 
+  test('sets a window icon so unpackaged Linux/Windows runs are not blank', () => {
+    expect(winOptions.icon).toContain(path.join('build', 'icon.png'))
+  })
+
   test('registers every IPC channel the renderer talks on', () => {
     for (const c of [
       'resize',
