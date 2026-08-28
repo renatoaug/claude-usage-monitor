@@ -262,6 +262,10 @@ describe('startup', () => {
     expect(loadedFile).toContain(path.join('renderer', 'index.html'))
   })
 
+  test('sets a window icon so unpackaged Linux/Windows runs are not blank', () => {
+    expect(winOptions.icon).toContain(path.join('build', 'icon.png'))
+  })
+
   test('registers every IPC channel the renderer talks on', () => {
     for (const c of [
       'resize',
@@ -492,6 +496,13 @@ describe('settings', () => {
   test('opens the usage page on request', () => {
     fire('open-usage')
     expect(opened[0]).toContain('claude.ai/settings/usage')
+  })
+
+  test('persists zoom and re-broadcasts it', () => {
+    fire('save-config', { zoom: 150 })
+    expect(JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')).zoom).toBe(150)
+    expect(lastOf('config').zoom).toBe(150)
+    fire('save-config', { zoom: 100 }) // restore default for later tests
   })
 })
 

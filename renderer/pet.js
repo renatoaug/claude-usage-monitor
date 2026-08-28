@@ -596,14 +596,24 @@ let lastW = 0
 function fitSize() {
   requestAnimationFrame(() => {
     const collapsed = document.body.classList.contains('collapsed')
-    const w = collapsed ? 140 : 276
-    const h = el('card').offsetHeight + 24 // 12px margin top + bottom
+    const zoom = Number.parseFloat(document.body.style.zoom) || 1
+    const w = (collapsed ? 140 : 276) * zoom
+    // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
+    // empirically against this Electron build) — so measure the unzoomed content
+    // height, then scale the whole thing (content + margin) ourselves
+    const h = (el('card').offsetHeight + 24) * zoom // 12px margin top + bottom
     if (Math.abs(h - lastH) > 2 || w !== lastW) {
       lastH = h
       lastW = w
       window.api.resize(w, h)
     }
   })
+}
+
+// widget scale, applied as a CSS zoom (not transform) so offsetWidth/Height
+// keep reflecting it — see fitNames()'s comment on why transform can't be used here
+function applyZoom(z) {
+  document.body.style.zoom = (z || 100) / 100
 }
 
 let currentConfig = {}
@@ -624,6 +634,8 @@ window.api.onError((msg) => {
 window.api.onConfig((cfg) => {
   currentConfig = cfg || {}
   document.body.classList.toggle('is-menubar', currentConfig.mode === 'menubar')
+  applyZoom(currentConfig.zoom)
+  fitSize()
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
@@ -809,6 +821,7 @@ function snapshotSettings() {
     t1: el('set-t1').value,
     t2: el('set-t2').value,
     fire: el('set-fire').value,
+    zoom: el('set-zoom').value,
   })
 }
 function refreshSaveDirty() {
@@ -827,6 +840,7 @@ function populateSettings() {
   el('set-t1').value = th[0] != null ? th[0] : 80
   el('set-t2').value = th[1] != null ? th[1] : 95
   el('set-fire').value = c.fireThreshold != null ? c.fireThreshold : 90
+  el('set-zoom').value = c.zoom != null ? c.zoom : 100
   clearSaveDirty() // fields now match the saved config
 }
 function openSettings() {
@@ -850,7 +864,7 @@ for (const b of document.querySelectorAll('.num-btn')) {
   })
 }
 // light up Save whenever an editable field changes
-for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire']) {
+for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire', 'set-zoom']) {
   el(id).addEventListener('input', refreshSaveDirty)
   el(id).addEventListener('change', refreshSaveDirty)
 }
@@ -869,6 +883,9 @@ el('set-cancel').addEventListener('click', () => {
 el('set-save').addEventListener('click', () => {
   const num = (id) => parseFloat(el(id).value)
   const fire = num('set-fire')
+  const zoomRaw = num('set-zoom')
+  const zoom = zoomRaw >= 100 && zoomRaw <= 200 ? Math.round(zoomRaw) : 100
+  applyZoom(zoom) // apply immediately so the fitSize() below measures the new size
   window.api.saveConfig({
     mode: selectedMode,
     alerts: el('set-alerts').checked,
@@ -876,6 +893,7 @@ el('set-save').addEventListener('click', () => {
       .filter((n) => n >= 1 && n <= 100)
       .sort((a, b) => a - b),
     fireThreshold: fire >= 1 && fire <= 99 ? fire : 90,
+    zoom,
   })
   clearSaveDirty()
   document.body.classList.remove('settings-open')
