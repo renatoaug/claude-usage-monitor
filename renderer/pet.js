@@ -404,6 +404,27 @@ function fitNames(box) {
   box.style.setProperty('--name-w', `${w}px`)
 }
 
+// per-model weekly limits (e.g. "Fable" on Max) — one meter each, in the same
+// shape as the all-models one. The token count pairs the limit with the local
+// log totals for that model family (a "Fable" limit covers every Fable row).
+function renderScoped(list, byModel) {
+  const box = el('scoped-meters')
+  box.innerHTML = ''
+  for (const s of list) {
+    const key = s.label.toLowerCase()
+    const tokens = byModel
+      .filter((m) => m.label.toLowerCase().startsWith(key))
+      .reduce((n, m) => n + m.tokens, 0)
+    const m = document.createElement('div')
+    m.className = 'meter'
+    m.innerHTML =
+      `<div class="meter-top"><span>weekly · ${esc(key)}</span><span>${Math.round(s.pct)}%</span></div>` +
+      `<div class="track"><div class="fill week${s.pct >= 80 ? ' high' : ''}" style="width:${s.pct}%"></div></div>` +
+      `<div class="sub">${s.resetMs != null ? `resets in ${fmtReset(s.resetMs)} · ` : ''}${fmtTokens(tokens)} tokens</div>`
+    box.appendChild(m)
+  }
+}
+
 // by model (7 days)
 function renderModels(list) {
   renderBars('bymodel-list', list, 4)
@@ -571,6 +592,7 @@ function render(d) {
       ? `resets in ${fmtReset(wkReset)} · ${fmtTokens(d.week.tokens)} tokens`
       : `${fmtTokens(d.week.tokens)} tokens · last 7 days`
 
+  renderScoped(liveOn ? realUsage.scoped || [] : [], d.byModel || [])
   renderModels(d.byModel || [])
   renderProjects(d.byProject || [])
   renderHeat(d.days30 || [])

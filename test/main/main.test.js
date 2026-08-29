@@ -344,6 +344,24 @@ describe('threshold alerts', () => {
     expect(bodies.some((b) => b.includes('weekly usage is over 95%'))).toBe(false)
     at(0, 0)
   })
+
+  test('per-model weekly limits alert off the OAuth poll', async () => {
+    const poll = async () => {
+      await fire('auth-code', 'code#state') // completes login → pushRealUsage
+      await new Promise((r) => realSetTimeout(r, 5))
+    }
+    const base = authState.usage
+    notifications.length = 0
+    authState.usage = { ...base, scoped: [{ label: 'Fable', pct: 82, resetMs: null }] }
+    await poll()
+    expect(notifications.length).toBe(1)
+    expect(notifications[0].body).toContain('Fable weekly usage is over 80%')
+    await poll() // still above: stays quiet
+    expect(notifications.length).toBe(1)
+    authState.usage = base // no scoped limits at all: nothing to check
+    await poll()
+    expect(notifications.length).toBe(1)
+  })
 })
 
 describe('window geometry', () => {

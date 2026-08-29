@@ -95,12 +95,22 @@ function loadConfig() {
 // native notification when usage crosses a threshold
 const armed = new Set()
 function checkAlerts(config, d) {
-  if (!config.alerts || !Notification.isSupported()) return
-  const ths = config.alertThresholds || [80, 95]
-  const scopes = [
+  alertScopes(config, [
     ['session', d.session.pct],
     ['weekly usage', d.week.pct],
-  ]
+  ])
+}
+// per-model weekly limits only exist on the account side, so they're checked
+// off the OAuth poll rather than the local tick
+function checkScopedAlerts(config, u) {
+  alertScopes(
+    config,
+    (u?.scoped || []).map((s) => [`${s.label} weekly usage`, s.pct]),
+  )
+}
+function alertScopes(config, scopes) {
+  if (!config.alerts || !Notification.isSupported()) return
+  const ths = config.alertThresholds || [80, 95]
   for (const [name, pct] of scopes) {
     for (const t of ths) {
       const key = `${name}:${t}`
@@ -361,6 +371,7 @@ function updateTray() {
 function pushRealUsage(u) {
   sessionPct = u?.session ? u.session.pct : null
   updateTray()
+  checkScopedAlerts(config, u)
   if (win && !win.isDestroyed()) win.webContents.send('real-usage', u)
 }
 

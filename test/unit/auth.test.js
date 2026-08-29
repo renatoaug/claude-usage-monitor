@@ -153,8 +153,48 @@ describe('usage mapping', () => {
     expect(u.session.pct).toBe(42)
     expect(u.session.resetMs / 3600_000).toBeCloseTo(2, 1)
     expect(u.week.pct).toBe(7)
-    expect(u.opus).toEqual({ pct: 3, resetMs: null })
-    expect(u.sonnet).toBeNull() // absent from the payload
+    // no `limits` array: the legacy per-model windows are the fallback
+    expect(u.scoped).toEqual([{ label: 'Opus', pct: 3, resetMs: null }])
+  })
+
+  test('reads per-model weekly limits from the limits array', async () => {
+    seedToken(LIVE)
+    const resets_at = new Date(Date.now() + 24 * 3600_000).toISOString()
+    mockFetch({
+      '/oauth/usage': {
+        body: {
+          ...usageBody,
+          limits: [
+            { kind: 'session', percent: 42, resets_at },
+            { kind: 'weekly_all', percent: 7, resets_at },
+            {
+              kind: 'weekly_scoped',
+              percent: 38,
+              resets_at,
+              scope: { model: { display_name: 'Fable' } },
+            },
+            {
+              kind: 'weekly_scoped',
+              percent: 'n/a',
+              resets_at,
+              scope: { model: { display_name: 'X' } },
+            },
+            { kind: 'weekly_scoped', percent: 1, resets_at, scope: { surface: 'cowork' } }, // no model
+          ],
+        },
+      },
+    })
+    const u = await auth.fetchUsage()
+    expect(u.scoped.length).toBe(1) // the limits array wins over seven_day_opus
+    expect(u.scoped[0].label).toBe('Fable')
+    expect(u.scoped[0].pct).toBe(38)
+    expect(u.scoped[0].resetMs / 3600_000).toBeCloseTo(24, 1)
+  })
+
+  test('no scoped limits reads as an empty list', async () => {
+    seedToken(LIVE)
+    mockFetch({ '/oauth/usage': { body: { limits: 'nope' } } })
+    expect((await auth.fetchUsage()).scoped).toEqual([])
   })
 
   test('a missing window reads as zero rather than undefined', async () => {
