@@ -1679,7 +1679,8 @@ body.state-tired #status-text {
 }
 
 /* meters */
-.meter + .meter {
+.meter + .meter,
+#scoped-meters .meter {
   margin-top: 9px;
 }
 .meter-top {

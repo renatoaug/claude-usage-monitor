@@ -152,6 +152,32 @@ function win(o) {
     : null
 }
 
+// Weekly limits scoped to one model (e.g. "Fable" on Max) live in the `limits`
+// array. The older seven_day_<model> windows are kept as a fallback for plans
+// that still report them that way.
+function scopedWeeks(j) {
+  const out = []
+  for (const l of Array.isArray(j.limits) ? j.limits : []) {
+    if (l?.kind !== 'weekly_scoped' || typeof l.percent !== 'number') continue
+    const label = l.scope?.model?.display_name
+    if (!label) continue
+    out.push({
+      label,
+      pct: l.percent,
+      resetMs: l.resets_at ? Date.parse(l.resets_at) - Date.now() : null,
+    })
+  }
+  if (out.length) return out
+  for (const [key, label] of [
+    ['seven_day_opus', 'Opus'],
+    ['seven_day_sonnet', 'Sonnet'],
+  ]) {
+    const w = win(j[key])
+    if (w) out.push({ label, ...w })
+  }
+  return out
+}
+
 // Step 3: fetch the authoritative usage
 async function fetchUsage() {
   const token = await validToken()
@@ -173,8 +199,7 @@ async function fetchUsage() {
   return {
     session: win(j.five_hour) || { pct: 0, resetMs: null },
     week: win(j.seven_day) || { pct: 0, resetMs: null },
-    sonnet: win(j.seven_day_sonnet),
-    opus: win(j.seven_day_opus),
+    scoped: scopedWeeks(j),
   }
 }
 

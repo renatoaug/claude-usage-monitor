@@ -219,6 +219,44 @@ describe('the usage panel', () => {
     expect(el('week-sub').textContent).toContain('last 7 days')
   })
 
+  test('draws one meter per scoped weekly limit, with that model family tokens', () => {
+    api.handlers.onRealUsage({
+      session: { pct: 0, resetMs: null },
+      week: { pct: 10, resetMs: null },
+      scoped: [{ label: 'Fable', pct: 38, resetMs: 5 * 3600_000 }],
+    })
+    pet.render(
+      usage({
+        byModel: [
+          { label: 'Opus 5', tokens: 1_000_000 },
+          { label: 'Fable 5', tokens: 300_000 },
+          { label: 'Fable 4.9', tokens: 50_000 },
+        ],
+      }),
+    )
+    const meters = el('scoped-meters').querySelectorAll('.meter')
+    expect(meters.length).toBe(1)
+    expect(meters[0].querySelector('.meter-top').textContent).toBe('weekly · fable38%')
+    expect(meters[0].querySelector('.fill').style.width).toBe('38%')
+    expect(meters[0].querySelector('.fill').classList.contains('high')).toBe(false)
+    expect(meters[0].querySelector('.sub').textContent).toBe('resets in 5h 0m · 350.0k tokens')
+  })
+
+  test('scoped meters go high past 80% and vanish when the account has none', () => {
+    api.handlers.onRealUsage({
+      session: { pct: 0, resetMs: null },
+      week: { pct: 0, resetMs: null },
+      scoped: [{ label: 'Opus', pct: 91, resetMs: null }],
+    })
+    pet.render(usage())
+    const f = el('scoped-meters').querySelector('.fill')
+    expect(f.classList.contains('high')).toBe(true)
+    expect(el('scoped-meters').querySelector('.sub').textContent).toBe('0 tokens')
+    live(0) // no `scoped` at all
+    pet.render(usage())
+    expect(el('scoped-meters').children.length).toBe(0)
+  })
+
   test('shows a dash for the mini % until an account is connected', () => {
     api.handlers.onAuthState({ connected: false })
     pet.render(usage())
