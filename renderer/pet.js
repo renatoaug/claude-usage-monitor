@@ -89,9 +89,9 @@ const SPRITE = [
   }
   // clouds (blocky, dark gray)
   const cloud = (x, y, b, m, t) => {
-    add('rect', { x: x + 12, y: y, width: t, height: 9, fill: '#3a3a3a' })
-    add('rect', { x: x + 5, y: y + 7, width: m, height: 9, fill: '#3a3a3a' })
-    add('rect', { x: x, y: y + 14, width: b, height: 10, fill: '#3a3a3a' })
+    add('rect', { x: x + 12, y: y, width: t, height: 9, fill: '#3a3a3a', class: 'cloud' })
+    add('rect', { x: x + 5, y: y + 7, width: m, height: 9, fill: '#3a3a3a', class: 'cloud' })
+    add('rect', { x: x, y: y + 14, width: b, height: 10, fill: '#3a3a3a', class: 'cloud' })
   }
   cloud(16, 10, 58, 42, 22)
   cloud(120, 50, 40, 28, 15)
@@ -677,6 +677,10 @@ window.api.onAuthState((s) => {
 
 // logged-in account chip (email + plan) shown top-left when connected
 function showProfile(p) {
+  // the settings line says who is connected, not just that someone is
+  el('acc-ok').textContent = p?.email
+    ? `● ${p.email}${p.plan ? ` · ${p.plan}` : ''}`
+    : '● Connected'
   const chip = el('account-chip')
   const mini = el('mini-acct')
   if (!p?.email) {
@@ -703,11 +707,23 @@ function setPlan(node, plan) {
   }
 }
 window.api.onProfile(showProfile)
+let successTimer = null
 window.api.onAuthResult((r) => {
   if (r?.ok) {
     el('acc-msg').textContent = ''
     el('acc-code').value = ''
     el('acc-paste').classList.remove('show')
+    // logging in is done: land back on the home panel, where the fresh live
+    // meters show up under a short-lived cheer — and the pet throws confetti
+    document.body.classList.remove('settings-open')
+    clearSaveDirty()
+    el('home-success').hidden = false
+    clearTimeout(successTimer)
+    successTimer = setTimeout(() => {
+      el('home-success').hidden = true
+      fitSize()
+    }, 6000)
+    celebrate()
   } else {
     const e = r?.error || ''
     el('acc-msg').textContent = /429|rate_limit/i.test(e)
@@ -769,6 +785,10 @@ el('acc-connect').addEventListener('click', () => {
   window.api.authStart() // opens the browser to log in
   el('acc-paste').classList.add('show') // reveal the code field
   fitSize()
+})
+// the Connect button only lights up once there's a code to submit
+el('acc-code').addEventListener('input', () => {
+  el('acc-confirm').classList.toggle('ready', !!el('acc-code').value.trim())
 })
 el('acc-confirm').addEventListener('click', () => {
   const code = el('acc-code').value.trim()
@@ -848,16 +868,34 @@ function snapshotSettings() {
 }
 function refreshSaveDirty() {
   if (settingsBaseline == null) return
-  el('set-save').classList.toggle('dirty', snapshotSettings() !== settingsBaseline)
+  const dirty = snapshotSettings() !== settingsBaseline
+  const b = el('set-save')
+  b.classList.toggle('dirty', dirty)
+  b.disabled = !dirty // nothing to save, nothing to click
 }
 function clearSaveDirty() {
   settingsBaseline = snapshotSettings()
-  el('set-save').classList.remove('dirty')
+  const b = el('set-save')
+  b.classList.remove('dirty')
+  b.disabled = true
+}
+function reflectAlertsOn() {
+  el('set-rows').classList.toggle('alerts-off', !el('set-alerts').checked)
+}
+// zoom applies as you step it, so the widget shows the size right away;
+// Cancel puts the saved value back
+function previewZoom() {
+  const v = Number.parseFloat(el('set-zoom').value)
+  if (v >= 100 && v <= 200) {
+    applyZoom(v)
+    fitSize()
+  }
 }
 function populateSettings() {
   const c = currentConfig || {}
   setModeUI(c.mode)
   el('set-alerts').checked = c.alerts !== false
+  reflectAlertsOn()
   const th = c.alertThresholds || [80, 95]
   el('set-t1').value = th[0] != null ? th[0] : 80
   el('set-t2').value = th[1] != null ? th[1] : 95
@@ -883,6 +921,7 @@ for (const b of document.querySelectorAll('.num-btn')) {
     const next = (Number.parseInt(input.value, 10) || 0) + Number(b.dataset.step)
     input.value = Math.min(max, Math.max(min, next))
     refreshSaveDirty() // steppers change the value without an 'input' event
+    if (input.id === 'set-zoom') previewZoom()
   })
 }
 // light up Save whenever an editable field changes
@@ -890,6 +929,8 @@ for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire', 'set-zoom']) {
   el(id).addEventListener('input', refreshSaveDirty)
   el(id).addEventListener('change', refreshSaveDirty)
 }
+el('set-alerts').addEventListener('change', reflectAlertsOn)
+el('set-zoom').addEventListener('input', previewZoom)
 // display-mode segmented control (floating pet | menu bar)
 for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
   b.addEventListener('click', () => {
@@ -900,6 +941,7 @@ for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
 el('set-cancel').addEventListener('click', () => {
   document.body.classList.remove('settings-open')
   clearSaveDirty()
+  applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
   fitSize()
 })
 el('set-save').addEventListener('click', () => {

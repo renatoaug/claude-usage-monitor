@@ -221,13 +221,17 @@ body.settings-open #mini {
 }
 body.settings-open #settings {
   display: block;
+  animation: set-in 0.18s ease;
 }
-.set-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  text-align: center;
-  margin-bottom: 6px;
+@keyframes set-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .set-hint {
   font-size: 9px;
@@ -302,94 +306,168 @@ input[type="number"]::-webkit-outer-spin-button {
 body.is-menubar #min {
   display: none;
 }
-/* settings sections: Display / Alerts / Catch fire — each with a standardized
-   title, separated by a hairline divider */
-.set-section {
-  margin-bottom: 10px;
+/* settings rows: label on the left, control on the right — one setting per
+   line so the screen stays short. Alert thresholds indent under their toggle
+   and dim while alerts are off. */
+#set-rows {
+  margin-bottom: 10px; /* #account above already draws the divider */
 }
-.set-section + .set-section {
-  border-top: 0.5px solid var(--hair);
-  padding-top: 10px;
-}
-.set-sec-title {
+.set-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  border-bottom: 0.5px solid var(--hair);
+}
+/* the threshold pair lives in an inset card under its toggle row */
+.set-row:has(+ .set-subgroup) {
+  border-bottom: none;
+}
+/* flat, but visibly nested: a soft coral guide bar ties the pair to the
+   toggle above, and each label hugs its own stepper */
+.set-subgroup {
+  position: relative;
+  padding-left: 14px;
+  border-bottom: 0.5px solid var(--hair);
+  padding-bottom: 3px;
+  transition: opacity 0.15s;
+}
+.set-subgroup::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 5px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--coral);
+  opacity: 0.35;
+}
+.set-subgroup .set-row {
+  border-bottom: none;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.set-row-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 8px;
 }
-/* alerts on/off toggle, sitting to the right of the section title */
-.set-toggle {
-  margin: 0;
-  width: 13px;
-  height: 13px;
-  accent-color: var(--coral);
-  cursor: pointer;
-}
-/* threshold fields: caption on top, number input below — same shape for all
-   three (heads-up, near limit, catch fire) so they read as one set */
-.set-thresholds {
-  display: flex;
-  gap: 12px;
-}
-.thr {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.thr-cap {
+.set-row-hint {
+  display: block;
+  white-space: nowrap;
+  font-style: normal;
+  font-weight: 400;
   font-size: 9px;
   color: var(--muted);
-  height: 12px;
-  line-height: 12px;
+  margin-top: 2px;
 }
-/* number field + custom stepper */
-.num {
-  position: relative;
+.set-row.set-sub {
+  min-height: 31px;
+}
+.set-row.set-sub .set-row-label {
+  font-weight: 400;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+#set-rows.alerts-off .set-subgroup {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.set-row .seg {
+  margin-top: 0;
   flex: none;
-  width: 66px;
 }
-.num input {
+.set-row .seg-btn {
+  flex: none;
+  padding: 4px 9px;
+}
+/* alerts on/off pill switch (still an <input type=checkbox> underneath) */
+.set-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.14);
+  position: relative;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 0.18s;
+}
+.set-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.85;
+  transition:
+    left 0.18s,
+    opacity 0.18s;
+}
+.set-toggle:checked {
+  background: var(--coral);
+}
+.set-toggle:checked::after {
+  left: 14px;
+  opacity: 1;
+}
+/* number field: minus / value% / plus */
+.num {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.num-val {
+  position: relative;
+  width: 54px;
+}
+.num-val input {
   width: 100%;
   background: rgba(255, 255, 255, 0.06);
   border: 0.5px solid var(--hair);
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  padding: 6px 24px 6px 10px;
+  text-align: right;
+  padding: 4px 20px 4px 6px;
   outline: none;
   transition:
     border-color 0.15s,
     background 0.15s;
 }
-.num input:focus {
+.num-val input:focus {
   border-color: var(--coral);
   background: rgba(255, 255, 255, 0.09);
 }
-.num-spin {
+.num-val i {
   position: absolute;
-  top: 3px;
-  right: 4px;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
 }
 .num-btn {
   -webkit-app-region: no-drag;
   border: none;
   background: rgba(255, 255, 255, 0.1);
   color: var(--muted);
-  width: 16px;
-  height: 9px;
-  border-radius: 3px;
-  font-size: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 12px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -432,7 +510,7 @@ body.is-menubar #min {
     background 0.18s,
     transform 0.1s;
 }
-.set-actions button:active {
+.set-actions button:active:not(:disabled) {
   transform: scale(0.97);
 }
 #set-cancel {
@@ -443,10 +521,18 @@ body.is-menubar #min {
   background: rgba(255, 255, 255, 0.2);
 }
 #set-save {
-  background: rgba(217, 119, 87, 0.4); /* calm until there are unsaved changes */
+  background: rgba(255, 255, 255, 0.12); /* rests like Cancel; dirty lights it */
+  color: var(--text);
+}
+#set-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+#set-save.dirty,
+#set-save.dirty:hover {
   color: #fff;
 }
-#set-save:hover {
+#set-save.dirty:hover {
   background: #e2876a;
 }
 /* unsaved changes: light up and pulse so you don't forget to save */
@@ -562,6 +648,10 @@ body.live .live-only {
   opacity: 0.5;
   cursor: default;
 }
+#acc-confirm:not(.ready) {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+}
 .acc-link {
   border: none;
   background: none;
@@ -580,11 +670,18 @@ body.live .live-only {
   color: var(--green);
   font-size: 11px;
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #acc-connected {
   display: none;
   align-items: center;
   justify-content: space-between;
+  gap: 10px; /* the email ellipsizes instead of touching Disconnect */
+  flex-wrap: wrap; /* the success line drops to its own row */
 }
 #acc-paste {
   display: none;
@@ -614,6 +711,16 @@ body.auth-on #acc-disconnected {
 }
 body.auth-on #acc-connected {
   display: flex;
+}
+
+/* just logged in: a short-lived green cheer at the top of the home panel */
+#home-success {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  text-align: center;
+  margin-bottom: 8px;
+  animation: set-in 0.18s ease;
 }
 
 /* limits: real meters when connected, a "connect" prompt otherwise */
@@ -775,6 +882,24 @@ body.settings-open #min {
 
 /* pet */
 /* expanded: a little night scene */
+body.settings-open #stage {
+  height: 100px;
+}
+/* the ground layers stretch to fill the stage; while it's shortened, pin them
+   at their natural height so the gears stay round — the top just clips away.
+   #scene keeps stretching (dots and stars tolerate it) so its frame rows stay
+   at the edges; the blocky clouds don't, so they sit this screen out. */
+body.settings-open #gears {
+  top: auto;
+  bottom: 0;
+  height: 132px;
+}
+body.settings-open .cloud {
+  display: none;
+}
+body.settings-open #pet {
+  zoom: 0.65;
+}
 #stage {
   position: relative;
   height: 132px;
@@ -908,10 +1033,17 @@ body.settings-open #robot,
 body.settings-open #gears {
   opacity: 1;
 }
-/* declutter the scene while configuring */
+/* declutter the scene while configuring: mood marks AND activity props —
+   the shortened stage only fits the pet and its gears */
 body.settings-open #zzz,
 body.settings-open #flames,
-body.settings-open #sweat {
+body.settings-open #sweat,
+body.settings-open #terminal,
+body.settings-open #reading,
+body.settings-open #mug,
+body.settings-open #desk,
+body.settings-open #plant,
+body.settings-open #glasses {
   display: none;
 }
 /* reading mode: an open book with a magnifying glass scanning the lines */

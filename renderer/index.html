@@ -240,6 +240,7 @@
         <div class="divider"></div>
 
         <!-- session + weekly (real usage; needs login) -->
+        <div id="home-success" hidden>✓ Logged in — your real usage is live</div>
         <div id="limits">
           <div id="limits-meters">
             <div class="meter">
@@ -303,91 +304,52 @@
 
       <!-- settings panel -->
       <div id="settings">
-        <div class="set-title">Settings</div>
-
         <div id="account">
           <div id="acc-disconnected">
-            <div class="set-hint">Connect your account to show your real usage %.</div>
+            <div class="set-hint set-hint-left">Connect your Claude account to show your real usage.</div>
             <button id="acc-connect" class="acc-btn">Log in with browser</button>
             <div id="acc-paste">
-              <div class="set-hint">After logging in, paste the code from the browser page:</div>
+              <div class="set-hint set-hint-left">Paste the code from the browser page:</div>
               <input id="acc-code" type="text" placeholder="authentication code" />
               <button id="acc-confirm" class="acc-btn">Connect</button>
               <div id="acc-msg"></div>
             </div>
           </div>
           <div id="acc-connected">
-            <span class="acc-ok">● Connected · live data</span>
+            <span class="acc-ok" id="acc-ok">● Connected</span>
             <button id="acc-logout" class="acc-link">Disconnect</button>
           </div>
         </div>
 
-        <div class="set-section">
-          <div class="set-sec-title">Display</div>
-          <span class="seg" id="set-mode">
-            <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
-            <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
-          </span>
-        </div>
-
-        <div class="set-section">
-          <div class="set-sec-title">Zoom</div>
-          <div class="set-thresholds">
-            <span class="thr">
-              <span class="thr-cap">size</span>
-              <span class="num">
-                <input id="set-zoom" type="number" min="100" max="200" step="25" />
-                <span class="num-spin">
-                  <button type="button" class="num-btn" data-for="set-zoom" data-step="25">▲</button>
-                  <button type="button" class="num-btn" data-for="set-zoom" data-step="-25">▼</button>
-                </span>
-              </span>
+        <div id="set-rows">
+          <div class="set-row">
+            <span class="set-row-label">Display</span>
+            <span class="seg" id="set-mode">
+              <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
+              <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
             </span>
           </div>
-        </div>
-
-        <div class="set-section">
-          <div class="set-sec-title">
-            Alerts
+          <div class="set-row">
+            <span class="set-row-label">Alerts</span>
             <input id="set-alerts" class="set-toggle" type="checkbox" aria-label="Enable alerts" />
           </div>
-          <div class="set-thresholds">
-            <span class="thr">
-              <span class="thr-cap">heads-up</span>
-              <span class="num">
-                <input id="set-t1" type="number" min="1" max="100" />
-                <span class="num-spin">
-                  <button type="button" class="num-btn" data-for="set-t1" data-step="1">▲</button>
-                  <button type="button" class="num-btn" data-for="set-t1" data-step="-1">▼</button>
-                </span>
-              </span>
-            </span>
-            <span class="thr">
-              <span class="thr-cap">near limit</span>
-              <span class="num">
-                <input id="set-t2" type="number" min="1" max="100" />
-                <span class="num-spin">
-                  <button type="button" class="num-btn" data-for="set-t2" data-step="1">▲</button>
-                  <button type="button" class="num-btn" data-for="set-t2" data-step="-1">▼</button>
-                </span>
-              </span>
-            </span>
+          <div class="set-subgroup">
+            <div class="set-row set-sub">
+              <span class="set-row-label sub-label">heads-up</span>
+              <span class="num"><button type="button" class="num-btn" data-for="set-t1" data-step="-1">−</button><span class="num-val"><input id="set-t1" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t1" data-step="1">+</button></span>
+            </div>
+            <div class="set-row set-sub">
+              <span class="set-row-label sub-label">near limit</span>
+              <span class="num"><button type="button" class="num-btn" data-for="set-t2" data-step="-1">−</button><span class="num-val"><input id="set-t2" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t2" data-step="1">+</button></span>
+            </div>
           </div>
-        </div>
-
-        <div class="set-section">
-          <div class="set-sec-title">Catch fire</div>
-          <div class="set-thresholds">
-            <span class="thr">
-              <span class="thr-cap">session %</span>
-              <span class="num">
-                <input id="set-fire" type="number" min="1" max="99" />
-                <span class="num-spin">
-                  <button type="button" class="num-btn" data-for="set-fire" data-step="1">▲</button>
-                  <button type="button" class="num-btn" data-for="set-fire" data-step="-1">▼</button>
-                </span>
-              </span>
-            </span>
+          <div class="set-row">
+            <span class="set-row-label">Catch fire<i class="set-row-hint">at this session %</i></span>
+            <span class="num"><button type="button" class="num-btn" data-for="set-fire" data-step="-1">−</button><span class="num-val"><input id="set-fire" type="number" min="1" max="99" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-fire" data-step="1">+</button></span>
+          </div>
+          <div class="set-row">
+            <span class="set-row-label">Zoom</span>
+            <span class="num"><button type="button" class="num-btn" data-for="set-zoom" data-step="-25">−</button><span class="num-val"><input id="set-zoom" type="number" min="100" max="200" step="25" /><i>%</i></span><button type="button" class="num-btn" data-for="set-zoom" data-step="25">+</button></span>
           </div>
         </div>
 
