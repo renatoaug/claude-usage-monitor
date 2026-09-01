@@ -1744,10 +1744,14 @@ body.state-tired #status-text {
 
 /* meter subtitle */
 .sub {
-  font-size: 9.5px;
+  /* small enough that "resets in 69h 15m (Fri 7:01 AM) · 1.02B tokens" stays on one line */
+  font-size: 9px;
   color: var(--muted);
   margin-top: 4px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* burn-rate projection — calm by default, warm when you'd run out first */
