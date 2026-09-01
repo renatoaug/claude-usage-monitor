@@ -179,11 +179,7 @@ Switching is instant — no restart. (On Windows/Linux the icon lives in the sys
 
 Optional **macOS notifications** when your session or weekly usage crosses the thresholds you set (default **80%** and **95%**) — e.g. _"Your session is over 80% — now at 82%"_. They re-arm automatically once usage drops back below a threshold (after a reset). Toggle them and edit the thresholds in **⚙ Settings**.
 
-The first alert asks macOS for permission; after that the app shows up in **System Settings > Notifications** like any other. If you built the app yourself before v0.1.1 and never saw a banner, re-sign the bundle — macOS drops notifications from an app whose code signature isn't bound to its bundle id:
-
-```bash
-codesign --force --deep --sign - --identifier app.clauddy /Applications/Clauddy.app
-```
+The first alert asks macOS for permission; after that the app shows up in **System Settings > Notifications** like any other.
 
 ## Configure (`config.json`)
 
