@@ -21,6 +21,8 @@ macOS-first, with Windows (x64) support and Linux on the way.
 - `make-icon.js` — generates the macOS `.icns` from the pixel sprite
 - `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
 - `make-tray.js` — generates the menu-bar (tray) template icon from the same sprite
+- `scripts/adhoc-sign.js` — `afterPack` hook: ad-hoc signs the macOS bundle with the
+  real appId, without which macOS silently drops the app's notifications
 - `pet` — dev script to simulate pet states (writes `~/.claude-usage-monitor/debug.json`)
 
 ## Commands
