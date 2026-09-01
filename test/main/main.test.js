@@ -17,6 +17,7 @@ process.env.CLAUDE_CONFIG_DIR = ROOT
 const DATA_DIR = path.join(ROOT, 'usage-monitor')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const WINDOW_STATE = path.join(DATA_DIR, 'window.json')
+const ALERTS_PATH = path.join(DATA_DIR, 'alerts.json')
 
 // ---- the fake Electron -------------------------------------------------------
 const sent = [] // every webContents.send(channel, payload)
@@ -83,9 +84,22 @@ let displays = [{ bounds: { x: 0, y: 0, width: 1920, height: 1080 } }]
 class FakeNotification {
   constructor(opts) {
     this.opts = opts
+    this.handlers = new Map()
+  }
+  on(ev, cb) {
+    this.handlers.set(ev, cb)
+  }
+  get title() {
+    return this.opts.title
+  }
+  get body() {
+    return this.opts.body
+  }
+  get silent() {
+    return this.opts.silent
   }
   show() {
-    notifications.push(this.opts)
+    notifications.push(this)
   }
   static isSupported() {
     return true
@@ -158,9 +172,10 @@ let usageData = {
   ts: Date.now(),
 }
 let usageThrows = null
+const DEFAULT_USAGE = { session: { pct: 40, resetMs: 1000 }, week: { pct: 4, resetMs: null } }
 const authState = {
   connected: true,
-  usage: { session: { pct: 40, resetMs: 1000 }, week: { pct: 4, resetMs: null } },
+  usage: DEFAULT_USAGE,
   usageError: null,
   profile: { email: 'a@b.com', name: 'Ana', plan: 'Max' },
   completeError: null,
@@ -307,42 +322,144 @@ describe('startup', () => {
 })
 
 describe('threshold alerts', () => {
-  const at = (sessionPct, weekPct) => {
-    usageData = {
-      ...usageData,
-      session: { ...usageData.session, pct: sessionPct },
-      week: { ...usageData.week, pct: weekPct },
+  // the real (OAuth) numbers are what the alerts trust, so drive those: a poll
+  // refreshes them, the local tick is what evaluates the thresholds
+  const at = async (sessionPct, weekPct) => {
+    authState.usage = {
+      session: { pct: sessionPct, resetMs: 2 * 3600_000 },
+      week: { pct: weekPct, resetMs: 40 * 3600_000 },
     }
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
     tick()
   }
 
-  test('fires once when a threshold is crossed, not on every tick', () => {
-    at(85, 0)
+  test('fires once when a threshold is crossed, not on every tick', async () => {
+    await at(85, 0)
     expect(notifications.length).toBe(1)
-    expect(notifications[0].body).toContain('session is over 80%')
+    expect(notifications[0].title).toBe('Session at 85%')
     notifications.length = 0
-    at(86, 0)
+    await at(86, 0)
     expect(notifications.length).toBe(0) // still above: stays quiet
+    await at(0, 0)
   })
 
-  test('re-arms after usage drops back below', () => {
-    at(85, 0)
+  test('re-arms after usage drops back below', async () => {
+    await at(85, 0)
     notifications.length = 0
-    at(10, 0) // reset
-    at(85, 0)
+    await at(10, 0) // reset
+    await at(85, 0)
     expect(notifications.length).toBe(1)
+    await at(0, 0)
   })
 
-  test('tracks session and weekly independently, at both levels', () => {
-    at(0, 0)
+  test('tracks session and weekly independently, at both levels', async () => {
+    await at(0, 0)
     notifications.length = 0
-    at(96, 81)
-    const bodies = notifications.map((n) => n.body)
-    expect(bodies.some((b) => b.includes('session is over 80%'))).toBe(true)
-    expect(bodies.some((b) => b.includes('session is over 95%'))).toBe(true)
-    expect(bodies.some((b) => b.includes('weekly usage is over 80%'))).toBe(true)
-    expect(bodies.some((b) => b.includes('weekly usage is over 95%'))).toBe(false)
-    at(0, 0)
+    await at(96, 81)
+    const titles = notifications.map((n) => n.title)
+    expect(titles).toContain('Session at 96%')
+    expect(titles).toContain('Session at 96% — almost out') // the top threshold
+    expect(titles).toContain('Weekly usage at 81%')
+    expect(titles.some((t) => t.startsWith('Weekly usage at 81% —'))).toBe(false)
+    await at(0, 0)
+  })
+
+  test('only the top threshold makes a sound, and the reset is in the body', async () => {
+    await at(0, 0)
+    notifications.length = 0
+    await at(96, 0)
+    const [first, second] = notifications
+    expect(first.silent).toBe(true) // 80%: a heads-up
+    expect(second.silent).toBe(false) // 95%: urgency
+    expect(first.body).toMatch(/^2h 0m left · resets /) // the session line carries time left
+    await at(0, 0)
+  })
+
+  test('the weekly line carries only the reset, with the weekday', async () => {
+    await at(0, 0)
+    notifications.length = 0
+    await at(0, 85)
+    expect(notifications[0].body).toMatch(/^resets \w{3} /)
+    await at(0, 0)
+  })
+
+  test('clicking a notification brings the widget to the front', async () => {
+    await at(0, 0)
+    notifications.length = 0
+    await at(85, 0)
+    winMock.visible = false
+    notifications[0].handlers.get('click')()
+    expect(winMock.visible).toBe(true)
+    await at(0, 0)
+  })
+
+  test('announces a window reset only to someone who was near the ceiling', async () => {
+    await at(85, 0)
+    notifications.length = 0
+    await at(0, 0) // the window flipped
+    expect(notifications.map((n) => n.title)).toContain('Session window reset')
+    notifications.length = 0
+    await at(20, 0) // nowhere near the ceiling…
+    await at(0, 0) // …so its reset says nothing
+    expect(notifications.length).toBe(0)
+  })
+
+  test('the armed set survives a restart, so an alert is not repeated', async () => {
+    await at(85, 0)
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).toContain('Session:80')
+    await at(0, 0)
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).not.toContain('Session:80')
+  })
+
+  test('falls back to the local estimate when nobody is logged in', () => {
+    fire('auth-logout')
+    notifications.length = 0
+    usageData = { ...usageData, session: { ...usageData.session, pct: 85 } }
+    tick()
+    expect(notifications[0].title).toBe('Session at 85%')
+    usageData = { ...usageData, session: { ...usageData.session, pct: 0 } }
+    tick()
+  })
+
+  test('losing the token says so, instead of failing silently', async () => {
+    await fire('auth-code', 'code#state') // connected, and a poll is scheduled
+    await new Promise((r) => realSetTimeout(r, 5))
+    notifications.length = 0
+    authState.usageError = Object.assign(new Error('dead'), { status: 401 })
+    await timers.timeouts.at(-1).fn() // the scheduled poll, now rejected
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(notifications.map((n) => n.title)).toContain('Clauddy lost access to your usage')
+    authState.usageError = null
+    authState.connected = true
+  })
+
+  test('editing the thresholds re-arms the alerts, on disk too', async () => {
+    await at(85, 0)
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).toContain('Session:80')
+    fire('save-config', { alertThresholds: [70, 95] })
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).not.toContain('Session:80')
+    fire('save-config', { alertThresholds: [80, 95] })
+    await at(0, 0)
+  })
+
+  test('saving an unrelated setting does not replay a dismissed alert', async () => {
+    await at(85, 0)
+    notifications.length = 0
+    fire('save-config', { zoom: 125 })
+    expect(notifications.length).toBe(0)
+    fire('save-config', { zoom: 100 })
+    await at(0, 0)
+  })
+
+  test('turning alerts off silences every kind', async () => {
+    await at(0, 0)
+    fire('save-config', { alerts: false })
+    notifications.length = 0
+    await at(96, 96)
+    await at(0, 0) // would also be a window reset
+    expect(notifications.length).toBe(0)
+    fire('save-config', { alerts: true })
   })
 
   test('per-model weekly limits alert off the OAuth poll', async () => {
@@ -350,17 +467,19 @@ describe('threshold alerts', () => {
       await fire('auth-code', 'code#state') // completes login → pushRealUsage
       await new Promise((r) => realSetTimeout(r, 5))
     }
-    const base = authState.usage
+    const base = { session: { pct: 0, resetMs: 1000 }, week: { pct: 0, resetMs: null } }
     notifications.length = 0
     authState.usage = { ...base, scoped: [{ label: 'Fable', pct: 82, resetMs: null }] }
     await poll()
     expect(notifications.length).toBe(1)
-    expect(notifications[0].body).toContain('Fable weekly usage is over 80%')
+    expect(notifications[0].title).toBe('Fable weekly at 82%')
     await poll() // still above: stays quiet
     expect(notifications.length).toBe(1)
     authState.usage = base // no scoped limits at all: nothing to check
     await poll()
     expect(notifications.length).toBe(1)
+    authState.usage = DEFAULT_USAGE // leave the shared fixture as we found it
+    await poll()
   })
 })
 
