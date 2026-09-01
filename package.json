@@ -61,6 +61,7 @@
   },
   "build": {
     "appId": "app.clauddy",
+    "afterPack": "scripts/adhoc-sign.js",
     "productName": "Clauddy",
     "directories": {
       "output": "dist"
