@@ -603,8 +603,14 @@ ipcMain.on('save-config', (_e, patch) => {
     fs.mkdirSync(path.dirname(EXTERNAL_CONFIG), { recursive: true })
     fs.writeFileSync(EXTERNAL_CONFIG, JSON.stringify(obj, null, 2))
   } catch {}
+  const prevThresholds = String(config.alertThresholds)
   config = loadConfig()
-  armed.clear() // re-arm alerts with new thresholds
+  // re-arm only when the thresholds actually moved: saving an unrelated setting
+  // (zoom, mode…) shouldn't replay an alert the user already dismissed
+  if (String(config.alertThresholds) !== prevThresholds) {
+    armed.clear()
+    saveAlertState()
+  }
   if (doTick) doTick()
   if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
   applyMode(config.mode) // switch between floating widget and menu-bar popover live

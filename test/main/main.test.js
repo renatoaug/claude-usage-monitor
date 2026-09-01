@@ -434,6 +434,34 @@ describe('threshold alerts', () => {
     authState.connected = true
   })
 
+  test('editing the thresholds re-arms the alerts, on disk too', async () => {
+    await at(85, 0)
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).toContain('Session:80')
+    fire('save-config', { alertThresholds: [70, 95] })
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).not.toContain('Session:80')
+    fire('save-config', { alertThresholds: [80, 95] })
+    await at(0, 0)
+  })
+
+  test('saving an unrelated setting does not replay a dismissed alert', async () => {
+    await at(85, 0)
+    notifications.length = 0
+    fire('save-config', { zoom: 125 })
+    expect(notifications.length).toBe(0)
+    fire('save-config', { zoom: 100 })
+    await at(0, 0)
+  })
+
+  test('turning alerts off silences every kind', async () => {
+    await at(0, 0)
+    fire('save-config', { alerts: false })
+    notifications.length = 0
+    await at(96, 96)
+    await at(0, 0) // would also be a window reset
+    expect(notifications.length).toBe(0)
+    fire('save-config', { alerts: true })
+  })
+
   test('per-model weekly limits alert off the OAuth poll', async () => {
     const poll = async () => {
       await fire('auth-code', 'code#state') // completes login → pushRealUsage
