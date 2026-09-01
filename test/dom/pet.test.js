@@ -136,6 +136,20 @@ describe('number formatting', () => {
     [45 * 60_000, '45m'],
     [3 * 3600_000 + 25 * 60_000, '3h 25m'],
   ])('%i ms → %s', (ms, s) => expect(pet.fmtReset(ms)).toBe(s))
+
+  test('the reset countdown carries the local clock time it lands on', () => {
+    const now = new Date('2026-09-01T10:00:00')
+    const realNow = Date.now
+    Date.now = () => now.getTime()
+    const at = (ms) =>
+      new Date(now.getTime() + ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+    expect(pet.fmtResetIn(2 * 3600_000)).toBe(`2h 0m (${at(2 * 3600_000)})`)
+    // past a day the weekday matters as much as the hour
+    expect(pet.fmtResetIn(69 * 3600_000)).toBe(`69h 0m (Fri ${at(69 * 3600_000)})`)
+    expect(pet.fmtResetIn(0)).toBe('now')
+    Date.now = realNow
+  })
 })
 
 describe('the pet reacts to what Claude is doing', () => {
@@ -239,7 +253,9 @@ describe('the usage panel', () => {
     expect(meters[0].querySelector('.meter-top').textContent).toBe('weekly · fable38%')
     expect(meters[0].querySelector('.fill').style.width).toBe('38%')
     expect(meters[0].querySelector('.fill').classList.contains('high')).toBe(false)
-    expect(meters[0].querySelector('.sub').textContent).toBe('resets in 5h 0m · 350.0k tokens')
+    expect(meters[0].querySelector('.sub').textContent).toMatch(
+      /^resets in 5h 0m \(.+\) · 350\.0k tokens$/,
+    )
   })
 
   test('scoped meters go high past 80% and vanish when the account has none', () => {

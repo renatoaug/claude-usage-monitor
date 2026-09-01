@@ -162,6 +162,19 @@ function fmtReset(ms) {
   const m = Math.floor((ms % 3600000) / 60000)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+// wall-clock time of the reset, in the machine's own locale + timezone.
+// Past 24h the day matters too, so prefix the weekday.
+function fmtResetClock(ms) {
+  if (!ms || ms <= 0) return null
+  const at = new Date(Date.now() + ms)
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return ms >= 86400000 ? `${at.toLocaleDateString([], { weekday: 'short' })} ${time}` : time
+}
+// "2h 22m (14:35)" — countdown plus the clock time it lands on
+function fmtResetIn(ms) {
+  const at = fmtResetClock(ms)
+  return at ? `${fmtReset(ms)} (${at})` : fmtReset(ms)
+}
 // burn-rate projection lives in burn.js (shared with the tests)
 const burn = Burn.createBurnTracker()
 
@@ -420,7 +433,7 @@ function renderScoped(list, byModel) {
     m.innerHTML =
       `<div class="meter-top"><span>weekly · ${esc(key)}</span><span>${Math.round(s.pct)}%</span></div>` +
       `<div class="track"><div class="fill week${s.pct >= 80 ? ' high' : ''}" style="width:${s.pct}%"></div></div>` +
-      `<div class="sub">${s.resetMs != null ? `resets in ${fmtReset(s.resetMs)} · ` : ''}${fmtTokens(tokens)} tokens</div>`
+      `<div class="sub">${s.resetMs != null ? `resets in ${fmtResetIn(s.resetMs)} · ` : ''}${fmtTokens(tokens)} tokens</div>`
     box.appendChild(m)
   }
 }
@@ -568,7 +581,7 @@ function render(d) {
   sf.style.width = `${sessPct}%`
   sf.classList.toggle('high', sessPct >= 80)
   el('session-sub').textContent = sessActive
-    ? `resets in ${fmtReset(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
+    ? `resets in ${fmtResetIn(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
     : 'no active session'
 
   // where this pace is taking you — hidden until there's enough trail to tell
@@ -589,7 +602,7 @@ function render(d) {
   wf.classList.toggle('high', wkPct >= 80)
   el('week-sub').textContent =
     wkReset != null
-      ? `resets in ${fmtReset(wkReset)} · ${fmtTokens(d.week.tokens)} tokens`
+      ? `resets in ${fmtResetIn(wkReset)} · ${fmtTokens(d.week.tokens)} tokens`
       : `${fmtTokens(d.week.tokens)} tokens · last 7 days`
 
   renderScoped(liveOn ? realUsage.scoped || [] : [], d.byModel || [])
@@ -1006,6 +1019,7 @@ if (typeof module === 'object' && module.exports) {
     render,
     fmtTokens,
     fmtReset,
+    fmtResetIn,
     setState,
     renderModels,
     renderProjects,
