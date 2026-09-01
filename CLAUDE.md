@@ -76,7 +76,8 @@ without coverage. Runs on every PR.
 ## Data & secrets
 
 - All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json`
-  (OAuth token, mode 600), `config.json` (settings), `debug.json` (simulator).
+  (OAuth token, mode 600), `config.json` (settings), `debug.json` (simulator),
+  `alerts.json` (which notifications are already armed, so restarts don't repeat them).
 - **Never commit** `auth.json` or any token/credential. It's gitignored — keep it that way.
 
 ## Code style

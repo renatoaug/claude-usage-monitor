@@ -177,7 +177,19 @@ Switching is instant — no restart. (On Windows/Linux the icon lives in the sys
 
 ## Alerts
 
-Optional **macOS notifications** when your session or weekly usage crosses the thresholds you set (default **80%** and **95%**) — e.g. _"Your session is over 80% — now at 82%"_. They re-arm automatically once usage drops back below a threshold (after a reset). Toggle them and edit the thresholds in **⚙ Settings**.
+Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Settings**:
+
+| Notification | When |
+| --- | --- |
+| _Session at 82%_ — `2h 39m left · resets 6:50 PM` | Your session crosses a threshold (default **80%** and **95%**) |
+| _Weekly usage at 84%_ — `resets Fri 7:00 AM` | Same, for the weekly limit |
+| _Fable weekly at 84%_ — `resets Fri 7:00 AM` | Same, for a per-model weekly limit |
+| _Session window reset_ — `full budget again` | A session you had pushed past 80% rolls over |
+| _Clauddy lost access to your usage_ | The OAuth token expired or was revoked, so the % went back to being an estimate |
+
+The last threshold you set is the only one that makes a sound; the earlier ones arrive silently. Clicking any of them brings the widget to the front. Each fires once and re-arms when usage drops back below — remembered across restarts, so relaunching at 85% doesn't repeat an alert you already dismissed.
+
+Percentages come from your account when you're logged in, and fall back to the local token estimate when you're not.
 
 The first alert asks macOS for permission; after that the app shows up in **System Settings > Notifications** like any other.
 

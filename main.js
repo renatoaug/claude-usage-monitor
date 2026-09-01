@@ -52,6 +52,7 @@ let currentMode = 'floating' // 'floating' widget | 'menubar' popover
 let trayBounds = null // last known tray icon rect, to anchor the popover
 let lastBlurHide = 0 // debounce: ignore the tray click that dismissed the popover
 let sessionPct = null // authoritative session % shown in the tray title
+let realUsage = null // last OAuth usage payload — the % alerts trust when logged in
 let lastProgrammaticMove = 0 // ignore the 'moved' event our own setPosition triggers
 let displayChanging = 0 // ignore OS window-shuffles while a display (dis)connects
 
@@ -92,46 +93,133 @@ function loadConfig() {
   return defaults
 }
 
-// native notification when usage crosses a threshold
-const armed = new Set()
+// ---- alerts ------------------------------------------------------------------
+// One notification per (scope × threshold), re-armed when usage drops back below.
+// `armed` is persisted so relaunching at 85% doesn't repeat the 80% alert you
+// already dismissed; it also carries the last session % so a reset is detectable
+// across restarts.
+const ALERTS_FILE = path.join(DATA_DIR, 'alerts.json')
+let armed = new Set()
+let lastSessionPct = null
+function loadAlertState() {
+  try {
+    const j = JSON.parse(fs.readFileSync(ALERTS_FILE, 'utf8'))
+    armed = new Set(Array.isArray(j.armed) ? j.armed : [])
+    lastSessionPct = typeof j.lastSessionPct === 'number' ? j.lastSessionPct : null
+  } catch {} // first run, or a corrupted file: start from a clean slate
+}
+function saveAlertState() {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+    fs.writeFileSync(ALERTS_FILE, JSON.stringify({ armed: [...armed], lastSessionPct }))
+  } catch {}
+}
+
+function fmtDuration(ms) {
+  const h = Math.floor(ms / 3600000)
+  const m = Math.floor((ms % 3600000) / 60000)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+// wall-clock time the window flips, in the machine's own locale + timezone
+function fmtClock(ms) {
+  const at = new Date(Date.now() + ms)
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return ms >= 86400000 ? `${at.toLocaleDateString([], { weekday: 'short' })} ${time}` : time
+}
+
+function notify(title, body, { silent = true } = {}) {
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title, body, silent })
+  n.on('click', showWidget) // the obvious gesture: bring the pet to the front
+  n.show()
+}
+
+// the alert lines carry the reset, since "what do I do about it" is a question
+// about time left, not about the threshold that happened to fire
+function resetLine(resetMs, withRemaining) {
+  if (resetMs == null) return ''
+  const at = `resets ${fmtClock(resetMs)}`
+  return withRemaining && resetMs > 0 ? `${fmtDuration(resetMs)} left · ${at}` : at
+}
+
+// usage crossing a threshold. `scopes` are {label, pct, resetMs, session} rows;
+// the real (OAuth) numbers are preferred over the local token estimate, which is
+// only a budget guess and can be off by an order of magnitude.
+function alertScopes(config, scopes) {
+  if (!config.alerts) return
+  const ths = config.alertThresholds || [80, 95]
+  const top = Math.max(...ths)
+  let dirty = false
+  for (const { label, pct, resetMs, session } of scopes) {
+    if (pct == null) continue
+    for (const t of ths) {
+      const key = `${label}:${t}`
+      if (pct >= t) {
+        if (!armed.has(key)) {
+          armed.add(key)
+          dirty = true
+          const urgent = t === top
+          notify(
+            `${label} at ${Math.round(pct)}%${urgent ? ' — almost out' : ''}`,
+            resetLine(resetMs, session),
+            { silent: !urgent }, // 80% is a heads-up; the last threshold earns a sound
+          )
+        }
+      } else if (armed.delete(key)) {
+        dirty = true // re-arm when it drops below
+      }
+    }
+  }
+  if (dirty) saveAlertState()
+}
+
 function checkAlerts(config, d) {
+  const r = realUsage // authoritative when logged in; the estimate is the fallback
+  const session = r?.session ?? d.session
+  const week = r?.week ?? d.week
   alertScopes(config, [
-    ['session', d.session.pct],
-    ['weekly usage', d.week.pct],
+    { label: 'Session', pct: session.pct, resetMs: session.resetMs, session: true },
+    { label: 'Weekly usage', pct: week.pct, resetMs: week.resetMs },
   ])
+  checkWindowReset(config, session.pct)
 }
 // per-model weekly limits only exist on the account side, so they're checked
 // off the OAuth poll rather than the local tick
 function checkScopedAlerts(config, u) {
   alertScopes(
     config,
-    (u?.scoped || []).map((s) => [`${s.label} weekly usage`, s.pct]),
+    (u?.scoped || []).map((s) => ({
+      label: `${s.label} weekly`,
+      pct: s.pct,
+      resetMs: s.resetMs,
+    })),
   )
 }
-function alertScopes(config, scopes) {
-  if (!config.alerts || !Notification.isSupported()) return
-  const ths = config.alertThresholds || [80, 95]
-  for (const [name, pct] of scopes) {
-    for (const t of ths) {
-      const key = `${name}:${t}`
-      if (pct >= t) {
-        if (!armed.has(key)) {
-          armed.add(key)
-          new Notification({
-            title: 'Clauddy',
-            body: `Your ${name} is over ${t}% — now at ${Math.round(pct)}%`,
-            silent: false,
-          }).show()
-        }
-      } else {
-        armed.delete(key) // re-arm when it drops below
-      }
-    }
+
+// "you can work again" — only worth saying to someone who was actually near the
+// ceiling, so a window flipping at 20% stays silent
+const RESET_FROM = 80
+const RESET_TO = 5
+function checkWindowReset(config, pct) {
+  if (pct == null) return
+  const was = lastSessionPct
+  lastSessionPct = pct
+  if (config.alerts && was != null && was >= RESET_FROM && pct <= RESET_TO) {
+    notify('Session window reset', 'full budget again')
   }
+  if (was == null || Math.round(was) !== Math.round(pct)) saveAlertState()
+}
+
+// the token going dead is a silent failure otherwise: the widget quietly falls
+// back to the local estimate and keeps showing a number the user trusts
+function alertAuthLost(config) {
+  if (!config.alerts) return
+  notify('Clauddy lost access to your usage', 'open Settings to reconnect')
 }
 
 function createWindow() {
   config = loadConfig()
+  loadAlertState()
   const { workAreaSize } = screen.getPrimaryDisplay()
   const H = 480
 
@@ -289,6 +377,16 @@ function showPopover() {
   win.focus()
 }
 
+// bring the widget to the front from wherever it is, in either mode
+function showWidget() {
+  if (!win || win.isDestroyed()) return
+  if (currentMode === 'menubar') showPopover()
+  else {
+    win.show()
+    win.focus()
+  }
+}
+
 // route every programmatic move through here so the 'moved' handler can tell
 // our own repositioning apart from a genuine user drag (and skip saving it)
 function moveWindow(x, y) {
@@ -369,6 +467,7 @@ function updateTray() {
 
 // send real usage to the renderer and refresh the tray title in one place
 function pushRealUsage(u) {
+  realUsage = u
   sessionPct = u?.session ? u.session.pct : null
   updateTray()
   checkScopedAlerts(config, u)
@@ -428,6 +527,7 @@ async function pollUsage() {
     } else if (e && e.status === 401) {
       auth.clear()
       pushRealUsage(null)
+      alertAuthLost(config)
       if (win && !win.isDestroyed()) {
         win.webContents.send('auth-state', { connected: false })
         win.webContents.send('profile', null)
