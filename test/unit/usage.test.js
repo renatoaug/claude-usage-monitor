@@ -7,7 +7,7 @@ import path from 'node:path'
 // so the fixture root has to exist and be exported before it loads.
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-test-'))
 process.env.CLAUDE_CONFIG_DIR = ROOT
-const { getUsage, labelFor, projectLabel, tokensOf, detectActivity } = await import(
+const { getUsage, setClaudeDir, labelFor, projectLabel, tokensOf, detectActivity } = await import(
   '../../usage.js'
 )
 
@@ -353,6 +353,24 @@ describe('activity detection', () => {
 
   test('a missing file is not a crash', () => {
     expect(detectActivity(path.join(ROOT, 'nope.jsonl'))).toBeNull()
+  })
+})
+
+describe('switching accounts', () => {
+  test('setClaudeDir reads another account logs, and null goes back to the default', () => {
+    writeLog([line({ tokens: 10 })])
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-other-'))
+    try {
+      setClaudeDir(other)
+      // a second subscription with no sessions yet must not inherit the first
+      // account's token counts
+      expect(getUsage(BUDGET).monthTokens).toBe(0)
+      setClaudeDir(null)
+      expect(getUsage(BUDGET).monthTokens).toBeGreaterThan(0)
+    } finally {
+      setClaudeDir(null)
+      fs.rmSync(other, { recursive: true, force: true })
+    }
   })
 })
 

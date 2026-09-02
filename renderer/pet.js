@@ -682,7 +682,9 @@ window.api.onAuthState((s) => {
   if (!on) {
     realUsage = null
     document.body.classList.remove('live')
-    el('acc-paste').classList.remove('show')
+    // main sends this before it opens the browser for a new login, so the
+    // pending state that comes next is not undone by it
+    endLogin()
     showProfile(null)
   }
   if (document.body.classList.contains('settings-open')) fitSize()
@@ -720,12 +722,94 @@ function setPlan(node, plan) {
   }
 }
 window.api.onProfile(showProfile)
+
+// ---- accounts ---------------------------------------------------------------
+// The list is only worth showing once there are two; with a single account the
+// panel keeps the shape it has always had, plus the "add" link.
+let pendingRemove = null // id whose × is armed, so removal takes two clicks
+let lastAccounts = null
+
+function renderAccounts(a) {
+  lastAccounts = a
+  const list = a?.accounts || []
+  const box = el('acc-list')
+  el('acc-switch').hidden = list.length < 2
+  box.textContent = ''
+  box.classList.toggle('busy', !!a?.busy)
+  for (const acc of list) {
+    const active = acc.id === a.active
+    const row = document.createElement('div')
+    row.className = 'acc-item'
+    if (active) row.classList.add('active')
+    if (acc.connected) row.classList.add('connected')
+    // the account being switched to owns the spinner: everything on screen
+    // still belongs to the one we're leaving
+    if (a.busy === acc.id) row.classList.add('loading')
+
+    const dot = document.createElement('span')
+    dot.className = 'dot'
+    const who = document.createElement('span')
+    who.className = 'who'
+    who.textContent =
+      acc.label || (acc.connected ? 'Connected' : active ? 'Waiting for login…' : 'Not connected')
+    row.append(dot, who)
+
+    // the first account holds the original install's data, and the active one
+    // is what the widget is showing — neither can be removed from under you
+    if (acc.id !== 'default' && !active) {
+      const x = document.createElement('button')
+      const armed = pendingRemove === acc.id
+      x.className = armed ? 'drop armed' : 'drop'
+      x.textContent = armed ? 'remove?' : '\u00d7'
+      x.title = 'Remove this account'
+      x.addEventListener('click', (e) => {
+        e.stopPropagation() // the row itself switches accounts
+        if (armed) {
+          pendingRemove = null
+          window.api.accountRemove(acc.id)
+        } else {
+          pendingRemove = acc.id // a click deletes a token: ask once
+          renderAccounts(a)
+        }
+      })
+      row.appendChild(x)
+    }
+
+    if (!active) row.addEventListener('click', () => switchAccount(acc.id))
+    box.appendChild(row)
+  }
+  fitSize()
+}
+
+// paint the pending state from the click itself rather than waiting for main to
+// answer — the answer is exactly what takes a moment
+function switchAccount(id) {
+  if (lastAccounts?.busy) return
+  endLogin() // the code from the account we're leaving is no good here
+  pendingRemove = null
+  renderAccounts({ ...lastAccounts, busy: id })
+  window.api.accountSwitch(id)
+}
+
+window.api.onAccounts((a) => {
+  pendingRemove = null
+  renderAccounts(a)
+})
+
+function endLogin() {
+  document.body.classList.remove('awaiting')
+  el('acc-paste').classList.remove('show')
+  el('acc-code').value = ''
+  el('acc-msg').textContent = ''
+}
+el('acc-add').addEventListener('click', () => {
+  el('acc-msg').textContent = ''
+  window.api.accountAdd() // switches to a fresh slot and opens the browser
+})
 let successTimer = null
 window.api.onAuthResult((r) => {
   if (r?.ok) {
-    el('acc-msg').textContent = ''
-    el('acc-code').value = ''
-    el('acc-paste').classList.remove('show')
+    endLogin()
     // logging in is done: land back on the home panel, where the fresh live
     // meters show up under a short-lived cheer — and the pet throws confetti
     document.body.classList.remove('settings-open')
@@ -738,6 +822,8 @@ window.api.onAuthResult((r) => {
     }, 6000)
     celebrate()
   } else {
+    // failed: put "Log in with browser" back, so a retry is one click away
+    document.body.classList.remove('awaiting')
     const e = r?.error || ''
     el('acc-msg').textContent = /429|rate_limit/i.test(e)
       ? 'Rate limited by Anthropic — wait a few minutes, then try once with a fresh code.'
@@ -794,9 +880,13 @@ el('close').addEventListener('click', () => window.api.quit())
 el('usage').addEventListener('click', () => window.api.openUsage())
 
 // account login (browser flow)
-el('acc-connect').addEventListener('click', () => {
-  window.api.authStart() // opens the browser to log in
-  el('acc-paste').classList.add('show') // reveal the code field
+el('acc-connect').addEventListener('click', () => window.api.authStart())
+// main opened the browser — the only thing left to do is paste the code back,
+// so the panel narrows to exactly that
+window.api.onAuthPending(() => {
+  document.body.classList.add('awaiting')
+  el('acc-paste').classList.add('show')
+  el('acc-code').focus()
   fitSize()
 })
 // the Connect button only lights up once there's a code to submit
@@ -1025,6 +1115,7 @@ if (typeof module === 'object' && module.exports) {
     renderProjects,
     renderHeat,
     showProfile,
+    renderAccounts,
     burn,
   }
 }

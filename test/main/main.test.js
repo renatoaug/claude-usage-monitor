@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
 import childProcess from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -18,6 +18,9 @@ const DATA_DIR = path.join(ROOT, 'usage-monitor')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const WINDOW_STATE = path.join(DATA_DIR, 'window.json')
 const ALERTS_PATH = path.join(DATA_DIR, 'alerts.json')
+// the default account starts logged in, the way an existing install does
+fs.mkdirSync(DATA_DIR, { recursive: true })
+fs.writeFileSync(path.join(DATA_DIR, 'auth.json'), '{}')
 
 // ---- the fake Electron -------------------------------------------------------
 const sent = [] // every webContents.send(channel, payload)
@@ -187,12 +190,24 @@ mock.module('../../usage.js', () => ({
     if (usageThrows) throw usageThrows
     return usageData
   },
+  setClaudeDir: () => {},
 }))
+// the real auth.js keeps its token in whatever dir it was last pointed at, and
+// "is this account connected?" is exactly "is there a token in its dir?" — the
+// mock has to model that, or every account looks logged in at once
+let authDir = DATA_DIR
+const tokenFile = () => path.join(authDir, 'auth.json')
 mock.module('../../auth.js', () => ({
+  setDataDir: (dir) => {
+    authDir = dir
+    authState.connected = fs.existsSync(tokenFile())
+  },
   isConnected: () => authState.connected,
   begin: () => 'https://claude.ai/oauth/authorize?x=1',
   complete: async () => {
     if (authState.completeError) throw authState.completeError
+    fs.mkdirSync(authDir, { recursive: true })
+    fs.writeFileSync(tokenFile(), '{}')
     authState.connected = true
   },
   fetchUsage: async () => {
@@ -203,6 +218,7 @@ mock.module('../../auth.js', () => ({
   clear: () => {
     authState.cleared++
     authState.connected = false
+    fs.rmSync(tokenFile(), { force: true })
   },
 }))
 mock.module('electron', () => electronMock)
@@ -757,6 +773,132 @@ describe('update check', () => {
     } finally {
       Object.defineProperty(process, 'platform', { value: real, configurable: true })
     }
+  })
+})
+
+describe('accounts', () => {
+  const ACCOUNTS_PATH = path.join(DATA_DIR, 'accounts.json')
+  const listed = () => lastOf('accounts')
+
+  afterEach(() => {
+    // every test here leaves the widget on whichever account it created
+    fire('accounts-switch', 'default')
+  })
+
+  test('starts on the default account', () => {
+    expect(startupOf('accounts').active).toBe('default')
+    expect(startupOf('accounts').accounts.map((a) => a.id)).toEqual(['default'])
+  })
+
+  test('adding an account switches to it and blanks the previous usage', async () => {
+    await fire('auth-code', 'code#state') // the default account is live
+    await new Promise((r) => realSetTimeout(r, 5))
+    sent.length = 0
+
+    fire('accounts-add')
+    const a = listed()
+    expect(a.accounts).toHaveLength(2)
+    expect(a.active).not.toBe('default')
+    // the new account has no token yet, so nothing on screen may still be the
+    // old account's numbers
+    expect(lastOf('real-usage')).toBeNull()
+    expect(lastOf('profile')).toBeNull()
+    expect(JSON.parse(fs.readFileSync(ACCOUNTS_PATH, 'utf8')).accounts).toHaveLength(2)
+  })
+
+  test('each account arms its own alerts', async () => {
+    authState.usage = {
+      session: { pct: 85, resetMs: 3600_000 },
+      week: { pct: 0, resetMs: 3600_000 },
+    }
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    tick()
+    expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).toContain('Session:80')
+
+    fire('accounts-add')
+    const id = listed().active
+    // the second account is at 85% too, and still gets its own notification:
+    // it is a different subscription, not a repeat of the same one
+    notifications.length = 0
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    tick()
+    expect(notifications.some((n) => n.title.startsWith('Session at 85%'))).toBe(true)
+    const own = path.join(DATA_DIR, 'accounts', id, 'alerts.json')
+    expect(JSON.parse(fs.readFileSync(own, 'utf8')).armed).toContain('Session:80')
+  })
+
+  test('the login names the account by its email', async () => {
+    fire('accounts-add')
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(listed().accounts.at(-1).label).toBe('a@b.com')
+  })
+
+  test('removing an account takes its data dir with it', async () => {
+    fire('accounts-add')
+    const id = listed().active
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    const dir = path.join(DATA_DIR, 'accounts', id)
+
+    // the widget is showing it: switch away before it can go
+    fire('accounts-remove', id)
+    expect(fs.existsSync(dir)).toBe(true)
+
+    fire('accounts-switch', 'default')
+    fire('accounts-remove', id)
+    expect(fs.existsSync(dir)).toBe(false)
+    expect(listed().accounts.map((a) => a.id)).not.toContain(id)
+  })
+
+  test('a switch says which account is loading before its usage arrives', async () => {
+    fire('accounts-add')
+    await fire('auth-code', 'code#state') // a real login landed in the new slot
+    await new Promise((r) => realSetTimeout(r, 5))
+    fire('accounts-switch', 'default')
+    // the pending row is named right away; the heavy log re-read is deferred
+    expect(lastOf('accounts').busy).toBe('default')
+  })
+
+  test('an abandoned login does not survive a restart', () => {
+    // main.js wires itself up at import time, so the boot path is asserted on
+    // the data it would read rather than by re-importing it
+    fire('accounts-add')
+    const id = listed().active
+    const stored = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'accounts.json'), 'utf8'))
+    expect(stored.active).toBe(id) // …still pending when the app closes
+    expect(fs.existsSync(path.join(DATA_DIR, 'accounts', id, 'auth.json'))).toBe(false)
+    fire('accounts-switch', 'default') // …and gone as soon as it is left behind
+    expect(listed().accounts.map((a) => a.id)).not.toContain(id)
+  })
+
+  test('adding an account opens the browser on the new slot', () => {
+    fire('accounts-add')
+    // the login must start after the switch, or the token lands in the account
+    // we just left
+    expect(opened.at(-1)).toContain('claude.ai/oauth/authorize')
+    expect(sent.some((m) => m.channel === 'auth-pending')).toBe(true)
+  })
+
+  test('a slot nobody ever logged into is dropped when you leave it', () => {
+    fire('accounts-add')
+    const first = listed().active
+    // clicking "add" again must not leave the abandoned slot behind — that is
+    // how the list filled up with "Not connected yet" rows
+    fire('accounts-add')
+    const second = listed().active
+    expect(listed().accounts.map((a) => a.id)).not.toContain(first)
+
+    fire('accounts-switch', 'default')
+    expect(listed().accounts.map((a) => a.id)).not.toContain(second)
+  })
+
+  test('switching to the account already active does nothing', () => {
+    sent.length = 0
+    fire('accounts-switch', 'default')
+    expect(lastOf('accounts')).toBeUndefined()
   })
 })
 

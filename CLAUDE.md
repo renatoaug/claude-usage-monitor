@@ -17,6 +17,7 @@ macOS-first, with Windows (x64) support and Linux on the way.
 - `preload.js` — `contextBridge` API exposed to the renderer
 - `usage.js` — reads `~/.claude/projects/**/*.jsonl` (tokens, session window, activity)
 - `auth.js` — OAuth (PKCE) login + authoritative usage % fetch
+- `accounts.js` — the account list (several subscriptions, one active at a time)
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
 - `make-icon.js` — generates the macOS `.icns` from the pixel sprite
 - `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
@@ -77,7 +78,12 @@ without coverage. Runs on every PR.
 
 - All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json`
   (OAuth token, mode 600), `config.json` (settings), `debug.json` (simulator),
-  `alerts.json` (which notifications are already armed, so restarts don't repeat them).
+  `alerts.json` (which notifications are already armed, so restarts don't repeat them),
+  `accounts.json` (the account list + the active one).
+- Extra accounts nest their own `auth.json`/`alerts.json` under `accounts/<id>/`;
+  the first account keeps the top-level paths, so existing installs are untouched.
+  Switching rebinds `auth.setDataDir`, `usage.setClaudeDir` and the alert state —
+  only the active account is polled, so only it can notify.
 - **Never commit** `auth.json` or any token/credential. It's gitignored — keep it that way.
 
 ## Code style

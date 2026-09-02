@@ -17,7 +17,9 @@ const UA = 'claude-cli/2.1.181 (external, cli)'
 const DATA_DIR = process.env.CLAUDE_CONFIG_DIR
   ? path.join(process.env.CLAUDE_CONFIG_DIR, 'usage-monitor')
   : path.join(os.homedir(), '.claude-usage-monitor')
-const TOKEN_PATH = path.join(DATA_DIR, 'auth.json')
+// mutable: with several accounts configured, each one keeps its token in its
+// own dir and the widget switches between them at runtime
+let tokenPath = path.join(DATA_DIR, 'auth.json')
 
 const b64url = (buf) =>
   buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -26,10 +28,19 @@ let tokens = null // { access_token, refresh_token, expires_at }
 let pending = null // { verifier, state }
 let profile = null // { email, name, plan } — cached account identity
 
+// point the module at another account's dir — the cached token and profile
+// belong to the previous one, so both are dropped
+function setDataDir(dir) {
+  tokenPath = path.join(dir || DATA_DIR, 'auth.json')
+  tokens = null
+  profile = null
+  pending = null
+}
+
 function load() {
   if (tokens) return tokens
   try {
-    tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'))
+    tokens = JSON.parse(fs.readFileSync(tokenPath, 'utf8'))
   } catch {
     tokens = null
   }
@@ -38,15 +49,15 @@ function load() {
 function save(t) {
   tokens = t
   try {
-    fs.mkdirSync(path.dirname(TOKEN_PATH), { recursive: true })
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(t, null, 2), { mode: 0o600 })
+    fs.mkdirSync(path.dirname(tokenPath), { recursive: true })
+    fs.writeFileSync(tokenPath, JSON.stringify(t, null, 2), { mode: 0o600 })
   } catch {}
 }
 function clear() {
   tokens = null
   profile = null
   try {
-    fs.unlinkSync(TOKEN_PATH)
+    fs.unlinkSync(tokenPath)
   } catch {}
 }
 function isConnected() {
@@ -228,4 +239,4 @@ async function fetchProfile() {
   return profile
 }
 
-module.exports = { begin, complete, fetchUsage, fetchProfile, clear, isConnected }
+module.exports = { begin, complete, fetchUsage, fetchProfile, clear, isConnected, setDataDir }

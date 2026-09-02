@@ -2,8 +2,26 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 
-const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects')
+// the Claude config dir whose logs we read. mutable because the widget can
+// switch between accounts at runtime, each one pointing at its own dir.
+const DEFAULT_CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+let claudeDir = DEFAULT_CLAUDE_DIR
+let projectsDir = path.join(claudeDir, 'projects')
+
+// point the reader at another account's logs. fileCache survives: it is keyed
+// by absolute path, so entries from another dir can't collide — and keeping it
+// is what makes switching back to an account instant instead of a full re-scan.
+// projectLabelCache is keyed by a directory *name*, which can repeat across
+// dirs, so that one goes.
+function setClaudeDir(dir) {
+  // an account with no dir of its own reads the default one — which is still
+  // CLAUDE_CONFIG_DIR when the whole instance is isolated that way
+  const next = dir || DEFAULT_CLAUDE_DIR
+  if (next === claudeDir) return
+  claudeDir = next
+  projectsDir = path.join(claudeDir, 'projects')
+  projectLabelCache.clear()
+}
 
 function labelFor(model) {
   if (!model) return 'desconhecido'
@@ -103,7 +121,7 @@ function projectLabel(dirName) {
 }
 
 function projectDirOf(file) {
-  const rel = path.relative(PROJECTS_DIR, file)
+  const rel = path.relative(projectsDir, file)
   const first = rel.split(path.sep)[0]
   return first && first !== '..' ? first : null
 }
@@ -279,7 +297,7 @@ function getUsage(config) {
   const scanCutoff = start30 - dayMs
 
   const files = []
-  walkJsonl(PROJECTS_DIR, files, scanCutoff)
+  walkJsonl(projectsDir, files, scanCutoff)
 
   let lastMtime = 0
   let newestFile = null
@@ -397,4 +415,12 @@ function getUsage(config) {
 // labelFor/tokensOf/detectActivity are exported for the tests — they're the
 // parts that decode Claude Code's log format, which is the thing most likely
 // to change out from under us.
-module.exports = { getUsage, labelFor, projectLabel, tokensOf, detectActivity, PLAN_BUDGETS }
+module.exports = {
+  getUsage,
+  setClaudeDir,
+  labelFor,
+  projectLabel,
+  tokensOf,
+  detectActivity,
+  PLAN_BUDGETS,
+}

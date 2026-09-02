@@ -13,8 +13,10 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const { spawn } = require('node:child_process')
-const { getUsage } = require('./usage')
+const usage = require('./usage')
+const { getUsage } = usage
 const auth = require('./auth')
+const accounts = require('./accounts')
 
 const REPO = 'renatoaug/claude-usage-monitor'
 
@@ -98,20 +100,22 @@ function loadConfig() {
 // `armed` is persisted so relaunching at 85% doesn't repeat the 80% alert you
 // already dismissed; it also carries the last session % so a reset is detectable
 // across restarts.
-const ALERTS_FILE = path.join(DATA_DIR, 'alerts.json')
+// per account: two subscriptions have separate windows, so an alert armed on
+// one says nothing about the other
+let alertsFile = path.join(DATA_DIR, 'alerts.json')
 let armed = new Set()
 let lastSessionPct = null
 function loadAlertState() {
   try {
-    const j = JSON.parse(fs.readFileSync(ALERTS_FILE, 'utf8'))
+    const j = JSON.parse(fs.readFileSync(alertsFile, 'utf8'))
     armed = new Set(Array.isArray(j.armed) ? j.armed : [])
     lastSessionPct = typeof j.lastSessionPct === 'number' ? j.lastSessionPct : null
   } catch {} // first run, or a corrupted file: start from a clean slate
 }
 function saveAlertState() {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-    fs.writeFileSync(ALERTS_FILE, JSON.stringify({ armed: [...armed], lastSessionPct }))
+    fs.mkdirSync(path.dirname(alertsFile), { recursive: true })
+    fs.writeFileSync(alertsFile, JSON.stringify({ armed: [...armed], lastSessionPct }))
   } catch {}
 }
 
@@ -217,9 +221,107 @@ function alertAuthLost(config) {
   notify('Clauddy lost access to your usage', 'open Settings to reconnect')
 }
 
+// ---- accounts ----------------------------------------------------------------
+// One widget, several Claude subscriptions. Switching rebinds the token store
+// (auth), the log dir (usage) and the alert state — everything that is "whose
+// usage is this" — while the window itself (position, mode, zoom, settings)
+// stays global, because there is only one pet.
+function applyAccount(acc) {
+  const dir = accounts.dataDirOf(acc.id)
+  alertsFile = path.join(dir, 'alerts.json')
+  auth.setDataDir(dir)
+  usage.setClaudeDir(acc.claudeDir)
+  armed = new Set()
+  lastSessionPct = null
+  loadAlertState()
+}
+
+// `connected` is read off disk rather than through auth, which only ever knows
+// about the active account
+function accountsPayload() {
+  return {
+    active: accounts.activeId(),
+    accounts: accounts.list().map((a) => ({
+      id: a.id,
+      label: a.label,
+      connected: hasToken(a.id),
+    })),
+  }
+}
+
+// `busy` is the account being switched to, while its usage is still loading
+function sendAccounts(busy = null) {
+  if (win && !win.isDestroyed()) win.webContents.send('accounts', { ...accountsPayload(), busy })
+}
+
+// the numbers on screen belong to the old account: drop them before the new
+// account's first poll lands, so nothing stale is ever attributed to it
+function switchAccount(id) {
+  const leaving = accounts.activeId()
+  if (id === leaving) return
+  const acc = accounts.setActive(id)
+  if (!acc) return
+  saveAlertState() // the account we're leaving keeps what it had armed
+  pruneEmpty(leaving)
+  applyAccount(acc)
+  clearTimeout(usageTimer)
+  usageBackoff = 5 * 60 * 1000
+  pushRealUsage(null)
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('auth-state', { connected: auth.isConnected() })
+    win.webContents.send('profile', null)
+  }
+  sendAccounts(id) // the row goes pending right away…
+
+  // …because the rest is synchronous and slow: re-reading the new account's
+  // logs walks every .jsonl under its projects dir, which blocks this process
+  // for a beat on a busy machine. Yielding first lets the renderer paint the
+  // pending state instead of freezing mid-click.
+  setTimeout(() => {
+    if (doTick) doTick()
+    startUsagePoll()
+    sendProfile()
+    updateTray()
+    sendAccounts()
+  }, 0)
+}
+
+// a slot only earns its place by holding a login. One that was never connected
+// — the browser flow abandoned, or "add" clicked twice — is dropped the moment
+// we leave it, so the list can't fill up with "Not connected yet".
+// asked of any account, not just the active one — auth only knows about the
+// dir it is currently pointed at
+function hasToken(id) {
+  return fs.existsSync(path.join(accounts.dataDirOf(id), 'auth.json'))
+}
+
+function pruneEmpty(id) {
+  if (id === accounts.DEFAULT_ID || id === accounts.activeId()) return
+  const acc = accounts.list().find((a) => a.id === id)
+  if (!acc || acc.label || hasToken(id)) return
+  accounts.remove(id)
+}
+
+ipcMain.on('accounts-switch', (_e, id) => switchAccount(String(id)))
+// "add an account" *is* "log in": the browser opens on the new, empty slot, so
+// the token lands in it and not in the account we just left
+ipcMain.on('accounts-add', () => {
+  switchAccount(accounts.add())
+  startLogin()
+})
+ipcMain.on('accounts-remove', (_e, id) => {
+  if (accounts.remove(String(id))) sendAccounts()
+})
+
 function createWindow() {
   config = loadConfig()
-  loadAlertState()
+  // a login abandoned in an earlier run: nothing stays pending across a restart,
+  // so fall back to the first account and let the empty slots go
+  const boot = accounts.active()
+  if (boot.id !== accounts.DEFAULT_ID && !boot.label && !hasToken(boot.id))
+    accounts.setActive(accounts.DEFAULT_ID)
+  for (const a of accounts.list()) pruneEmpty(a.id)
+  applyAccount(accounts.active())
   const { workAreaSize } = screen.getPrimaryDisplay()
   const H = 480
 
@@ -295,6 +397,7 @@ function createWindow() {
     win.webContents.send('config', publicConfig(config))
     win.webContents.send('version', app.getVersion())
     win.webContents.send('auth-state', { connected: auth.isConnected() })
+    sendAccounts()
     pollTimer = setInterval(tick, config.pollIntervalMs)
     startUsagePoll()
     sendProfile()
@@ -353,9 +456,28 @@ function destroyTray() {
   }
 }
 
+// the accounts entry only earns its place once there's more than one
+function accountsMenuItems() {
+  const list = accounts.list()
+  if (list.length < 2) return []
+  const activeId = accounts.activeId()
+  return [
+    {
+      label: 'Account',
+      submenu: list.map((a) => ({
+        label: a.label || 'Not connected',
+        type: 'radio',
+        checked: a.id === activeId,
+        click: () => switchAccount(a.id),
+      })),
+    },
+  ]
+}
+
 function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Open Clauddy', click: () => showPopover() },
+    ...accountsMenuItems(),
     {
       label: 'Open Usage page',
       click: () => shell.openExternal('https://claude.ai/settings/usage'),
@@ -527,6 +649,7 @@ async function pollUsage() {
     } else if (e && e.status === 401) {
       auth.clear()
       pushRealUsage(null)
+      sendAccounts()
       alertAuthLost(config)
       if (win && !win.isDestroyed()) {
         win.webContents.send('auth-state', { connected: false })
@@ -545,17 +668,28 @@ async function sendProfile() {
   if (!auth.isConnected()) return
   try {
     const p = await auth.fetchProfile()
+    if (p?.email) {
+      accounts.label(accounts.activeId(), p.email) // a better name than "acct-xyz"
+      sendAccounts()
+    }
     if (win && !win.isDestroyed()) win.webContents.send('profile', p)
   } catch {} // non-fatal: the chip just stays hidden
 }
 
-ipcMain.on('auth-start', () => shell.openExternal(auth.begin()))
+// begin() has to run *after* any account switch: switching resets the pending
+// PKCE verifier, which would strand a login started before it
+function startLogin() {
+  shell.openExternal(auth.begin())
+  if (win && !win.isDestroyed()) win.webContents.send('auth-pending')
+}
+ipcMain.on('auth-start', startLogin)
 ipcMain.on('auth-code', async (_e, code) => {
   const ok = () => {
     if (win && !win.isDestroyed()) {
       win.webContents.send('auth-state', { connected: true })
       win.webContents.send('auth-result', { ok: true })
     }
+    sendAccounts()
     sendProfile()
   }
   try {
@@ -584,6 +718,7 @@ ipcMain.on('auth-logout', () => {
   auth.clear()
   clearTimeout(usageTimer)
   pushRealUsage(null)
+  sendAccounts()
   if (win && !win.isDestroyed()) {
     win.webContents.send('auth-state', { connected: false })
     win.webContents.send('profile', null)

@@ -43,6 +43,8 @@ for (const name of [
   'onAuthState',
   'onProfile',
   'onAuthResult',
+  'onAuthPending',
+  'onAccounts',
   'onDebugState',
   'onVersion',
   'onUpdateStatus',
@@ -59,6 +61,9 @@ for (const name of [
   'authStart',
   'authCode',
   'authLogout',
+  'accountSwitch',
+  'accountAdd',
+  'accountRemove',
   'checkUpdates',
   'doUpdate',
   'quit',
@@ -360,6 +365,80 @@ describe('the account chip', () => {
   test('hides itself when there is no account', () => {
     pet.showProfile(null)
     expect(el('account-chip').hidden).toBe(true)
+  })
+})
+
+describe('the account list', () => {
+  const rows = () => [...el('acc-list').children]
+
+  test('stays hidden while there is only one account', () => {
+    pet.renderAccounts({ active: 'default', accounts: [{ id: 'default', connected: true }] })
+    expect(el('acc-switch').hidden).toBe(true)
+  })
+
+  const two = () =>
+    pet.renderAccounts({
+      active: 'default',
+      accounts: [
+        { id: 'default', label: 'me@example.com', connected: true },
+        { id: 'w', label: null, connected: false },
+      ],
+    })
+
+  test('shows one row per account, marking the active and connected ones', () => {
+    two()
+    expect(el('acc-switch').hidden).toBe(false)
+    expect(rows()).toHaveLength(2)
+    expect(rows()[0].querySelector('.who').textContent).toBe('me@example.com')
+    expect(rows()[0].classList.contains('connected')).toBe(true)
+    expect(rows()[0].classList.contains('active')).toBe(true)
+    expect(rows()[1].querySelector('.who').textContent).toBe('Not connected')
+  })
+
+  test('clicking an inactive row switches to it; the active row is inert', () => {
+    api.sent.length = 0
+    rows()[0].click() // already active
+    expect(api.sent).toEqual([])
+    rows()[1].click()
+    expect(api.sent).toEqual([{ name: 'accountSwitch', args: ['w'] }])
+    // the clicked row goes pending immediately, without waiting for main
+    expect(rows()[1].classList.contains('loading')).toBe(true)
+    two()
+  })
+
+  test('a second switch is ignored while one is still loading', () => {
+    pet.renderAccounts({
+      active: 'default',
+      busy: 'w',
+      accounts: [
+        { id: 'default', label: 'me@example.com', connected: true },
+        { id: 'w', label: null, connected: false },
+      ],
+    })
+    api.sent.length = 0
+    rows()[1].click()
+    expect(api.sent).toEqual([])
+    two()
+  })
+
+  test('neither the first account nor the active one can be removed', () => {
+    expect(rows()[0].querySelector('.drop')).toBeNull() // default, and active
+    expect(rows()[1].querySelector('.drop')).not.toBeNull()
+  })
+
+  test('removing takes two clicks, and does not switch accounts', () => {
+    api.sent.length = 0
+    rows()[1].querySelector('.drop').click()
+    expect(api.sent).toEqual([]) // armed, not done
+    expect(rows()[1].querySelector('.drop').textContent).toBe('remove?')
+    rows()[1].querySelector('.drop').click()
+    expect(api.sent).toEqual([{ name: 'accountRemove', args: ['w'] }])
+  })
+
+  test('the add link asks main for a fresh account', () => {
+    api.sent.length = 0
+    el('acc-add').click()
+    expect(api.sent).toEqual([{ name: 'accountAdd', args: [] }])
   })
 })
 
