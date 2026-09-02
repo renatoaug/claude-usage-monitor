@@ -305,8 +305,22 @@
       <!-- settings panel -->
       <div id="settings">
         <div id="account">
+          <!-- who you are comes first: the list, then the login for whichever
+               account is active — so "add" and the code field sit together -->
+          <div id="acc-connected">
+            <span class="acc-ok" id="acc-ok">● Connected</span>
+            <button id="acc-logout" class="acc-link">Disconnect</button>
+          </div>
+          <!-- one row per subscription; only the active one is polled -->
+          <div id="acc-switch" hidden>
+            <div class="set-hint set-hint-left">Accounts</div>
+            <div id="acc-list"></div>
+          </div>
+          <button id="acc-add" class="acc-link">+ Add another account</button>
           <div id="acc-disconnected">
-            <div class="set-hint set-hint-left">Connect your Claude account to show your real usage.</div>
+            <div class="set-hint set-hint-left" id="acc-intro">
+              Connect your Claude account to show your real usage.
+            </div>
             <button id="acc-connect" class="acc-btn">Log in with browser</button>
             <div id="acc-paste">
               <div class="set-hint set-hint-left">Paste the code from the browser page:</div>
@@ -314,10 +328,6 @@
               <button id="acc-confirm" class="acc-btn">Connect</button>
               <div id="acc-msg"></div>
             </div>
-          </div>
-          <div id="acc-connected">
-            <span class="acc-ok" id="acc-ok">● Connected</span>
-            <button id="acc-logout" class="acc-link">Disconnect</button>
           </div>
         </div>
 

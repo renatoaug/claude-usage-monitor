@@ -13,6 +13,7 @@
     "preload.js",
     "usage.js",
     "auth.js",
+    "accounts.js",
     "config.json",
     "renderer"
   ],
@@ -71,6 +72,7 @@
       "preload.js",
       "usage.js",
       "auth.js",
+      "accounts.js",
       "config.json",
       "renderer/**",
       "build/trayTemplate.png",
