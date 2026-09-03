@@ -169,15 +169,116 @@ body.collapsed #usage {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   height: 19px; /* match #controls buttons so text centers on the same line */
-  max-width: 138px;
+  /* #controls starts at ~154px: stop short of it, the pill has padding too */
+  max-width: 142px;
   font-size: 9.5px;
   line-height: 1;
   color: var(--muted);
 }
 #account-chip[hidden] {
   display: none;
+}
+/* with something to switch to, the chip stops being a label and reads as a
+   control: a pill that holds the caret instead of leaving it floating */
+#account-chip {
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  padding: 0 5px 0 6px;
+  margin-left: -6px; /* the text stays where it has always been */
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+#account-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+/* a drawn chevron, not the ▾ glyph: the glyph's ink sits high in its em box, so
+   it never lines up with the dot and the text */
+.ac-caret {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-left: -2px; /* hugs the email rather than drifting off it */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* a single account keeps the pill, minus the affordance: nothing to switch to.
+   The email then takes the width the chevron leaves behind. */
+body.one-account #account-chip {
+  cursor: default;
+}
+body.one-account #account-chip:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+body.one-account .ac-caret {
+  display: none;
+}
+/* the widget is mostly a drag region, and those swallow clicks before the page
+   ever sees them — so an invisible sheet under the menu catches them instead */
+#acc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  -webkit-app-region: no-drag;
+}
+#acc-backdrop[hidden] {
+  display: none;
+}
+/* dropdown under the chip; it overlays the pet rather than resizing the window */
+#acc-menu {
+  position: absolute;
+  top: 24px;
+  left: 8px;
+  z-index: 20;
+  min-width: 118px;
+  max-width: 176px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 3px;
+  border: 0.5px solid rgba(255, 210, 180, 0.1);
+  border-radius: 7px;
+  background: #221a15;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  -webkit-app-region: no-drag;
+}
+#acc-menu[hidden] {
+  display: none;
+}
+#acc-menu.busy {
+  pointer-events: none; /* one switch at a time */
+}
+/* the add entry closes the list: it belongs to no account */
+#acc-menu .acc-add {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 0.5px solid var(--hair);
+  border-radius: 0;
+  color: var(--coral-soft);
+  /* no .who inside this one, so it needs the row font itself */
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+#acc-menu .acc-add:hover {
+  background: none;
+  color: var(--coral);
+}
+/* tighter than the dropdown-less list it replaced: it floats over the pet */
+#acc-menu .acc-item {
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+#acc-menu .acc-item .who {
+  font-size: 9.5px;
 }
 .ac-dot {
   flex: none;
@@ -187,6 +288,11 @@ body.collapsed #usage {
   background: var(--pixel);
 }
 #ac-email {
+  /* line-height:1 leaves the ascender inside the box, so the text reads a hair
+     lower than the dot next to it — lift it back onto the same line */
+  transform: translateY(-1px);
+  flex: 1; /* claim the leftover width so the ellipsis is not left hanging */
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -683,20 +789,6 @@ body.live .live-only {
   gap: 10px; /* the email ellipsizes instead of touching Disconnect */
   flex-wrap: wrap; /* the success line drops to its own row */
 }
-#acc-switch {
-  margin-top: 10px;
-}
-#acc-switch[hidden] {
-  display: none;
-}
-#acc-list {
-  display: flex;
-  flex-direction: column;
-  margin-top: 2px;
-}
-#acc-list.busy {
-  pointer-events: none; /* one switch at a time */
-}
 /* a plain list, not a stack of cards: the panel already has enough boxes */
 .acc-item {
   display: flex;
@@ -762,11 +854,11 @@ body.live .live-only {
   line-height: 1;
   padding: 0 2px;
   cursor: pointer;
-  opacity: 0; /* one row at a time, on hover: this deletes a token */
+  opacity: 0.3; /* faint until hover: this deletes a token */
   transition: opacity 0.15s;
 }
 .acc-item:hover .drop {
-  opacity: 0.6;
+  opacity: 0.75;
 }
 .acc-item .drop:hover {
   opacity: 1;
@@ -779,19 +871,26 @@ body.live .live-only {
   font-size: 10px;
   color: var(--coral);
 }
-#acc-add {
-  margin-top: 6px;
-}
-/* while a login is pending, "add another" would start a second one */
-body.awaiting #acc-add {
-  display: none;
-}
 #acc-paste {
   display: none;
   margin-top: 8px;
 }
 #acc-paste.show {
   display: block;
+}
+/* while the browser is open, this empty field is the whole flow: make it say so */
+body.awaiting #acc-code:not(.filled) {
+  border-color: var(--coral);
+  animation: code-wait 1.6s ease-in-out infinite;
+}
+@keyframes code-wait {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.22);
+  }
 }
 #acc-code {
   width: 100%;

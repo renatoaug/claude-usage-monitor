@@ -28,8 +28,10 @@ function sane(j) {
       label: typeof a.label === 'string' && a.label ? a.label : null,
       claudeDir: typeof a.claudeDir === 'string' && a.claudeDir ? a.claudeDir : null,
     }))
-  if (!list.some((a) => a.id === DEFAULT_ID)) list.unshift(defaults().accounts[0])
-  const active = list.some((a) => a.id === j?.active) ? j.active : DEFAULT_ID
+  // the default account can be removed like any other, so it is only recreated
+  // when nothing is left — an empty list would leave the widget with no token
+  if (!list.length) list.push(defaults().accounts[0])
+  const active = list.some((a) => a.id === j?.active) ? j.active : list[0].id
   return { active, accounts: list }
 }
 
@@ -118,14 +120,21 @@ function setClaudeDir(id, dir) {
 // behind would be a credential nobody can see or revoke from the UI
 function remove(id) {
   const s = load()
-  if (id === DEFAULT_ID) return false // the original install's data: never dropped
   if (id === s.active) return false // switch away first: the widget is showing it
   const i = s.accounts.findIndex((a) => a.id === id)
   if (i < 0) return false
+  if (s.accounts.length < 2) return false // never leave the widget with no account
   s.accounts.splice(i, 1)
   save(s)
   try {
-    fs.rmSync(dataDirOf(id), { recursive: true, force: true })
+    if (id === DEFAULT_ID) {
+      // its folder is the app's own data dir: drop the credentials, not the
+      // settings, the account list or the simulator file that live beside them
+      for (const f of ['auth.json', 'alerts.json'])
+        fs.rmSync(path.join(dataDirOf(id), f), { force: true })
+    } else {
+      fs.rmSync(dataDirOf(id), { recursive: true, force: true })
+    }
   } catch {}
   return true
 }

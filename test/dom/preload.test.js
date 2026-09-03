@@ -38,6 +38,7 @@ describe('the preload bridge', () => {
     ['authLogout', 'auth-logout', []],
     ['accountSwitch', 'accounts-switch', ['acct-1']],
     ['accountAdd', 'accounts-add', []],
+    ['accountCancelAdd', 'accounts-cancel-add', []],
     ['accountRemove', 'accounts-remove', ['acct-1']],
     ['checkUpdates', 'check-updates', []],
     ['doUpdate', 'do-update', []],
@@ -83,6 +84,7 @@ describe('the preload bridge', () => {
     expect(Object.keys(api).sort()).toEqual(
       [
         'accountAdd',
+        'accountCancelAdd',
         'accountRemove',
         'accountSwitch',
         'authCode',

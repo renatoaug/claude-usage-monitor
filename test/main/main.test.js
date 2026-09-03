@@ -874,6 +874,33 @@ describe('accounts', () => {
     expect(listed().accounts.map((a) => a.id)).not.toContain(id)
   })
 
+  test('cancelling the login goes back to the account it was added from', async () => {
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    fire('accounts-add')
+    const slot = listed().active
+    expect(slot).not.toBe('default')
+
+    fire('accounts-cancel-add')
+    // back where we started, and the empty slot is not left behind: with no
+    // account connected there would be no chip to switch from
+    expect(listed().active).toBe('default')
+    expect(listed().accounts.map((a) => a.id)).not.toContain(slot)
+
+    // a cancel with no pending add is a no-op
+    fire('accounts-cancel-add')
+    expect(listed().active).toBe('default')
+  })
+
+  test('cancelling after the login went through keeps the new account', async () => {
+    fire('accounts-add')
+    const slot = listed().active
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    fire('accounts-cancel-add')
+    expect(listed().active).toBe(slot)
+  })
+
   test('adding an account opens the browser on the new slot', () => {
     fire('accounts-add')
     // the login must start after the switch, or the token lands in the account

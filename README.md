@@ -31,11 +31,11 @@ The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed 
 
 ### Several subscriptions
 
-Got more than one Claude account — say a personal Pro and a Max from work? **⚙ Settings → "+ Add another account"** opens the same browser login, and the token it brings back lands in a new slot. Once two accounts exist, a list appears in Settings (and an **Account** submenu on the tray icon) to switch between them. Give up halfway and the empty slot disappears on its own — the list only ever holds accounts you actually logged into.
+Got more than one Claude account — say a personal Pro and a Max from work? The **account chip** in the top-left corner is the switcher: click it for the list of accounts, with the active one marked, plus **"+ Add another account"** — which opens the same browser login and drops the token it brings back into a new slot. The tray icon has the same list under its **Account** submenu. Give up halfway and the empty slot disappears on its own — the list only ever holds accounts you actually logged into.
 
 The widget follows **one account at a time**: the one you pick is the one whose % is shown, whose logs are counted, and the only one that can notify you. Each account keeps its own token and its own armed alerts, so switching never replays a notification you already dismissed elsewhere. Everything else — window position, display mode, zoom, thresholds — is shared.
 
-Removing an account deletes its token from disk. The first account can't be removed, and neither can the one you're currently on — switch away first.
+Removing an account (the **×** on its row) deletes its token from disk. The one you're currently on can't be removed — switch away first — and neither can the last one left. Removing the first account clears its token without touching the settings that live in the same folder.
 
 > Prefer one widget per account instead? Setting `CLAUDE_CONFIG_DIR` still isolates a whole instance — token, settings and logs — so you can run two Clauddys side by side.
 

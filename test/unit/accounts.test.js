@@ -84,17 +84,28 @@ describe('accounts', () => {
     expect(a.list()).toHaveLength(2)
   })
 
-  test('the default account cannot be removed', () => {
+  test('the last account standing cannot be removed', () => {
     expect(a.remove('default')).toBe(false)
     expect(a.list()).toHaveLength(1)
   })
 
+  test('the default account goes too, keeping the files that are not its own', () => {
+    const id = a.add()
+    a.setActive(id)
+    fs.writeFileSync(path.join(BASE, 'auth.json'), '{}')
+    fs.writeFileSync(path.join(BASE, 'config.json'), '{}')
+    expect(a.remove('default')).toBe(true)
+    expect(a.list().map((x) => x.id)).toEqual([id])
+    expect(fs.existsSync(path.join(BASE, 'auth.json'))).toBe(false) // its token
+    expect(fs.existsSync(path.join(BASE, 'config.json'))).toBe(true) // everyone's settings
+  })
+
   test('a corrupted or half-written store falls back to a usable state', () => {
     write({ active: 'ghost', accounts: [{ id: 'work' }, null, { label: 'no id' }] })
-    // the default is re-inserted, junk rows are dropped, and an unknown active
-    // id can't leave the widget pointing at nothing
-    expect(a.list().map((x) => x.id)).toEqual(['default', 'work'])
-    expect(a.activeId()).toBe('default')
+    // junk rows are dropped, and an unknown active id can't leave the widget
+    // pointing at nothing
+    expect(a.list().map((x) => x.id)).toEqual(['work'])
+    expect(a.activeId()).toBe('work')
 
     fs.writeFileSync(FILE, 'not json')
     expect(a.list()).toHaveLength(1)

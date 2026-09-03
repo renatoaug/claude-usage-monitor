@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   onAccounts: (cb) => ipcRenderer.on('accounts', (_e, a) => cb(a)),
   accountSwitch: (id) => ipcRenderer.send('accounts-switch', id),
   accountAdd: () => ipcRenderer.send('accounts-add'),
+  accountCancelAdd: () => ipcRenderer.send('accounts-cancel-add'),
   accountRemove: (id) => ipcRenderer.send('accounts-remove', id),
   onDebugState: (cb) => ipcRenderer.on('debug-state', (_e, s) => cb(s)),
   onVersion: (cb) => ipcRenderer.on('version', (_e, v) => cb(v)),
