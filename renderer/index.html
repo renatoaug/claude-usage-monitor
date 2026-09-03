@@ -6,13 +6,18 @@
     <title>Clauddy</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body class="state-idle">
+  <body class="state-idle one-account">
     <div id="card">
-      <div id="account-chip" hidden>
+      <div id="account-chip" hidden title="Switch account">
         <span class="ac-dot"></span>
         <span id="ac-email"></span>
+        <svg class="ac-caret" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M3 5l3 3 3-3" />
+        </svg>
         <span id="ac-plan" class="plan-badge" hidden></span>
       </div>
+      <div id="acc-backdrop" hidden></div>
+      <div id="acc-menu" hidden></div>
       <div id="controls">
         <button id="gear" title="Settings">⚙</button>
         <button id="usage" title="Open Usage page">
@@ -311,12 +316,6 @@
             <span class="acc-ok" id="acc-ok">● Connected</span>
             <button id="acc-logout" class="acc-link">Disconnect</button>
           </div>
-          <!-- one row per subscription; only the active one is polled -->
-          <div id="acc-switch" hidden>
-            <div class="set-hint set-hint-left">Accounts</div>
-            <div id="acc-list"></div>
-          </div>
-          <button id="acc-add" class="acc-link">+ Add another account</button>
           <div id="acc-disconnected">
             <div class="set-hint set-hint-left" id="acc-intro">
               Connect your Claude account to show your real usage.

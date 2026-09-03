@@ -296,7 +296,7 @@ function hasToken(id) {
 }
 
 function pruneEmpty(id) {
-  if (id === accounts.DEFAULT_ID || id === accounts.activeId()) return
+  if (id === accounts.DEFAULT_ID || id === accounts.activeId()) return // never auto-drop the original
   const acc = accounts.list().find((a) => a.id === id)
   if (!acc || acc.label || hasToken(id)) return
   accounts.remove(id)
@@ -305,9 +305,19 @@ function pruneEmpty(id) {
 ipcMain.on('accounts-switch', (_e, id) => switchAccount(String(id)))
 // "add an account" *is* "log in": the browser opens on the new, empty slot, so
 // the token lands in it and not in the account we just left
+// the account an "add" left behind: cancelling the login has to land back on
+// it, or the widget is stuck on an empty slot with no chip to switch from
+let addedFrom = null
 ipcMain.on('accounts-add', () => {
+  addedFrom = accounts.activeId()
   switchAccount(accounts.add())
   startLogin()
+})
+ipcMain.on('accounts-cancel-add', () => {
+  const from = addedFrom
+  addedFrom = null
+  if (!from || from === accounts.activeId() || hasToken(accounts.activeId())) return
+  switchAccount(from) // the empty slot is pruned on the way out
 })
 ipcMain.on('accounts-remove', (_e, id) => {
   if (accounts.remove(String(id))) sendAccounts()
@@ -318,8 +328,11 @@ function createWindow() {
   // a login abandoned in an earlier run: nothing stays pending across a restart,
   // so fall back to the first account and let the empty slots go
   const boot = accounts.active()
-  if (boot.id !== accounts.DEFAULT_ID && !boot.label && !hasToken(boot.id))
-    accounts.setActive(accounts.DEFAULT_ID)
+  if (!boot.label && !hasToken(boot.id)) {
+    // the default account can be gone by now, so land on whatever comes first
+    const fallback = accounts.list().find((a) => a.id !== boot.id)
+    if (fallback) accounts.setActive(fallback.id)
+  }
   for (const a of accounts.list()) pruneEmpty(a.id)
   applyAccount(accounts.active())
   const { workAreaSize } = screen.getPrimaryDisplay()
@@ -685,6 +698,7 @@ function startLogin() {
 ipcMain.on('auth-start', startLogin)
 ipcMain.on('auth-code', async (_e, code) => {
   const ok = () => {
+    addedFrom = null // the new account is real now: nothing to roll back to
     if (win && !win.isDestroyed()) {
       win.webContents.send('auth-state', { connected: true })
       win.webContents.send('auth-result', { ok: true })

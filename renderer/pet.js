@@ -724,39 +724,56 @@ function setPlan(node, plan) {
 window.api.onProfile(showProfile)
 
 // ---- accounts ---------------------------------------------------------------
-// The list is only worth showing once there are two; with a single account the
-// panel keeps the shape it has always had, plus the "add" link.
+// The account chip doubles as the switcher: click it for the list, with the
+// active one marked. Settings only keeps the login flow itself.
 let pendingRemove = null // id whose × is armed, so removal takes two clicks
 let lastAccounts = null
+let switching = false // a switch is in flight, so the menu waits for its answer
 
+// one row of the chip dropdown
+function accountRow(acc, a) {
+  const active = acc.id === a.active
+  const row = document.createElement('div')
+  row.className = 'acc-item'
+  if (active) row.classList.add('active')
+  if (acc.connected) row.classList.add('connected')
+  // the account being switched to owns the spinner: everything on screen
+  // still belongs to the one we're leaving
+  if (a.busy === acc.id) row.classList.add('loading')
+
+  const dot = document.createElement('span')
+  dot.className = 'dot'
+  const who = document.createElement('span')
+  who.className = 'who'
+  who.textContent =
+    acc.label || (acc.connected ? 'Connected' : active ? 'Waiting for login…' : 'Not connected')
+  row.append(dot, who)
+  return row
+}
+
+// Everything about accounts lives in the chip dropdown: the chip already says
+// which one you are on, so switching, adding and removing all happen there.
 function renderAccounts(a) {
   lastAccounts = a
-  const list = a?.accounts || []
-  const box = el('acc-list')
-  el('acc-switch').hidden = list.length < 2
+  document.body.classList.toggle('one-account', (a?.accounts || []).length < 2)
+  if (el('acc-menu').hidden) return
+  // the switch is done: the chip now names the account the menu was pointing at
+  if (switching && !a?.busy) closeAccountMenu()
+  else renderAccountMenu()
+}
+
+function renderAccountMenu() {
+  const a = lastAccounts
+  const box = el('acc-menu')
   box.textContent = ''
   box.classList.toggle('busy', !!a?.busy)
-  for (const acc of list) {
+  for (const acc of a?.accounts || []) {
     const active = acc.id === a.active
-    const row = document.createElement('div')
-    row.className = 'acc-item'
-    if (active) row.classList.add('active')
-    if (acc.connected) row.classList.add('connected')
-    // the account being switched to owns the spinner: everything on screen
-    // still belongs to the one we're leaving
-    if (a.busy === acc.id) row.classList.add('loading')
+    const row = accountRow(acc, a)
 
-    const dot = document.createElement('span')
-    dot.className = 'dot'
-    const who = document.createElement('span')
-    who.className = 'who'
-    who.textContent =
-      acc.label || (acc.connected ? 'Connected' : active ? 'Waiting for login…' : 'Not connected')
-    row.append(dot, who)
-
-    // the first account holds the original install's data, and the active one
-    // is what the widget is showing — neither can be removed from under you
-    if (acc.id !== 'default' && !active) {
+    // the active account is what the widget is showing: it can't be removed
+    // from under you, and the last one standing can't be removed at all
+    if (!active && (a.accounts || []).length > 1) {
       const x = document.createElement('button')
       const armed = pendingRemove === acc.id
       x.className = armed ? 'drop armed' : 'drop'
@@ -769,17 +786,64 @@ function renderAccounts(a) {
           window.api.accountRemove(acc.id)
         } else {
           pendingRemove = acc.id // a click deletes a token: ask once
-          renderAccounts(a)
+          renderAccountMenu()
         }
       })
       row.appendChild(x)
     }
 
-    if (!active) row.addEventListener('click', () => switchAccount(acc.id))
+    // stopPropagation: re-rendering detaches this row, and the document-level
+    // "clicked outside" handler would then read that as a click off the menu
+    if (!active)
+      row.addEventListener('click', (e) => {
+        e.stopPropagation()
+        switchAccount(acc.id)
+      })
     box.appendChild(row)
   }
-  fitSize()
+
+  const add = document.createElement('div')
+  add.className = 'acc-item acc-add'
+  add.textContent = '+ Add another account'
+  add.addEventListener('click', () => {
+    closeAccountMenu()
+    el('acc-msg').textContent = ''
+    window.api.accountAdd() // switches to a fresh slot and opens the browser
+  })
+  box.appendChild(add)
 }
+
+function closeAccountMenu() {
+  el('acc-menu').hidden = true
+  el('acc-backdrop').hidden = true
+  pendingRemove = null
+  switching = false
+}
+
+function toggleAccountMenu() {
+  const box = el('acc-menu')
+  if (!box.hidden) {
+    closeAccountMenu()
+    return
+  }
+  renderAccountMenu()
+  box.hidden = false
+  el('acc-backdrop').hidden = false
+}
+
+el('account-chip').addEventListener('click', (e) => {
+  e.stopPropagation()
+  toggleAccountMenu()
+})
+// clicking anywhere else — the pet, the gear, another app — puts it away
+el('acc-backdrop').addEventListener('mousedown', closeAccountMenu)
+document.addEventListener('click', (e) => {
+  if (!el('acc-menu').hidden && !el('acc-menu').contains(e.target)) closeAccountMenu()
+})
+window.addEventListener('blur', closeAccountMenu)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAccountMenu()
+})
 
 // paint the pending state from the click itself rather than waiting for main to
 // answer — the answer is exactly what takes a moment
@@ -787,6 +851,7 @@ function switchAccount(id) {
   if (lastAccounts?.busy) return
   endLogin() // the code from the account we're leaving is no good here
   pendingRemove = null
+  switching = true // the row stays on screen, pending, until main answers
   renderAccounts({ ...lastAccounts, busy: id })
   window.api.accountSwitch(id)
 }
@@ -796,16 +861,20 @@ window.api.onAccounts((a) => {
   renderAccounts(a)
 })
 
+// closing the panel while a login is pending gives up on it: main puts us back
+// on the account we were using, and the half-made one goes away
+function abandonLogin() {
+  if (!document.body.classList.contains('awaiting')) return
+  endLogin()
+  window.api.accountCancelAdd()
+}
+
 function endLogin() {
   document.body.classList.remove('awaiting')
   el('acc-paste').classList.remove('show')
   el('acc-code').value = ''
   el('acc-msg').textContent = ''
 }
-el('acc-add').addEventListener('click', () => {
-  el('acc-msg').textContent = ''
-  window.api.accountAdd() // switches to a fresh slot and opens the browser
-})
 let successTimer = null
 window.api.onAuthResult((r) => {
   if (r?.ok) {
@@ -884,14 +953,21 @@ el('acc-connect').addEventListener('click', () => window.api.authStart())
 // main opened the browser — the only thing left to do is paste the code back,
 // so the panel narrows to exactly that
 window.api.onAuthPending(() => {
+  // the login can start from the account menu, with the panel closed: the code
+  // field is where the flow continues, so bring it up
+  openSettings()
   document.body.classList.add('awaiting')
   el('acc-paste').classList.add('show')
+  el('acc-code').classList.remove('filled')
   el('acc-code').focus()
   fitSize()
 })
-// the Connect button only lights up once there's a code to submit
+// the Connect button only lights up once there's a code to submit, and the
+// field stops asking for attention once it has one
 el('acc-code').addEventListener('input', () => {
-  el('acc-confirm').classList.toggle('ready', !!el('acc-code').value.trim())
+  const code = el('acc-code').value.trim()
+  el('acc-confirm').classList.toggle('ready', !!code)
+  el('acc-code').classList.toggle('filled', !!code)
 })
 el('acc-confirm').addEventListener('click', () => {
   const code = el('acc-code').value.trim()
@@ -1042,12 +1118,14 @@ for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
   })
 }
 el('set-cancel').addEventListener('click', () => {
+  abandonLogin()
   document.body.classList.remove('settings-open')
   clearSaveDirty()
   applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
   fitSize()
 })
 el('set-save').addEventListener('click', () => {
+  abandonLogin() // leaving the panel gives up on a login waiting for its code
   const num = (id) => parseFloat(el(id).value)
   const fire = num('set-fire')
   const zoomRaw = num('set-zoom')
@@ -1116,6 +1194,7 @@ if (typeof module === 'object' && module.exports) {
     renderHeat,
     showProfile,
     renderAccounts,
+    renderAccountMenu,
     burn,
   }
 }

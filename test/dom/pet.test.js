@@ -63,6 +63,7 @@ for (const name of [
   'authLogout',
   'accountSwitch',
   'accountAdd',
+  'accountCancelAdd',
   'accountRemove',
   'checkUpdates',
   'doUpdate',
@@ -368,16 +369,16 @@ describe('the account chip', () => {
   })
 })
 
-describe('the account list', () => {
-  const rows = () => [...el('acc-list').children]
-
-  test('stays hidden while there is only one account', () => {
-    pet.renderAccounts({ active: 'default', accounts: [{ id: 'default', connected: true }] })
-    expect(el('acc-switch').hidden).toBe(true)
-  })
-
+describe('the account menu', () => {
+  const menu = () => [...el('acc-menu').children]
+  const rows = () => menu().slice(0, -1) // the last entry adds an account
+  const open = (a) => {
+    pet.renderAccounts(a)
+    if (el('acc-menu').hidden) el('account-chip').click()
+    else pet.renderAccountMenu()
+  }
   const two = () =>
-    pet.renderAccounts({
+    open({
       active: 'default',
       accounts: [
         { id: 'default', label: 'me@example.com', connected: true },
@@ -385,9 +386,16 @@ describe('the account list', () => {
       ],
     })
 
+  test('opens from the chip, even with a single account', () => {
+    open({ active: 'default', accounts: [{ id: 'default', connected: true }] })
+    expect(el('acc-menu').hidden).toBe(false)
+    expect(rows()).toHaveLength(1)
+    expect(document.body.classList.contains('one-account')).toBe(true)
+  })
+
   test('shows one row per account, marking the active and connected ones', () => {
     two()
-    expect(el('acc-switch').hidden).toBe(false)
+    expect(document.body.classList.contains('one-account')).toBe(false)
     expect(rows()).toHaveLength(2)
     expect(rows()[0].querySelector('.who').textContent).toBe('me@example.com')
     expect(rows()[0].classList.contains('connected')).toBe(true)
@@ -395,19 +403,29 @@ describe('the account list', () => {
     expect(rows()[1].querySelector('.who').textContent).toBe('Not connected')
   })
 
-  test('clicking an inactive row switches to it; the active row is inert', () => {
+  test('clicking an inactive row switches to it, and the row goes pending', () => {
+    two()
     api.sent.length = 0
     rows()[0].click() // already active
     expect(api.sent).toEqual([])
     rows()[1].click()
     expect(api.sent).toEqual([{ name: 'accountSwitch', args: ['w'] }])
-    // the clicked row goes pending immediately, without waiting for main
+    // the menu stays up, showing which account is being loaded…
+    expect(el('acc-menu').hidden).toBe(false)
     expect(rows()[1].classList.contains('loading')).toBe(true)
-    two()
+    // …until main answers with the new active account
+    api.handlers.onAccounts({
+      active: 'w',
+      accounts: [
+        { id: 'default', label: 'me@example.com', connected: true },
+        { id: 'w', label: 'work@example.com', connected: true },
+      ],
+    })
+    expect(el('acc-menu').hidden).toBe(true)
   })
 
   test('a second switch is ignored while one is still loading', () => {
-    pet.renderAccounts({
+    open({
       active: 'default',
       busy: 'w',
       accounts: [
@@ -416,17 +434,25 @@ describe('the account list', () => {
       ],
     })
     api.sent.length = 0
+    // the clicked row goes pending immediately, without waiting for main
+    expect(rows()[1].classList.contains('loading')).toBe(true)
     rows()[1].click()
     expect(api.sent).toEqual([])
-    two()
   })
 
-  test('neither the first account nor the active one can be removed', () => {
-    expect(rows()[0].querySelector('.drop')).toBeNull() // default, and active
+  test('every row but the active one can be removed', () => {
+    two()
+    expect(rows()[0].querySelector('.drop')).toBeNull() // the active one
     expect(rows()[1].querySelector('.drop')).not.toBeNull()
   })
 
+  test('a lone account has no × at all', () => {
+    open({ active: 'w', accounts: [{ id: 'w', label: 'me@example.com', connected: true }] })
+    expect(rows()[0].querySelector('.drop')).toBeNull()
+  })
+
   test('removing takes two clicks, and does not switch accounts', () => {
+    two()
     api.sent.length = 0
     rows()[1].querySelector('.drop').click()
     expect(api.sent).toEqual([]) // armed, not done
@@ -435,10 +461,41 @@ describe('the account list', () => {
     expect(api.sent).toEqual([{ name: 'accountRemove', args: ['w'] }])
   })
 
-  test('the add link asks main for a fresh account', () => {
+  test('the add entry asks main for a fresh account and closes the menu', () => {
+    two()
     api.sent.length = 0
-    el('acc-add').click()
+    menu().at(-1).click()
     expect(api.sent).toEqual([{ name: 'accountAdd', args: [] }])
+    expect(el('acc-menu').hidden).toBe(true)
+  })
+
+  test('a click elsewhere puts the menu away', () => {
+    two()
+    document.body.click()
+    expect(el('acc-menu').hidden).toBe(true)
+    expect(el('acc-backdrop').hidden).toBe(true)
+  })
+
+  test('the backdrop catches clicks the drag region would swallow', () => {
+    two()
+    expect(el('acc-backdrop').hidden).toBe(false)
+    el('acc-backdrop').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    expect(el('acc-menu').hidden).toBe(true)
+  })
+})
+
+describe('giving up on a login', () => {
+  test('closing settings while a code is pending abandons the new account', () => {
+    api.handlers.onAuthPending()
+    expect(document.body.classList.contains('awaiting')).toBe(true)
+    api.sent.length = 0
+    el('set-cancel').click()
+    expect(api.sent).toEqual([{ name: 'accountCancelAdd', args: [] }])
+    expect(document.body.classList.contains('awaiting')).toBe(false)
+    // and nothing is sent when there was no login to abandon
+    api.sent.length = 0
+    el('set-cancel').click()
+    expect(api.sent).toEqual([])
   })
 })
 
