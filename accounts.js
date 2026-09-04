@@ -139,6 +139,32 @@ function remove(id) {
   return true
 }
 
+// Folders left behind under `accounts/` by slots that are no longer listed —
+// an add abandoned mid-login, mostly, since saving the alert state recreates
+// the folder on its way out. Only ever drops a folder with no auth.json in it,
+// so a token is never destroyed by a bad read of accounts.json.
+function pruneOrphans() {
+  const root = path.join(BASE_DIR, 'accounts')
+  let dirs = []
+  try {
+    dirs = fs.readdirSync(root, { withFileTypes: true })
+  } catch {
+    return 0 // no extra accounts were ever added
+  }
+  const known = new Set(list().map((a) => a.id))
+  let n = 0
+  for (const d of dirs) {
+    if (!d.isDirectory() || known.has(d.name)) continue
+    const dir = path.join(root, d.name)
+    if (fs.existsSync(path.join(dir, 'auth.json'))) continue
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+      n++
+    } catch {}
+  }
+  return n
+}
+
 module.exports = {
   BASE_DIR,
   DEFAULT_ID,
@@ -151,4 +177,5 @@ module.exports = {
   label,
   setClaudeDir,
   remove,
+  pruneOrphans,
 }

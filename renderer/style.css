@@ -1184,19 +1184,16 @@ body.collapsed #gears,
 body.collapsed #glasses {
   display: none;
 }
+/* collapsed: the pet sits a bit high, so the % fits under it inside the ring */
 body.collapsed #pet {
   position: static;
   left: auto;
   bottom: auto;
-  zoom: 1;
-}
-/* collapsed: the pet sits a bit high so the % fits inside the ring */
-body.collapsed.live #pet {
   transform: translateY(-8px);
   zoom: 0.86;
 }
 /* the ring is a fixed frame, so the usual bob reads as jumping in there */
-body.collapsed.live #claude {
+body.collapsed #claude {
   animation: bob-mini 3.6s ease-in-out infinite;
 }
 @keyframes bob-mini {
@@ -1208,18 +1205,11 @@ body.collapsed.live #claude {
     transform: translateY(-1.5px);
   }
 }
-/* the ground follows the pet up, so it stays under its feet */
-body.collapsed.live #shadow {
-  bottom: auto;
-  top: calc(50% + 23px);
-  width: 48px;
-  height: 8px;
-}
 /* the ring: session % drawn around the pet, only when there's a real % to show */
 #ring {
   display: none;
 }
-body.collapsed.live #ring {
+body.collapsed #ring {
   display: block;
   position: absolute;
   left: 50%;
@@ -1254,7 +1244,7 @@ body.collapsed.live #ring {
 #ring-pct {
   display: none;
 }
-body.collapsed.live #ring-pct {
+body.collapsed #ring-pct {
   display: block;
   position: absolute;
   left: 0;
@@ -1272,16 +1262,17 @@ body.collapsed.live #ring-pct {
   color: #e0553f;
 }
 /* the ring already says it — no need to repeat it under the pet */
-body.collapsed.live #mini-pct-row {
+body.collapsed #mini-pct-row {
   display: none;
 }
 body.collapsed #shadow {
   display: block;
   position: absolute;
-  bottom: 2px;
+  /* pinned under the pet's feet, which the ring lifted off the stage floor */
+  top: calc(50% + 23px);
   left: 50%;
-  width: 60px;
-  height: 9px;
+  width: 48px;
+  height: 8px;
   background: radial-gradient(ellipse, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
   transform: translateX(-50%);
 }
