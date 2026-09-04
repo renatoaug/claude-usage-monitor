@@ -314,6 +314,19 @@ body.one-account .ac-caret {
 body.collapsed #account-chip {
   display: none;
 }
+/* collapsed: the account rides up on the button line, like the chip does */
+body.collapsed #mini-acct {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  z-index: 10;
+  height: 19px;
+  margin-bottom: 0;
+  justify-content: flex-start;
+}
+body.collapsed #mini-acct-name {
+  max-width: 62px;
+}
 
 /* settings panel */
 #settings {
@@ -1076,7 +1089,7 @@ body.collapsed #mini {
   display: block;
 }
 body.collapsed #card {
-  width: 116px;
+  width: 144px;
   padding: 12px 12px 13px;
 }
 body.collapsed #stage {
@@ -1148,7 +1161,7 @@ body.settings-open #pet {
 
 /* collapsed: just the face, on the warm card (like before) */
 body.collapsed #stage {
-  height: 98px;
+  height: 120px;
   margin-top: 9px;
   background: transparent;
   box-shadow: none;
@@ -1176,6 +1189,91 @@ body.collapsed #pet {
   left: auto;
   bottom: auto;
   zoom: 1;
+}
+/* collapsed: the pet sits a bit high so the % fits inside the ring */
+body.collapsed.live #pet {
+  transform: translateY(-8px);
+  zoom: 0.86;
+}
+/* the ring is a fixed frame, so the usual bob reads as jumping in there */
+body.collapsed.live #claude {
+  animation: bob-mini 3.6s ease-in-out infinite;
+}
+@keyframes bob-mini {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+/* the ground follows the pet up, so it stays under its feet */
+body.collapsed.live #shadow {
+  bottom: auto;
+  top: calc(50% + 23px);
+  width: 48px;
+  height: 8px;
+}
+/* the ring: session % drawn around the pet, only when there's a real % to show */
+#ring {
+  display: none;
+}
+body.collapsed.live #ring {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 118px;
+  height: 118px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+.ring-track {
+  fill: none;
+  stroke: var(--track);
+  stroke-width: 3.5;
+}
+#ring-fill {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-dasharray: 282.7;
+  stroke-dashoffset: 282.7; /* set from JS */
+  transition:
+    stroke-dashoffset 0.5s ease,
+    stroke 0.3s ease;
+}
+#ring-fill.high {
+  stroke: #e0553f;
+}
+#ring-pct {
+  display: none;
+}
+body.collapsed.live #ring-pct {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  z-index: 3;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+#ring-pct.high {
+  color: #e0553f;
+}
+/* the ring already says it — no need to repeat it under the pet */
+body.collapsed.live #mini-pct-row {
+  display: none;
 }
 body.collapsed #shadow {
   display: block;

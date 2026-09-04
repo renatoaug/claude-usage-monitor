@@ -279,10 +279,25 @@ describe('the usage panel', () => {
     expect(el('scoped-meters').children.length).toBe(0)
   })
 
+  test('the collapsed ring drains with the session and goes high past 80%', () => {
+    const LEN = 2 * Math.PI * 45
+    live(25)
+    pet.render(usage())
+    const rf = el('ring-fill')
+    expect(Number(rf.style.strokeDashoffset)).toBeCloseTo(LEN * 0.75, 3)
+    expect(rf.classList.contains('high')).toBe(false)
+    expect(el('ring-pct').textContent).toBe('25%')
+    live(88)
+    pet.render(usage())
+    expect(rf.classList.contains('high')).toBe(true)
+    expect(el('ring-pct').classList.contains('high')).toBe(true)
+  })
+
   test('shows a dash for the mini % until an account is connected', () => {
     api.handlers.onAuthState({ connected: false })
     pet.render(usage())
     expect(el('mini-pct').textContent).toBe('—')
+    expect(el('ring-pct').textContent).toBe('—')
   })
 })
 

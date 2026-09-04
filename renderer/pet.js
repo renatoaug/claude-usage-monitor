@@ -455,6 +455,8 @@ function oneShot(cls, ms) {
   setTimeout(() => document.body.classList.remove(cls), ms)
 }
 
+const RING_LEN = 2 * Math.PI * 45 // the collapsed ring's circumference (r=45)
+
 // session-reset celebration: jump + a colorful confetti burst
 const CONFETTI_COLORS = ['#ffd23f', '#ff5d86', '#7ec77d', '#6db3f2', '#e0805a', '#c89bff']
 function spawnConfetti(i) {
@@ -577,6 +579,13 @@ function render(d) {
   const mini = el('mini-pct')
   mini.textContent = liveOn ? `${Math.round(sessPct)}%` : '—'
   mini.classList.toggle('high', liveOn && sessPct >= 80)
+  // the collapsed ring: how much of the session is already spent
+  const rf = el('ring-fill')
+  rf.style.strokeDashoffset = `${RING_LEN * (1 - Math.min(sessPct, 100) / 100)}`
+  rf.classList.toggle('high', sessPct >= 80)
+  const rp = el('ring-pct')
+  rp.textContent = mini.textContent
+  rp.classList.toggle('high', liveOn && sessPct >= 80)
   const sf = el('session-fill')
   sf.style.width = `${sessPct}%`
   sf.classList.toggle('high', sessPct >= 80)
@@ -632,7 +641,7 @@ function fitSize() {
   requestAnimationFrame(() => {
     const collapsed = document.body.classList.contains('collapsed')
     const zoom = Number.parseFloat(document.body.style.zoom) || 1
-    const w = (collapsed ? 140 : 276) * zoom
+    const w = (collapsed ? 168 : 276) * zoom
     // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
     // empirically against this Electron build) — so measure the unzoomed content
     // height, then scale the whole thing (content + margin) ourselves
