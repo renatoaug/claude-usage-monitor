@@ -111,6 +111,25 @@ describe('accounts', () => {
     expect(a.list()).toHaveLength(1)
   })
 
+  test('pruneOrphans() drops folders no account owns, never one with a token', () => {
+    const keep = a.add()
+    const dir = (id) => path.join(BASE, 'accounts', id)
+    fs.mkdirSync(dir(keep), { recursive: true })
+    fs.mkdirSync(dir('acct-gone'), { recursive: true })
+    fs.writeFileSync(path.join(dir('acct-gone'), 'alerts.json'), '{}')
+    fs.mkdirSync(dir('acct-with-token'), { recursive: true })
+    fs.writeFileSync(path.join(dir('acct-with-token'), 'auth.json'), '{}')
+
+    expect(a.pruneOrphans()).toBe(1)
+    expect(fs.existsSync(dir(keep))).toBe(true) // still listed
+    expect(fs.existsSync(dir('acct-gone'))).toBe(false)
+    expect(fs.existsSync(dir('acct-with-token'))).toBe(true) // credentials stay
+  })
+
+  test('pruneOrphans() is a no-op when no extra account was ever added', () => {
+    expect(a.pruneOrphans()).toBe(0)
+  })
+
   test('setClaudeDir() points an account at its own logs', () => {
     const id = a.add('/tmp/claude-work')
     expect(a.list().find((x) => x.id === id).claudeDir).toBe('/tmp/claude-work')

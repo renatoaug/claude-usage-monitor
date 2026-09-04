@@ -171,7 +171,7 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 ## Controls
 
 - **Drag** the widget anywhere on screen
-- **–** minimizes to just the pet's face (showing the live session %); the **⤢** button or a double-click on the pet expands it back
+- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring); the **⤢** button or a double-click on the pet expands it back
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page
 - **×** quits

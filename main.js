@@ -334,6 +334,7 @@ function createWindow() {
     if (fallback) accounts.setActive(fallback.id)
   }
   for (const a of accounts.list()) pruneEmpty(a.id)
+  accounts.pruneOrphans() // folders those slots left behind
   applyAccount(accounts.active())
   const { workAreaSize } = screen.getPrimaryDisplay()
   const H = 480
