@@ -379,7 +379,28 @@ describe('the account chip', () => {
   })
 
   test('hides itself when there is no account', () => {
+    api.handlers.onAccounts({ active: 'default', accounts: [] })
     pet.showProfile(null)
+    expect(el('account-chip').hidden).toBe(true)
+  })
+
+  test('falls back to the account label when the profile never arrives', () => {
+    pet.showProfile(null)
+    api.handlers.onAccounts({
+      active: 'default',
+      accounts: [{ id: 'default', label: 'ana@example.com', connected: true }],
+    })
+    expect(el('account-chip').hidden).toBe(false)
+    expect(el('ac-email').textContent).toBe('ana@example.com')
+    expect(el('mini-acct-name').textContent).toBe('ana')
+  })
+
+  test('a listed but disconnected account gets no chip', () => {
+    pet.showProfile(null)
+    api.handlers.onAccounts({
+      active: 'default',
+      accounts: [{ id: 'default', label: 'ana@example.com', connected: false }],
+    })
     expect(el('account-chip').hidden).toBe(true)
   })
 })
