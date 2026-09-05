@@ -678,16 +678,32 @@ function startUsagePoll() {
 }
 
 // push the logged-in account's identity (email + plan) to the renderer
-async function sendProfile() {
+let profileTimer = null
+async function sendProfile(tries = 0) {
+  clearTimeout(profileTimer)
   if (!auth.isConnected()) return
+  // whose profile this is, decided *before* the await: a switch during the
+  // fetch would otherwise label the new account with the old one's email
+  const id = accounts.activeId()
   try {
     const p = await auth.fetchProfile()
+    if (id !== accounts.activeId()) return // switched under us — this is stale
     if (p?.email) {
-      accounts.label(accounts.activeId(), p.email) // a better name than "acct-xyz"
+      accounts.label(id, p.email) // a better name than "acct-xyz"
       sendAccounts()
     }
     if (win && !win.isDestroyed()) win.webContents.send('profile', p)
-  } catch {} // non-fatal: the chip just stays hidden
+  } catch {
+    // a rate limit or a blip would otherwise hide the chip — and with it the
+    // account switcher — until the app is restarted, so keep trying for a while
+    if (tries >= 4) return
+    profileTimer = setTimeout(
+      () => {
+        if (id === accounts.activeId()) sendProfile(tries + 1)
+      },
+      30 * 1000 * 2 ** tries,
+    )
+  }
 }
 
 // begin() has to run *after* any account switch: switching resets the pending

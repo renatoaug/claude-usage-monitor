@@ -700,26 +700,38 @@ window.api.onAuthState((s) => {
 })
 
 // logged-in account chip (email + plan) shown top-left when connected
+let lastProfile = null
 function showProfile(p) {
+  lastProfile = p
+  paintChip()
+}
+
+// The chip is also the account switcher, so it must not vanish just because the
+// profile fetch failed — that would strand the user on one account until a
+// restart. The label main stored for the active account is the same email, so
+// it stands in until the profile lands.
+function paintChip() {
+  const p = lastProfile
+  const a = lastAccounts
+  const active = (a?.accounts || []).find((x) => x.id === a?.active)
+  const email = p?.email || (active?.connected ? active.label : null)
   // the settings line says who is connected, not just that someone is
-  el('acc-ok').textContent = p?.email
-    ? `● ${p.email}${p.plan ? ` · ${p.plan}` : ''}`
-    : '● Connected'
+  el('acc-ok').textContent = email ? `● ${email}${p?.plan ? ` · ${p.plan}` : ''}` : '● Connected'
   const chip = el('account-chip')
   const mini = el('mini-acct')
-  if (!p?.email) {
+  if (!email) {
     chip.hidden = true
     mini.hidden = true
     return
   }
   // expanded: full email chip in the top bar
-  el('ac-email').textContent = p.email
-  chip.title = p.name ? `${p.name} · ${p.email}` : p.email
-  setPlan(el('ac-plan'), p.plan)
+  el('ac-email').textContent = email
+  chip.title = p?.name ? `${p.name} · ${email}` : email
+  setPlan(el('ac-plan'), p?.plan)
   chip.hidden = false
   // collapsed: short name + plan in the mini block (email won't fit at 116px)
-  el('mini-acct-name').textContent = p.name || p.email.split('@')[0]
-  setPlan(el('mini-acct-plan'), p.plan)
+  el('mini-acct-name').textContent = p?.name || email.split('@')[0]
+  setPlan(el('mini-acct-plan'), p?.plan)
   mini.hidden = false
 }
 function setPlan(node, plan) {
@@ -765,6 +777,8 @@ function accountRow(acc, a) {
 function renderAccounts(a) {
   lastAccounts = a
   document.body.classList.toggle('one-account', (a?.accounts || []).length < 2)
+  paintChip() // the label may be all the chip has to go on
+
   if (el('acc-menu').hidden) return
   // the switch is done: the chip now names the account the menu was pointing at
   if (switching && !a?.busy) closeAccountMenu()

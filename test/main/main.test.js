@@ -214,7 +214,13 @@ mock.module('../../auth.js', () => ({
     if (authState.usageError) throw authState.usageError
     return authState.usage
   },
-  fetchProfile: async () => authState.profile,
+  fetchProfile: async () => {
+    const p = authState.profile // captured before the wait, like the real fetch
+    if (authState.profileDelay) {
+      await new Promise((r) => realSetTimeout(r, authState.profileDelay))
+    }
+    return p
+  },
   clear: () => {
     authState.cleared++
     authState.connected = false
@@ -834,6 +840,26 @@ describe('accounts', () => {
     await fire('auth-code', 'code#state')
     await new Promise((r) => realSetTimeout(r, 5))
     expect(listed().accounts.at(-1).label).toBe('a@b.com')
+  })
+
+  test('a profile arriving after a switch does not relabel the new account', async () => {
+    fire('accounts-add')
+    const id = listed().active
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(listed().accounts.find((a) => a.id === id).label).toBe('a@b.com')
+
+    // leave for `default` with its profile fetch still in flight…
+    authState.profile = { email: 'other@b.com' }
+    authState.profileDelay = 40
+    fire('accounts-switch', 'default')
+    await new Promise((r) => realSetTimeout(r, 5))
+    // …and come back before it lands: it belongs to `default`, not to us
+    authState.profile = { email: 'a@b.com' }
+    authState.profileDelay = 0
+    fire('accounts-switch', id)
+    await new Promise((r) => realSetTimeout(r, 80))
+    expect(listed().accounts.find((a) => a.id === id).label).toBe('a@b.com')
   })
 
   test('removing an account takes its data dir with it', async () => {
