@@ -35,12 +35,25 @@ function setDataDir(dir) {
   tokens = null
   profile = null
   pending = null
+  unreadable = false
 }
 
+// Set when the file itself could not be read for a reason other than "it is not
+// there" — a disk still waking up, say. That must not read as a logout, or the
+// widget asks for a login it doesn't need and every account looks gone. A file
+// we did read but cannot parse is a different matter: that one really is dead.
+let unreadable = false
 function load() {
   if (tokens) return tokens
+  let raw = null
   try {
-    tokens = JSON.parse(fs.readFileSync(tokenPath, 'utf8'))
+    raw = fs.readFileSync(tokenPath, 'utf8')
+    unreadable = false
+  } catch (e) {
+    unreadable = e?.code !== 'ENOENT'
+  }
+  try {
+    tokens = raw == null ? null : JSON.parse(raw)
   } catch {
     tokens = null
   }
@@ -56,12 +69,15 @@ function save(t) {
 function clear() {
   tokens = null
   profile = null
+  unreadable = false
   try {
     fs.unlinkSync(tokenPath)
   } catch {}
 }
 function isConnected() {
-  return !!load()
+  // a token we merely failed to read still counts: the account is connected,
+  // we just couldn't see it this instant
+  return !!load() || unreadable
 }
 
 // Step 1: build the authorize URL (opens in the browser)
@@ -152,7 +168,13 @@ async function refresh() {
 
 async function validToken() {
   const t = load()
-  if (!t) throw Object.assign(new Error('not connected'), { status: 401 })
+  // status 0 is "try again later", not "log in again": only a token that is
+  // genuinely absent should send the user back through the browser
+  if (!t) {
+    throw Object.assign(new Error(unreadable ? 'token unreadable' : 'not connected'), {
+      status: unreadable ? 0 : 401,
+    })
+  }
   if (!t.expires_at || t.expires_at - Date.now() < 60000) await refresh()
   return load().access_token
 }

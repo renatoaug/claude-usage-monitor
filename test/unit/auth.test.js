@@ -137,6 +137,18 @@ describe('connection state', () => {
     fs.writeFileSync(TOKEN_PATH, '{ not json')
     expect(auth.isConnected()).toBe(false)
   })
+
+  test('a token that cannot be read still counts as connected', async () => {
+    auth.clear()
+    // a read that fails for anything but "no such file" — the shape of a disk
+    // that is not up yet after a sleep. It must not read as a logout.
+    fs.mkdirSync(TOKEN_PATH, { recursive: true })
+    expect(auth.isConnected()).toBe(true)
+    // …and the poll is told to try later, not to send the user to the browser
+    await expect(auth.fetchUsage()).rejects.toMatchObject({ status: 0 })
+    fs.rmSync(TOKEN_PATH, { recursive: true, force: true })
+    expect(auth.isConnected()).toBe(false)
+  })
 })
 
 describe('usage mapping', () => {
