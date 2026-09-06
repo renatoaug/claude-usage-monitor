@@ -211,6 +211,24 @@ function scopedWeeks(j) {
   return out
 }
 
+// What the endpoint says its own budget is. Undocumented, so we only ever read
+// it — nothing depends on it yet. Knowing the real numbers is what tells us how
+// close the activity poll's floor can get.
+let rateLimit = null
+function readRateLimit(res) {
+  const out = {}
+  try {
+    for (const [k, v] of res.headers) {
+      if (k.startsWith('anthropic-ratelimit-')) out[k.slice(20)] = v
+    }
+  } catch {
+    return // no headers to read — nothing here is worth failing a fetch over
+  }
+  if (!Object.keys(out).length) return
+  if (JSON.stringify(out) !== JSON.stringify(rateLimit)) console.log('usage rate limit', out)
+  rateLimit = out
+}
+
 // Step 3: fetch the authoritative usage
 async function fetchUsage() {
   const token = await validToken()
@@ -228,6 +246,7 @@ async function fetchUsage() {
       status: res.status,
     })
   }
+  readRateLimit(res)
   const j = await res.json()
   return {
     session: win(j.five_hour) || { pct: 0, resetMs: null },
@@ -261,4 +280,13 @@ async function fetchProfile() {
   return profile
 }
 
-module.exports = { begin, complete, fetchUsage, fetchProfile, clear, isConnected, setDataDir }
+module.exports = {
+  rateLimit: () => rateLimit,
+  begin,
+  complete,
+  fetchUsage,
+  fetchProfile,
+  clear,
+  isConnected,
+  setDataDir,
+}
