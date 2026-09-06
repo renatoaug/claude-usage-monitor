@@ -234,6 +234,7 @@ function applyAccount(acc) {
   usage.setClaudeDir(acc.claudeDir)
   armed = new Set()
   lastSessionPct = null
+  lastSeenTokens = null // the new account's first read is a baseline, not a spend
   loadAlertState()
 }
 
@@ -402,6 +403,7 @@ function createWindow() {
       const data = getUsage(config)
       win.webContents.send('usage', data)
       checkAlerts(config, data)
+      onLocalActivity(data)
     } catch (err) {
       win.webContents.send('usage-error', String(err))
     }
@@ -651,11 +653,32 @@ function watchDebug() {
 let usageTimer = null
 let usageBackoff = 5 * 60 * 1000
 let authFails = 0 // consecutive 401s — see pollUsage
+let lastPollAt = 0
+
+// The authoritative % only moves when tokens are actually spent, and the local
+// logs show that within a tick. Polling off that beats a faster clock: it
+// answers while the user is working and asks for nothing while they are not.
+// The floor is what bounds the cost — never more than one call per 90s, well
+// under what a fixed one-minute poll would spend.
+const POLL_FLOOR_MS = 90 * 1000
+let lastSeenTokens = null
+function onLocalActivity(data) {
+  const t = data?.session?.tokens
+  if (typeof t !== 'number') return
+  const grew = lastSeenTokens != null && t > lastSeenTokens
+  lastSeenTokens = t
+  if (!grew || !auth.isConnected()) return
+  if (Date.now() - lastPollAt < POLL_FLOOR_MS) return
+  clearTimeout(usageTimer) // pollUsage schedules the next heartbeat itself
+  pollUsage()
+}
+
 function scheduleUsagePoll() {
   clearTimeout(usageTimer)
   if (auth.isConnected()) usageTimer = setTimeout(pollUsage, usageBackoff)
 }
 async function pollUsage() {
+  lastPollAt = Date.now()
   try {
     const u = await auth.fetchUsage()
     usageBackoff = 5 * 60 * 1000

@@ -185,6 +185,7 @@ const authState = {
   profile: { email: 'a@b.com', name: 'Ana', plan: 'Max' },
   completeError: null,
   cleared: 0,
+  usageCalls: 0,
 }
 
 mock.module('../../usage.js', () => ({
@@ -213,6 +214,7 @@ mock.module('../../auth.js', () => ({
     authState.connected = true
   },
   fetchUsage: async () => {
+    authState.usageCalls++
     if (authState.usageError) throw authState.usageError
     return authState.usage
   },
@@ -787,6 +789,45 @@ describe('update check', () => {
     } finally {
       Object.defineProperty(process, 'platform', { value: real, configurable: true })
     }
+  })
+})
+
+describe('polling off local activity', () => {
+  const realNow = Date.now
+  // the floor is measured against the clock, so the test has to move it
+  const spend = async (tokens, secondsLater = 0) => {
+    Date.now = () => realNow() + secondsLater * 1000
+    usageData = { ...usageData, session: { ...usageData.session, tokens } }
+    tick()
+    await new Promise((r) => realSetTimeout(r, 5))
+    Date.now = realNow
+  }
+
+  test('tokens spent locally pull the authoritative % right away', async () => {
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    await spend(1000) // the first read is only a baseline
+    const calls = authState.usageCalls
+
+    authState.usage = { ...DEFAULT_USAGE, session: { pct: 77, resetMs: 1000 } }
+    await spend(2000, 200)
+    expect(authState.usageCalls).toBe(calls + 1)
+    expect(lastOf('real-usage').session.pct).toBe(77)
+  })
+
+  test('a second spend inside the floor waits its turn', async () => {
+    const calls = authState.usageCalls
+    await spend(3000, 210)
+    expect(authState.usageCalls).toBe(calls)
+  })
+
+  test('a tick that spent nothing asks for nothing', async () => {
+    const calls = authState.usageCalls
+    Date.now = () => realNow() + 900 * 1000
+    tick()
+    await new Promise((r) => realSetTimeout(r, 5))
+    Date.now = realNow
+    expect(authState.usageCalls).toBe(calls)
   })
 })
 
