@@ -8,6 +8,7 @@ const {
   Tray,
   Menu,
   nativeImage,
+  powerMonitor,
 } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
@@ -336,6 +337,7 @@ function createWindow() {
   for (const a of accounts.list()) pruneEmpty(a.id)
   accounts.pruneOrphans() // folders those slots left behind
   applyAccount(accounts.active())
+  powerMonitor?.on?.('resume', onResume)
   const { workAreaSize } = screen.getPrimaryDisplay()
   const H = 480
 
@@ -648,6 +650,7 @@ function watchDebug() {
 // ---- real usage via OAuth (authoritative %), polled slowly with 429 backoff ----
 let usageTimer = null
 let usageBackoff = 5 * 60 * 1000
+let authFails = 0 // consecutive 401s — see pollUsage
 function scheduleUsagePoll() {
   clearTimeout(usageTimer)
   if (auth.isConnected()) usageTimer = setTimeout(pollUsage, usageBackoff)
@@ -656,11 +659,21 @@ async function pollUsage() {
   try {
     const u = await auth.fetchUsage()
     usageBackoff = 5 * 60 * 1000
+    authFails = 0
     pushRealUsage(u)
   } catch (e) {
     if (e && e.status === 429) {
       usageBackoff = Math.min(usageBackoff * 2, 30 * 60 * 1000)
     } else if (e && e.status === 401) {
+      // Refreshing rotates the refresh token, so a request that raced the one
+      // that rotated it comes back rejected while the session is perfectly
+      // alive. Clearing on that first answer throws away a good login, so the
+      // second rejection in a row is what counts.
+      if (++authFails < 2) {
+        usageBackoff = 60 * 1000
+        scheduleUsagePoll()
+        return
+      }
       auth.clear()
       pushRealUsage(null)
       sendAccounts()
@@ -674,7 +687,21 @@ async function pollUsage() {
   scheduleUsagePoll()
 }
 function startUsagePoll() {
+  authFails = 0
   if (auth.isConnected()) pollUsage()
+}
+
+// Waking up: the poll timer was frozen through the sleep, so the numbers on
+// screen are as old as the nap. Re-state what we know — a read that failed on
+// the way down would otherwise leave a stale "log in" panel up — and poll
+// again, after a beat, since the network is rarely back the instant we are.
+function onResume() {
+  if (!auth.isConnected()) return
+  if (win && !win.isDestroyed()) win.webContents.send('auth-state', { connected: true })
+  clearTimeout(usageTimer)
+  usageBackoff = 5 * 60 * 1000
+  usageTimer = setTimeout(pollUsage, 5000)
+  sendProfile()
 }
 
 // push the logged-in account's identity (email + plan) to the renderer

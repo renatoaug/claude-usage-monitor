@@ -109,7 +109,9 @@ class FakeNotification {
   }
 }
 
+const powerHandlers = new Map()
 const electronMock = {
+  powerMonitor: { on: (ev, cb) => powerHandlers.set(ev, cb) },
   app: {
     whenReady: () => Promise.resolve(),
     getVersion: () => '1.5.0',
@@ -448,8 +450,14 @@ describe('threshold alerts', () => {
     await fire('auth-code', 'code#state') // connected, and a poll is scheduled
     await new Promise((r) => realSetTimeout(r, 5))
     notifications.length = 0
+    const clearedBefore = authState.cleared
     authState.usageError = Object.assign(new Error('dead'), { status: 401 })
     await timers.timeouts.at(-1).fn() // the scheduled poll, now rejected
+    await new Promise((r) => realSetTimeout(r, 5))
+    // one rejection can be a rotated refresh token losing a race: still logged in
+    expect(notifications).toEqual([])
+    expect(authState.cleared).toBe(clearedBefore)
+    await timers.timeouts.at(-1).fn() // the retry, rejected too — now it is real
     await new Promise((r) => realSetTimeout(r, 5))
     expect(notifications.map((n) => n.title)).toContain('Clauddy lost access to your usage')
     authState.usageError = null
@@ -779,6 +787,23 @@ describe('update check', () => {
     } finally {
       Object.defineProperty(process, 'platform', { value: real, configurable: true })
     }
+  })
+})
+
+describe('waking from sleep', () => {
+  test('re-states the connection and polls again', async () => {
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    sent.length = 0
+    authState.usage = { ...authState.usage, session: { pct: 61, resetMs: 1 } }
+
+    powerHandlers.get('resume')()
+    // the panel may be showing a stale "log in" from a read that failed on the
+    // way down, so the state is restated even though nothing changed
+    expect(lastOf('auth-state')).toEqual({ connected: true })
+    await timers.timeouts.at(-1).fn() // the poll it scheduled
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(lastOf('real-usage').session.pct).toBe(61)
   })
 })
 
