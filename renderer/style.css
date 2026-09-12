@@ -328,10 +328,116 @@ body.collapsed #mini-acct-name {
 }
 
 /* settings panel */
+/* stays in flow so the card keeps a height the window can be sized to (pet.js
+   measures #card) — it still reads as an overlay because the stage, the content
+   and the mini line all sit this screen out. The negative margins bleed its
+   background to the card's edges, past the card's own padding. */
 #settings {
   display: none;
-  margin-top: 8px;
+  margin: 24px -18px -14px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #2c221c, #17120f);
   -webkit-app-region: no-drag;
+}
+/* panel heading: gives the screen a title instead of opening cold on a form */
+.settings-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 38px;
+}
+.settings-heading h3 {
+  font-size: 15px;
+  letter-spacing: -0.4px;
+  font-weight: 500;
+  color: #e7cfb8;
+}
+.settings-heading p {
+  font-size: 9px;
+  color: #a48b75;
+  margin-top: 4px;
+}
+.sh-ico {
+  width: 18px;
+  height: 18px;
+  color: var(--text);
+  stroke-width: 2;
+}
+/* group label above a cluster of rows */
+.settings-label {
+  display: block;
+  font-size: 9px;
+  color: #ac9177;
+  margin-bottom: 6px;
+}
+.threshold-label {
+  margin-top: 15px;
+}
+.settings-segment {
+  height: 28px;
+}
+/* connected account: avatar + who + plan, as one bordered block */
+.connect-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 11px 0 13px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.043);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.012);
+}
+.connect-block > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.cb-out {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  color: #8d7b6c;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.cb-out .ic {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.9;
+}
+.cb-out:hover {
+  color: #e0a184;
+  background: rgba(255, 255, 255, 0.05);
+}
+.connect-block b {
+  font-size: 9px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connect-block > div > span {
+  font-size: 8px;
+  color: #a28a73;
+}
+.account-avatar {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(177, 132, 94, 0.13);
+  font-size: 13px;
+  color: #d5a07b;
 }
 body.settings-open #content,
 body.settings-open #mini {
@@ -339,16 +445,65 @@ body.settings-open #mini {
 }
 body.settings-open #settings {
   display: block;
-  animation: set-in 0.18s ease;
+  animation: set-in 0.78s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* the panel covers the card, so the stage keeps its normal height behind it */
+body.settings-open #stage {
+  display: none;
 }
 @keyframes set-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateX(102%);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateX(0);
+  }
+}
+/* leaving settings: the panel rides back out to the right. It goes absolute for
+   those frames so the card is already at its home height while it plays. */
+body.settings-closing #settings {
+  display: block;
+  position: absolute;
+  inset: 38px 0 0;
+  margin: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+  animation: set-out 0.58s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes set-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(102%);
+  }
+}
+/* home comes back in from the other side, so the two screens read as a pair */
+body.settings-closing #content,
+body.settings-closing #stage {
+  animation: home-in 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes home-in {
+  from {
+    opacity: 0;
+    transform: translateX(-9%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.settings-open #settings,
+  body.settings-closing #settings,
+  body.settings-closing #content,
+  body.settings-closing #stage {
+    animation: none;
   }
 }
 .set-hint {
@@ -395,18 +550,23 @@ input[type="number"]::-webkit-outer-spin-button {
 /* display-mode segmented control (floating pet | menu bar) */
 .seg {
   display: flex;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 3px;
+  height: 31px;
+  padding: 3px;
+  border: 0.5px solid rgba(255, 255, 255, 0.035);
+  background: rgba(15, 16, 23, 0.43);
+  border-radius: 6px;
 }
 .seg-btn {
   flex: 1;
-  padding: 6px 4px;
-  font-size: 11px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.06);
-  border: 0.5px solid var(--hair);
-  border-radius: 7px;
+  padding: 0 4px;
+  font-size: 10px;
+  color: #938996;
+  background: none;
+  border: 0;
+  border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
   transition:
     background 0.15s,
     color 0.15s,
@@ -437,8 +597,14 @@ body.is-menubar #min {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 34px;
-  border-bottom: 0.5px solid var(--hair);
+  font-size: 10px;
+  color: #cdb49b;
+  margin-top: 11px;
+}
+/* the stepper rows stack, so they read as a group at a tighter pitch than the
+   reference's 14px — the steppers already carry their own height */
+.set-row:has(.num) {
+  margin-top: 5px;
 }
 /* the threshold pair lives in an inset card under its toggle row */
 .set-row:has(+ .set-subgroup) {
@@ -470,9 +636,9 @@ body.is-menubar #min {
   gap: 10px;
 }
 .set-row-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 10px;
+  font-weight: 400;
+  color: #cdb49b;
 }
 .set-row-hint {
   display: block;
@@ -491,7 +657,7 @@ body.is-menubar #min {
   font-size: 10.5px;
   color: var(--muted);
 }
-#set-rows.alerts-off .set-subgroup {
+#set-rows.alerts-off .set-sub {
   opacity: 0.35;
   pointer-events: none;
 }
@@ -532,34 +698,36 @@ body.is-menubar #min {
     opacity 0.18s;
 }
 .set-toggle:checked {
-  background: var(--coral);
+  background: #ae7954;
 }
 .set-toggle:checked::after {
-  left: 14px;
+  left: 15px;
   opacity: 1;
 }
 /* number field: minus / value% / plus */
 .num {
   display: flex;
   align-items: center;
-  gap: 4px;
   flex: none;
+  border: 0.5px solid var(--hair);
+  background: rgba(255, 255, 255, 0.012);
+  border-radius: 4px;
+  overflow: hidden;
 }
 .num-val {
   position: relative;
-  width: 54px;
+  width: 38px;
 }
 .num-val input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 0.5px solid var(--hair);
-  border-radius: 7px;
+  background: none;
+  border: 0;
   color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  padding: 4px 20px 4px 6px;
+  padding: 4px 14px 4px 0;
   outline: none;
   transition:
     border-color 0.15s,
@@ -571,22 +739,22 @@ body.is-menubar #min {
 }
 .num-val i {
   position: absolute;
-  right: 7px;
+  right: 3px;
   top: 50%;
   transform: translateY(-50%);
   font-style: normal;
-  font-size: 10px;
-  color: var(--muted);
+  font-size: 8px;
+  color: #a1876b;
   pointer-events: none;
 }
 .num-btn {
   -webkit-app-region: no-drag;
   border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  background: none;
+  color: #ceb194;
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
   font-size: 12px;
   line-height: 1;
   display: flex;
@@ -616,15 +784,15 @@ body.is-menubar #min {
 .set-actions {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 17px;
 }
 .set-actions button {
   flex: 1;
-  border: none;
-  border-radius: 8px;
-  padding: 6px;
-  font-size: 11px;
-  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.082);
+  border-radius: 5px;
+  padding: 7px;
+  font-size: 10px;
+  font-weight: 400;
   cursor: pointer;
   transition:
     background 0.18s,
@@ -634,15 +802,16 @@ body.is-menubar #min {
   transform: scale(0.97);
 }
 #set-cancel {
-  background: rgba(255, 255, 255, 0.12);
+  background: none;
   color: var(--text);
 }
 #set-cancel:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 #set-save {
-  background: rgba(255, 255, 255, 0.12); /* rests like Cancel; dirty lights it */
-  color: var(--text);
+  background: #ce926d;
+  border-color: #ce926d;
+  color: #261a12;
 }
 #set-save:disabled {
   opacity: 0.45;
@@ -650,14 +819,17 @@ body.is-menubar #min {
 }
 #set-save.dirty,
 #set-save.dirty:hover {
-  color: #fff;
+  color: #261a12; /* filled coral now — dark text, not white */
 }
 #set-save.dirty:hover {
-  background: #e2876a;
+  background: #e2a07f;
+  border-color: #e2a07f;
 }
 /* unsaved changes: light up and pulse so you don't forget to save */
 #set-save.dirty {
-  background: var(--coral);
+  background: #ce926d;
+  border-color: #ce926d;
+  color: #261a12;
   animation: save-pulse 1.6s ease-in-out infinite;
 }
 @keyframes save-pulse {
@@ -700,14 +872,24 @@ body.is-menubar #min {
   color: var(--coral);
 }
 /* compact update button — lighter than the full-width .acc-btn */
+/* once an update is offered, the button says it — the check link is redundant
+   and the three of them would not fit the footer on one line */
+body.has-update #upd-check {
+  display: none;
+}
+.set-updates .upd-ver,
+.upd-btn,
+#upd-check {
+  white-space: nowrap;
+}
 .upd-btn {
-  border: none;
-  border-radius: 7px;
-  padding: 4px 9px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--coral);
+  border: 1px solid rgba(206, 146, 109, 0.35);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 8px;
+  font-weight: 400;
+  color: #e3b193;
+  background: rgba(206, 146, 109, 0.09);
   cursor: pointer;
   -webkit-app-region: no-drag;
   transition:
@@ -715,7 +897,8 @@ body.is-menubar #min {
     transform 0.1s;
 }
 .upd-btn:hover {
-  background: #e2876a;
+  background: rgba(206, 146, 109, 0.2);
+  border-color: rgba(206, 146, 109, 0.55);
 }
 .upd-btn:active {
   transform: scale(0.97);
@@ -733,33 +916,45 @@ body.live .live-only {
   display: inline;
 }
 #live-tag {
-  color: var(--green);
-  font-weight: 600;
+  margin-left: auto;
+  font-size: 7px;
+  letter-spacing: 0.4px;
+  font-weight: 400;
+  padding: 3px 5px;
+  color: #abbd96;
+  border: 1px solid rgba(161, 183, 134, 0.13);
+  background: rgba(161, 183, 134, 0.03);
+  border-radius: 3px;
 }
 
 /* account / auth */
 #account {
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 0.5px solid var(--hair); /* divider before the first section */
+  margin-bottom: 0;
 }
 .acc-btn {
   width: 100%;
-  border: none;
-  border-radius: 8px;
-  padding: 7px;
-  font-size: 11px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(206, 146, 109, 0.35);
+  border-radius: 5px;
+  padding: 9px;
+  font-size: 10px;
+  font-weight: 400;
   cursor: pointer;
-  background: var(--coral);
-  color: #fff;
+  background: rgba(206, 146, 109, 0.09);
+  color: #e3b193;
   -webkit-app-region: no-drag;
+  /* the glyph rides at the text's weight, not heavier */
+  stroke-width: 1.8;
   transition:
     background 0.18s,
     transform 0.1s;
 }
 .acc-btn:hover:not(:disabled) {
-  background: #e2876a;
+  background: rgba(206, 146, 109, 0.2);
+  border-color: rgba(206, 146, 109, 0.55);
 }
 .acc-btn:active:not(:disabled) {
   transform: scale(0.98);
@@ -787,9 +982,9 @@ body.live .live-only {
   text-decoration: underline;
 }
 .acc-ok {
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 400;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -936,7 +1131,8 @@ body.awaiting #acc-intro {
   display: none;
 }
 #acc-disconnected {
-  margin-top: 10px;
+  margin-top: 8px;
+  margin-bottom: 13px;
 }
 
 /* just logged in: a short-lived green cheer at the top of the home panel */
@@ -1114,9 +1310,7 @@ body.settings-open #min {
 
 /* pet */
 /* expanded: a little night scene */
-body.settings-open #stage {
-  height: 100px;
-}
+
 /* the ground layers stretch to fill the stage; while it's shortened, pin them
    at their natural height so the gears stay round — the top just clips away.
    #scene keeps stretching (dots and stars tolerate it) so its frame rows stay
@@ -1135,7 +1329,7 @@ body.settings-open #pet {
 #stage {
   position: relative;
   height: 132px;
-  margin-top: 16px;
+  margin-top: 24px; /* the title band is 38px; the card already pads 14 of it */
   border-radius: 12px;
   background: radial-gradient(125% 145% at 50% 36%, #050505 52%, #150e0a 100%);
   box-shadow: 0 0 22px 7px rgba(6, 5, 4, 0.7);

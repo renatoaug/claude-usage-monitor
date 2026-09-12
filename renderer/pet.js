@@ -1086,7 +1086,26 @@ function openSettings() {
   document.body.classList.add('settings-open')
   fitSize()
 }
-el('gear').addEventListener('click', openSettings)
+
+// Leaving settings plays the panel out to the right while home slides back in.
+// The panel is lifted out of the flow for those few frames (see .settings-closing
+// in the stylesheet), so the card can already be measured at its home height.
+let closingTimer = null
+function closeSettings() {
+  if (!document.body.classList.contains('settings-open')) return
+  abandonLogin()
+  document.body.classList.remove('settings-open')
+  document.body.classList.add('settings-closing')
+  clearTimeout(closingTimer)
+  closingTimer = setTimeout(() => document.body.classList.remove('settings-closing'), 600)
+  clearSaveDirty()
+  applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
+  fitSize()
+}
+el('gear').addEventListener('click', () => {
+  if (document.body.classList.contains('settings-open')) closeSettings()
+  else openSettings()
+})
 // the "connect" placeholder jumps straight to settings
 el('limits-connect').addEventListener('click', openSettings)
 // custom number steppers (▲ / ▼)
@@ -1115,13 +1134,7 @@ for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
     refreshSaveDirty()
   })
 }
-el('set-cancel').addEventListener('click', () => {
-  abandonLogin()
-  document.body.classList.remove('settings-open')
-  clearSaveDirty()
-  applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
-  fitSize()
-})
+el('set-cancel').addEventListener('click', closeSettings)
 el('set-save').addEventListener('click', () => {
   abandonLogin() // leaving the panel gives up on a login waiting for its code
   const num = (id) => parseFloat(el(id).value)

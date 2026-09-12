@@ -233,35 +233,61 @@
             <span class="sec-name">by project · 7 days</span>
             <svg class="sec-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
           </button>
-          <div id="byproject-list" class="sec-body"></div>
+          <div class="sec-body"><div id="byproject-list"></div></div>
         </div>
 
         <div class="divider"></div>
 
         <!-- 30-day map -->
         <div id="heat">
-          <div id="heat-row"></div>
           <div id="heat-meta">
             <span>30 days</span>
             <span id="month-total">0</span>
           </div>
+          <div id="heat-row"></div>
         </div>
       </div>
 
       <!-- settings panel -->
       <div id="settings">
+        <div class="settings-heading">
+          <div>
+            <h3>A little tune-up</h3>
+            <p>Make Clauddy feel at home.</p>
+          </div>
+          <svg class="ic sh-ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 7h-9M14 17H5" />
+            <circle cx="17" cy="17" r="3" />
+            <circle cx="7" cy="7" r="3" />
+          </svg>
+        </div>
+
         <div id="account">
           <!-- who you are comes first: the list, then the login for whichever
                account is active — so "add" and the code field sit together -->
-          <div id="acc-connected">
-            <span class="acc-ok" id="acc-ok">● Connected</span>
-            <button id="acc-logout" class="acc-link">Disconnect</button>
+          <div id="acc-connected" class="connect-block">
+            <span class="account-avatar" id="acc-avatar">●</span>
+            <div>
+              <b class="acc-ok" id="acc-ok">Connected</b>
+              <span id="acc-sub">your real usage is live</span>
+            </div>
+            <button id="acc-logout" class="cb-out" title="Sign out" aria-label="Sign out">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
           </div>
           <div id="acc-disconnected">
             <div class="set-hint set-hint-left" id="acc-intro">
               Connect your Claude account to show your real usage.
             </div>
-            <button id="acc-connect" class="acc-btn">Log in with browser</button>
+            <button id="acc-connect" class="acc-btn">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20" />
+              </svg>
+              <span>Log in with browser</span>
+            </button>
             <div id="acc-paste">
               <div class="set-hint set-hint-left">Paste the code from the browser page:</div>
               <input id="acc-code" type="text" placeholder="authentication code" />
@@ -271,30 +297,28 @@
           </div>
         </div>
 
+        <div class="settings-label">where should i live?</div>
         <div id="set-rows">
+          <span class="seg settings-segment" id="set-mode">
+            <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
+            <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
+          </span>
           <div class="set-row">
-            <span class="set-row-label">Display</span>
-            <span class="seg" id="set-mode">
-              <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
-              <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
-            </span>
-          </div>
-          <div class="set-row">
-            <span class="set-row-label">Alerts</span>
+            <span class="set-row-label">Gentle notifications</span>
             <input id="set-alerts" class="set-toggle" type="checkbox" aria-label="Enable alerts" />
           </div>
-          <div class="set-subgroup">
-            <div class="set-row set-sub">
-              <span class="set-row-label sub-label">heads-up</span>
-              <span class="num"><button type="button" class="num-btn" data-for="set-t1" data-step="-1">−</button><span class="num-val"><input id="set-t1" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t1" data-step="1">+</button></span>
-            </div>
-            <div class="set-row set-sub">
-              <span class="set-row-label sub-label">near limit</span>
-              <span class="num"><button type="button" class="num-btn" data-for="set-t2" data-step="-1">−</button><span class="num-val"><input id="set-t2" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t2" data-step="1">+</button></span>
-            </div>
+          <div class="settings-label threshold-label">alert thresholds</div>
+          <div class="set-row set-sub">
+            <span class="set-row-label">Heads-up</span>
+            <span class="num"><button type="button" class="num-btn" data-for="set-t1" data-step="-1">−</button><span class="num-val"><input id="set-t1" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t1" data-step="1">+</button></span>
           </div>
+          <div class="set-row set-sub">
+            <span class="set-row-label">Near limit</span>
+            <span class="num"><button type="button" class="num-btn" data-for="set-t2" data-step="-1">−</button><span class="num-val"><input id="set-t2" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t2" data-step="1">+</button></span>
+          </div>
+          <div class="settings-label threshold-label">mood thresholds</div>
           <div class="set-row">
-            <span class="set-row-label">Catch fire<i class="set-row-hint">at this session %</i></span>
+            <span class="set-row-label">Catch fire</span>
             <span class="num"><button type="button" class="num-btn" data-for="set-fire" data-step="-1">−</button><span class="num-val"><input id="set-fire" type="number" min="1" max="99" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-fire" data-step="1">+</button></span>
           </div>
           <div class="set-row">
@@ -305,11 +329,11 @@
 
         <div class="set-actions">
           <button id="set-cancel">Cancel</button>
-          <button id="set-save">Save</button>
+          <button id="set-save">Save changes</button>
         </div>
 
-        <div class="set-updates">
-          <span class="upd-ver">Clauddy v<span id="app-version">—</span></span>
+        <div class="set-updates version">
+          <span class="upd-ver">clauddy v<span id="app-version">—</span></span>
           <span class="upd-right">
             <span id="upd-status"></span>
             <button type="button" id="upd-check" class="acc-link">Check for updates</button>
