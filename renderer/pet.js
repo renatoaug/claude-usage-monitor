@@ -342,8 +342,6 @@ function renderHeat(days) {
 // only comparable if every track starts and ends at the same x. So it is sized
 // to the widest label actually present, clamped so a long path cannot squeeze
 // the bars into stubs, and anything past the clamp is clipped with an ellipsis.
-const NAME_MIN = 64
-const BAR_MIN = 96 // room left for the track and the token count
 
 function renderBars(boxId, list, limit) {
   const box = el(boxId)
@@ -365,24 +363,9 @@ function renderBars(boxId, list, limit) {
     box.innerHTML = '<div class="mrow" style="opacity:.5">no activity</div>'
     return
   }
-  fitNames(box)
 }
 
 // measure the labels unconstrained, then lock the column to the widest one
-function fitNames(box) {
-  const names = [...box.querySelectorAll('.mname')]
-  // a collapsed section measures zero — it re-fits when it opens
-  if (!names.length || !box.offsetWidth) return
-  box.style.setProperty('--name-w', 'auto')
-  // offsetWidth, not getBoundingClientRect: the width we hand back is a layout px,
-  // so it has to be measured in layout px too. A CSS transform on an ancestor
-  // (the video stage scales the card) inflates the rect and squeezes the bars away.
-  let widest = 0
-  for (const n of names) widest = Math.max(widest, n.offsetWidth)
-  const room = box.offsetWidth - BAR_MIN
-  const w = Math.max(NAME_MIN, Math.min(widest + 2, room))
-  box.style.setProperty('--name-w', `${w}px`)
-}
 
 // per-model weekly limits (e.g. "Fable" on Max) — one meter each, in the same
 // shape as the all-models one. The token count pairs the limit with the local
@@ -398,11 +381,19 @@ function renderScoped(list, byModel) {
     const m = document.createElement('div')
     m.className = 'meter'
     m.innerHTML =
-      `<div class="meter-top"><span>weekly · ${esc(key)}</span><span>${Math.round(s.pct)}%</span></div>` +
-      `<div class="track"><div class="fill week${s.pct >= 80 ? ' high' : ''}" style="width:${s.pct}%"></div></div>` +
+      `<div class="meter-top"><span>weekly · ${esc(key)}</span><span class="${levelOf(s.pct)}">${Math.round(s.pct)}%</span></div>` +
+      `<div class="track"><div class="fill week${s.pct >= 80 ? ' high' : ''} ${levelOf(s.pct)}" style="width:${s.pct}%"></div></div>` +
       `<div class="sub">${s.resetMs != null ? `resets in ${fmtResetIn(s.resetMs)} · ` : ''}${fmtTokens(tokens)} tokens</div>`
     box.appendChild(m)
   }
+}
+
+// One ramp for every meter: plain below 60, warm to 85, hot past it. The number
+// and its bar always read the same level.
+const levelOf = (pct) => (pct >= 85 ? 'hot' : pct >= 60 ? 'mid' : '')
+function setLevel(node, pct) {
+  node.classList.toggle('mid', levelOf(pct) === 'mid')
+  node.classList.toggle('hot', levelOf(pct) === 'hot')
 }
 
 // by model (7 days)
@@ -543,6 +534,7 @@ function render(d) {
   if (liveOn && prevPct != null && sessActive && prevPct - sessPct > 25) celebrate()
   prevPct = sessPct
   el('session-pct').textContent = `${Math.round(sessPct)}%`
+  setLevel(el('session-pct'), liveOn ? sessPct : 0)
   const mini = el('mini-pct')
   mini.textContent = liveOn ? `${Math.round(sessPct)}%` : '—'
   mini.classList.toggle('high', liveOn && sessPct >= 80)
@@ -556,6 +548,7 @@ function render(d) {
   const sf = el('session-fill')
   sf.style.width = `${sessPct}%`
   sf.classList.toggle('high', sessPct >= 80)
+  setLevel(sf, sessPct)
   el('session-sub').textContent = sessActive
     ? `resets in ${fmtResetIn(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
     : 'no active session'
@@ -573,9 +566,11 @@ function render(d) {
   }
 
   el('week-pct').textContent = `${Math.round(wkPct)}%`
+  setLevel(el('week-pct'), wkPct)
   const wf = el('week-fill')
   wf.style.width = `${wkPct}%`
   wf.classList.toggle('high', wkPct >= 80)
+  setLevel(wf, wkPct)
   el('week-sub').textContent =
     wkReset != null
       ? `resets in ${fmtResetIn(wkReset)} · ${fmtTokens(d.week.tokens)} tokens`
@@ -622,7 +617,7 @@ function fitSize() {
 }
 
 // widget scale, applied as a CSS zoom (not transform) so offsetWidth/Height
-// keep reflecting it — see fitNames()'s comment on why transform can't be used here
+// keep reflecting it — offsetHeight is a layout px, so it must be measured as one
 function applyZoom(z) {
   document.body.style.zoom = (z || 100) / 100
 }
@@ -914,11 +909,21 @@ function toggleSection(id, force) {
   sec.classList.toggle('folded', folded)
   const head = sec.querySelector('.sec-head')
   if (head) head.setAttribute('aria-expanded', String(!folded))
-  // the column width could not be measured while hidden
-  if (!folded) fitNames(sec.querySelector('.sec-body'))
   // the card just changed height, and the next usage poll is seconds away —
-  // without this the window keeps its old size and clips the content
+  // without this the window keeps its old size and clips the content. The body
+  // slides now rather than snapping, so size it again once that settles.
   fitSize()
+  // ...and again when the slide lands. The listener has to check what finished:
+  // the bar widths inside the section transition too, and those events bubble up
+  // here — resizing on one of them catches the card mid-slide.
+  const body = sec.querySelector('.sec-body')
+  if (!body) return
+  const settle = (e) => {
+    if (e.target !== body || e.propertyName !== 'grid-template-rows') return
+    body.removeEventListener('transitionend', settle)
+    fitSize()
+  }
+  body.addEventListener('transitionend', settle)
 }
 
 for (const head of document.querySelectorAll('.sec-head')) {

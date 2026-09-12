@@ -950,16 +950,22 @@ body.awaiting #acc-intro {
 }
 
 /* limits: real meters when connected, a "connect" prompt otherwise */
+body:not(.auth-on) #statusline {
+  border-bottom: 0;
+}
+body:not(.auth-on) #bymodel {
+  border-top: 0;
+}
 #limits-connect {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
   text-align: left;
-  border: 0.5px solid var(--hair);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 11px 13px;
+  border: 1px solid rgba(206, 146, 109, 0.22);
+  border-radius: 7px;
+  background: rgba(206, 146, 109, 0.055);
+  padding: 10px 11px;
   cursor: pointer;
   -webkit-app-region: no-drag;
   transition:
@@ -967,15 +973,15 @@ body.awaiting #acc-intro {
     border-color 0.2s;
 }
 #limits-connect:hover {
-  background: rgba(217, 119, 87, 0.1);
-  border-color: rgba(217, 119, 87, 0.5);
+  background: rgba(206, 146, 109, 0.13);
+  border-color: rgba(206, 146, 109, 0.42);
 }
 .lc-ico {
   flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  stroke: var(--coral);
-  stroke-width: 2;
+  width: 14px;
+  height: 14px;
+  stroke: #cb8a67;
+  stroke-width: 1.8;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -987,14 +993,14 @@ body.awaiting #acc-intro {
   line-height: 1.25;
 }
 .lc-text b {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 10px;
+  font-weight: 400;
+  color: #e3cdb8;
 }
 .lc-text i {
-  font-size: 9.5px;
+  font-size: 8px;
   font-style: normal;
-  color: var(--muted);
+  color: #a28a73;
 }
 body.live #limits-connect {
   display: none;
@@ -2000,13 +2006,13 @@ body.act-running .tm-cursor {
 
 /* status */
 #statusline {
-  margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--muted);
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 10px;
+  color: #c4b29f;
 }
 #statusline .sep {
   opacity: 0.4;
@@ -2049,9 +2055,9 @@ body.state-tired #status-text {
 /* meter subtitle */
 .sub {
   /* small enough that "resets in 69h 15m (Fri 7:01 AM) · 1.02B tokens" stays on one line */
-  font-size: 9px;
-  color: var(--muted);
-  margin-top: 4px;
+  font-size: 8px;
+  color: #96816d;
+  margin-top: 5px;
   letter-spacing: 0px;
   white-space: nowrap;
   overflow: hidden;
@@ -2072,120 +2078,151 @@ body.state-tired #status-text {
 
 /* 30-day map */
 #heat {
-  margin-top: 12px;
+  padding-top: 0; /* #heat-meta draws its own rule and padding, like a .sec */
 }
 #heat-row {
   display: flex;
   gap: 2px;
-  height: 14px;
+  height: 7px;
+  margin-top: 7px;
 }
+/* a warm ramp that climbs in lightness AND saturation at once: opacity alone
+   collapses the low steps into one smudge against the dark card, so the busy
+   days and the quiet ones have to differ in colour, not just in strength */
 .sq {
   flex: 1;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.07);
+  border-radius: 1.5px;
+  background: rgba(255, 255, 255, 0.05); /* no activity */
   transition: background 0.4s;
 }
 .sq.lv1 {
-  background: #8fbf6e;
+  background: #6b4430;
 }
 .sq.lv2 {
-  background: #d8c25f;
+  background: #9c6340;
 }
 .sq.lv3 {
-  background: #d98f52;
+  background: #cf8b52;
 }
 .sq.lv4 {
-  background: #cf5b46;
+  background: #f0b464;
 }
 #heat-meta {
   display: flex;
   justify-content: space-between;
-  font-size: 9.5px;
-  color: var(--muted);
-  margin-top: 5px;
-  letter-spacing: 0.2px;
+  font-size: 8px;
+  color: #a58d77;
+  border-top: 1px solid var(--hair);
+  padding-top: 9px;
+  margin-top: 0;
+  letter-spacing: 0;
 }
 #month-total {
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 400;
+  color: #a58d77;
   font-variant-numeric: tabular-nums;
 }
 
 /* divider */
 .divider {
-  height: 0.5px;
-  background: var(--hair);
-  margin: 12px 0;
+  display: none;
 }
 
 /* meters */
+#limits-meters {
+  padding: 0 0 12px;
+}
+.meter {
+  margin-top: 12px;
+}
 .meter + .meter,
 #scoped-meters .meter {
-  margin-top: 9px;
+  margin-top: 12px;
 }
 .meter-top {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 10px;
-  color: var(--muted);
-  margin-bottom: 4px;
+  color: #cbb9a7;
+  margin-bottom: 0;
 }
 .meter-top i {
   font-style: italic;
   opacity: 0.5;
   font-size: 9px;
 }
+/* the number is plain while there is nothing to worry about — colour is the
+   warning, so spending it at 5% leaves nothing to say at 90% */
 .meter-top span:last-child {
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  transition: color 0.6s;
 }
 .track {
   width: 100%;
-  height: 6px;
-  background: var(--track);
-  border-radius: 6px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 4px;
   overflow: hidden;
+  margin-top: 7px;
 }
 .fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--coral-soft), var(--coral));
-  border-radius: 6px;
+  background: var(--coral);
+  border-radius: 4px;
   transition:
-    width 0.7s cubic-bezier(0.4, 0, 0.2, 1),
-    background 0.4s;
+    width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.7s;
 }
 .fill.week {
-  background: linear-gradient(90deg, #c98a6e, var(--coral-soft));
+  background: var(--coral);
 }
-.fill.high {
-  background: linear-gradient(90deg, #e98a68, #d8442f);
+/* the ramp, shared by the bars and their numbers */
+.fill.mid {
+  background: #e5b55d;
+}
+.fill.hot,
+.fill.high.hot {
+  background: #ee705e;
+}
+.meter-top span:last-child.mid {
+  color: #e5b55d;
+}
+.meter-top span:last-child.hot {
+  color: #ee705e;
 }
 
 /* by model / by project — collapsible sections */
+.sec {
+  border-top: 1px solid var(--hair);
+  padding: 9px 0;
+}
 .sec-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   padding: 0;
-  margin-bottom: 6px;
+  margin-bottom: 0;
   background: none;
   border: 0;
   cursor: pointer;
   font: inherit;
-  font-size: 9.5px;
-  color: var(--muted);
-  letter-spacing: 0.3px;
+  font-size: 9px;
+  color: #a38c78;
+  letter-spacing: 0;
   -webkit-app-region: no-drag;
 }
 .sec-head:hover {
   color: var(--text);
 }
 .sec-chev {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.2;
@@ -2196,52 +2233,81 @@ body.state-tired #status-text {
 .sec.folded .sec-chev {
   transform: rotate(-90deg);
 }
+/* 0fr -> 1fr is the only way a height-to-content box can be animated; the inner
+   wrapper is what actually clips, so the rows never reflow mid-slide */
+.sec-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sec-body > div {
+  min-height: 0;
+  overflow: hidden;
+}
 .sec.folded .sec-body {
-  display: none;
+  grid-template-rows: 0fr;
 }
 .sec.folded .sec-head {
   margin-bottom: 0;
 }
 .mrow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 46px 36px;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
-  color: var(--text);
-  margin-bottom: 5px;
+  font-size: 8px;
+  color: #c7b19a;
+  margin-top: 7px;
+  margin-bottom: 0;
 }
 .mrow .mname {
-  /* one width for the whole list, measured at render time — the bars are only
-     comparable if every track starts at the same x */
-  flex: 0 0 var(--name-w, 64px);
-  font-weight: 500;
+  /* the grid now fixes the bar column, so every track starts at the same x
+     without measuring the names */
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* project names are paths, not four-letter families — give them room and clip
-   the rest, with the full name on the row's title attribute */
-#byproject .mrow {
-  font-size: 10px;
+/* a rank dot, so a row reads as an entry rather than a bare label */
+.mrow .mname::before {
+  content: "";
+  flex: none;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #b1967c;
 }
+.mrow:nth-child(1) .mname::before {
+  background: var(--coral);
+}
+.mrow:nth-child(2) .mname::before {
+  background: #c8a475;
+}
+.mrow:nth-child(3) .mname::before {
+  background: #807769;
+}
+/* project names are paths, not four-letter families — the grid's first column
+   takes the slack and clips the rest, full name on the row's title attribute */
 .mrow .mbar {
-  flex: 1;
-  height: 4px;
-  background: var(--track);
-  border-radius: 3px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.024);
+  border-radius: 2px;
   overflow: hidden;
 }
 .mrow .mbar > i {
   display: block;
   height: 100%;
-  background: var(--coral);
-  border-radius: 3px;
+  background: #c2865e;
+  border-radius: 2px;
   transition: width 0.6s ease;
 }
 .mrow .mval {
-  flex: 0 0 auto;
-  font-size: 10px;
-  color: var(--muted);
+  text-align: right;
+  font-size: 8px;
+  color: #a48b74;
   font-variant-numeric: tabular-nums;
 }
 
