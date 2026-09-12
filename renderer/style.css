@@ -2020,6 +2020,8 @@ body.act-running .tm-cursor {
   color: var(--text);
 }
 #rate {
+  font-size: 9px;
+  color: #978572;
   font-variant-numeric: tabular-nums;
 }
 body.state-working #status-dot {

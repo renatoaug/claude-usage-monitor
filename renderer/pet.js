@@ -40,39 +40,6 @@ const SPRITE = [
   })
 })()
 
-// hard hat (mechanic mode): pixel-art bitmap so it matches the pet's blocky look
-;(function buildHat() {
-  const g = el('hardhat')
-  if (!g) return
-  // L = highlight, Y = main, D = shadow rim, B = brim
-  const HAT = [
-    '.....YLLY.....',
-    '...YYYLLYYY...',
-    '..YYYYLLYYYY..',
-    '.YYYYYLLYYYYY.',
-    '.DDDDDDDDDDDD.',
-    'BBBBBBBBBBBBBB',
-  ]
-  const COL = { L: '#ffe27a', Y: '#f5c518', D: '#d99a00', B: '#c98f14' }
-  const C = 8 // cell size in svg units
-  const cols = HAT[0].length
-  const ox = 50 - (cols * C) / 2 // centered on the head (center x = 50)
-  const oy = -24 // rises above the head, brim ends just over the eyes
-  HAT.forEach((row, r) => {
-    for (let c = 0; c < row.length; c++) {
-      const ch = row[c]
-      if (ch === '.') continue
-      const rect = document.createElementNS(SVGNS, 'rect')
-      rect.setAttribute('x', ox + c * C)
-      rect.setAttribute('y', oy + r * C)
-      rect.setAttribute('width', C)
-      rect.setAttribute('height', C)
-      rect.setAttribute('fill', COL[ch])
-      g.appendChild(rect)
-    }
-  })
-})()
-
 // night scene backdrop (clouds, crescent moon, stars, dotted ground/sky)
 ;(function buildScene() {
   const s = el('scene')

@@ -1,0 +1,532 @@
+/* Work scenes and fire. Original sprite, dimensions, sleep and tired are untouched. */
+#scene {
+  transition: opacity 0.7s ease;
+}
+body.state-working #stage,
+body.state-stressed #stage {
+  background: #050505;
+}
+body.state-working:is(.act-reading, .act-editing, .act-running) #scene {
+  opacity: 0.12;
+}
+body.state-stressed #scene {
+  opacity: 0.3;
+}
+body.state-working:is(.act-reading, .act-editing, .act-running) .coin,
+body.state-working:is(.act-reading, .act-editing, .act-running) .crumb {
+  opacity: 0 !important;
+}
+#reading,
+#desk,
+#terminal,
+#mug,
+#plant {
+  translate: 0 5px;
+  transition:
+    opacity 0.65s ease,
+    translate 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.act-reading #reading,
+body.act-editing :is(#desk, #mug, #plant),
+body.act-running #terminal {
+  translate: 0 0;
+}
+#reading-room,
+#heat-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+#reading-room {
+  z-index: 1;
+}
+#heat-scene {
+  z-index: 1;
+}
+body.act-reading #reading-room,
+body.state-stressed #heat-scene {
+  opacity: 1;
+}
+body.act-reading #reading {
+  width: 91px;
+  height: 85px;
+  left: 52%;
+  bottom: 5px;
+}
+body.act-editing #desk,
+body.act-running #terminal {
+  left: 0;
+  bottom: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+body.act-reading #mug {
+  opacity: 0;
+}
+body.act-editing #plant {
+  opacity: 1;
+}
+body.act-editing #mug {
+  opacity: 1;
+  left: 32%;
+  bottom: 19px;
+  width: 30px;
+  height: 30px;
+}
+/* Reading: keep the approved book, frame it with quiet practical objects. */
+body.state-working.act-reading #claude {
+  animation: book-attention 5.6s ease-in-out infinite;
+}
+body.act-reading .book-float {
+  animation: book-hover 5.6s ease-in-out infinite;
+}
+body.act-reading .book-page {
+  transform-origin: 48px 50px;
+  animation: page-turn 5.6s cubic-bezier(0.4, 0, 0.25, 1) infinite;
+}
+body.act-reading .reading-motes {
+  animation: reading-motes 7s ease-in-out infinite;
+}
+/* Editing: physical monitor, keyboard, terracotta pot, quiet steam. */
+body.state-working.act-editing #claude {
+  animation: typing-attention 1.6s ease-in-out infinite;
+}
+body.act-editing .screen-line {
+  animation: screen-line 7s ease-in-out infinite;
+}
+body.act-editing .screen-line-2 {
+  animation-delay: 0.6s;
+}
+body.act-editing .screen-line-3 {
+  animation-delay: 1.2s;
+}
+body.act-editing .screen-line-4 {
+  animation-delay: 1.8s;
+}
+body.act-editing .screen-caret {
+  animation: screen-caret 1.4s ease-in-out infinite;
+}
+body.act-editing .plant-leaves {
+  transform-origin: 196px 102px;
+  animation: plant-breathe 8s ease-in-out infinite;
+}
+body.act-editing .dk-wisp {
+  animation: steam 3.4s ease-in-out infinite;
+  stroke: #b4aa98;
+  stroke-width: 1;
+}
+/* Running: gait + moving belt; the console completes a job in a single cycle. */
+body.state-working.act-running #claude {
+  animation: execution-stride 1.1s ease-in-out infinite;
+}
+body.act-running .belt-ticks {
+  animation: belt-ticks 1.1s ease-in-out infinite;
+}
+body.act-running .speed-streaks {
+  animation: speed-streaks 1.1s ease-out infinite;
+}
+.job-label {
+  font:
+    6.5px "SF Mono",
+    ui-monospace,
+    Menlo,
+    monospace;
+}
+.job-timing {
+  font:
+    5px "SF Mono",
+    ui-monospace,
+    Menlo,
+    monospace;
+}
+body.act-running .spinner-rotor {
+  animation: job-spin 1.3s ease-in-out infinite;
+}
+body.act-running .job-row-1 {
+  animation: job-one 6s ease-in-out infinite;
+}
+body.act-running .job-row-2 {
+  animation: job-two 6s ease-in-out infinite;
+}
+body.act-running .job-row-3 {
+  animation: job-three 6s ease-in-out infinite;
+}
+body.act-running .job-progress {
+  stroke-dasharray: 100;
+  animation: job-progress 6s cubic-bezier(0.3, 0.1, 0.3, 1) infinite;
+}
+/* Fire rises behind the unchanged pet silhouette, with a restrained glow on black. */
+#flames,
+body.state-stressed #flames {
+  display: block;
+  position: absolute;
+  top: auto;
+  bottom: -3px;
+  left: 50%;
+  width: 114px;
+  height: 136px;
+  transform: translateX(-50%);
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  overflow: visible;
+  transition: opacity 0.55s ease;
+}
+body.state-stressed #flames {
+  opacity: 1;
+}
+body.state-stressed .flame-tongue {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: flame-sway 0.85s ease-in-out infinite alternate;
+}
+body.state-stressed .flame-two {
+  animation-duration: 1.25s;
+  animation-delay: -0.6s;
+}
+body.state-stressed .flame-three {
+  animation-duration: 0.95s;
+  animation-delay: -0.3s;
+}
+body.state-stressed .flame-four {
+  animation-duration: 1.4s;
+  animation-delay: -0.9s;
+}
+body.state-stressed #claude {
+  animation: fire-shiver 0.3s ease-in-out infinite;
+}
+body.state-stressed .ember {
+  animation: ember-rise 3.3s ease-out infinite;
+}
+body.state-stressed .ember-two {
+  animation-delay: -1.1s;
+}
+body.state-stressed .ember-three {
+  animation-delay: -2.2s;
+}
+body.state-stressed .heat-waves {
+  animation: heat-drift 4s ease-in-out infinite;
+}
+body.state-stressed .heat-pool {
+  animation: heat-glow 2s ease-in-out infinite alternate;
+}
+/* One-shot gestures own the pet until they settle. */
+body.state-working.poke #claude,
+body.state-stressed.poke #claude {
+  animation: poke 0.85s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+body.state-working.celebrate #claude,
+body.state-stressed.celebrate #claude {
+  animation: celebrate 1.3s cubic-bezier(0.25, 0.65, 0.35, 1);
+}
+body.state-working.wake #claude {
+  animation: wake 0.7s ease;
+}
+body.settings-open :is(#reading, #reading-room, #desk, #terminal, #heat-scene, #flames),
+body.collapsed :is(#reading, #reading-room, #desk, #terminal, #heat-scene) {
+  opacity: 0;
+}
+body.collapsed #flames {
+  width: 90px;
+  height: 98px;
+}
+@keyframes book-attention {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  17%,
+  49% {
+    transform: translateY(-1px) rotate(1deg);
+  }
+  62% {
+    transform: translateY(1px) rotate(-0.8deg);
+  }
+  76% {
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes book-hover {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  47% {
+    transform: translateY(-2px);
+  }
+  68% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes page-turn {
+  0%,
+  46% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+  47% {
+    opacity: 1;
+  }
+  58% {
+    transform: scaleX(0.1) skewY(-12deg);
+    opacity: 1;
+  }
+  72%,
+  82% {
+    transform: scaleX(-1);
+    opacity: 1;
+  }
+  91%,
+  100% {
+    transform: scaleX(-1);
+    opacity: 0;
+  }
+}
+@keyframes reading-motes {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.45;
+    transform: translateY(-4px);
+  }
+}
+@keyframes typing-attention {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(1px) rotate(-0.6deg);
+  }
+  40% {
+    transform: translateY(-1px);
+  }
+  60% {
+    transform: translateY(0.5px) rotate(0.6deg);
+  }
+  82% {
+    transform: translateY(-0.5px);
+  }
+}
+@keyframes screen-line {
+  0%,
+  8% {
+    opacity: 0.2;
+  }
+  25%,
+  84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+@keyframes screen-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.1;
+  }
+}
+@keyframes plant-breathe {
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+@keyframes execution-stride {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  27% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(0) rotate(1deg);
+  }
+  77% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes belt-ticks {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-11px);
+  }
+}
+@keyframes speed-streaks {
+  0% {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  30% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+}
+@keyframes job-spin {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes job-one {
+  0%,
+  7% {
+    opacity: 0.12;
+  }
+  18%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.12;
+  }
+}
+@keyframes job-two {
+  0%,
+  33% {
+    opacity: 0.12;
+  }
+  44%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.12;
+  }
+}
+@keyframes job-three {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  73%,
+  86% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+@keyframes job-progress {
+  0%,
+  7% {
+    stroke-dashoffset: 100;
+    opacity: 1;
+  }
+  30% {
+    stroke-dashoffset: 68;
+  }
+  55% {
+    stroke-dashoffset: 35;
+  }
+  73%,
+  86% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes flame-sway {
+  from {
+    transform: scale(0.96, 0.87) rotate(-3deg);
+  }
+  to {
+    transform: scale(1.04, 1.03) rotate(3deg);
+  }
+}
+@keyframes fire-shiver {
+  0%,
+  100% {
+    transform: translateX(-0.8px) rotate(-0.6deg);
+  }
+  35% {
+    transform: translateX(1px) rotate(0.8deg);
+  }
+  70% {
+    transform: translateX(-0.3px);
+  }
+}
+@keyframes ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 8px) scale(1);
+  }
+  18% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8px, -34px) scale(0.5);
+  }
+}
+@keyframes heat-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.23;
+  }
+}
+@keyframes heat-glow {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.state-working #claude,
+  body.state-working :is(#reading, #reading-room, #desk, #terminal, #mug, #plant) *,
+  body.state-stressed :is(#claude, #flames, #heat-scene) * {
+    animation: none !important;
+  }
+  body.state-stressed #claude {
+    animation: none !important;
+  }
+  body.state-working :is(#reading, #reading-room, #desk, #terminal, #scene, #mug, #plant),
+  body.state-stressed :is(#flames, #heat-scene) {
+    transition: none;
+  }
+  .book-page,
+  .reading-motes,
+  .speed-streaks,
+  .ember {
+    display: none;
+  }
+  .job-progress {
+    stroke-dashoffset: 0 !important;
+  }
+}

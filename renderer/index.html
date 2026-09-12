@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clauddy</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="motion.css" />
   </head>
   <body class="state-idle one-account">
     <div id="card">
@@ -19,98 +20,78 @@
       <div id="acc-backdrop" hidden></div>
       <div id="acc-menu" hidden></div>
       <div id="controls">
-        <button id="gear" title="Settings">⚙</button>
+        <!-- icons: lucide (MIT), paths inlined so the renderer stays dependency-free -->
+        <button id="gear" title="Settings">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 7h-9M14 17H5" />
+            <circle cx="17" cy="17" r="3" />
+            <circle cx="7" cy="7" r="3" />
+          </svg>
+        </button>
         <button id="usage" title="Open Usage page">
-          <svg viewBox="0 0 24 24" width="9" height="9" aria-hidden="true">
-            <path d="M6 18 L18 6 M10 6 H18 V14" />
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 7h10v10M7 17 17 7" />
           </svg>
         </button>
         <button id="min" title="Minimize / expand">
-          <span class="ic-min">–</span>
-          <svg class="ic-max" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M5 9V5h4 M15 5h4v4 M5 15v4h4 M19 15v4h-4" />
+          <svg class="ic ic-min" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14" />
+          </svg>
+          <svg class="ic ic-max" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
           </svg>
         </button>
-        <button id="close" title="Close">×</button>
+        <button id="close" title="Close">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       <!-- Claude pixel pet -->
       <div id="stage">
-        <!-- reusable gear shape -->
-        <svg width="0" height="0" aria-hidden="true" style="position: absolute">
-          <defs>
-            <g id="gear-unit">
-              <g id="gear-teeth">
-                <rect x="10.5" y="0.5" width="3" height="5" rx="0.5" />
-                <rect x="10.5" y="18.5" width="3" height="5" rx="0.5" />
-                <rect x="0.5" y="10.5" width="5" height="3" rx="0.5" />
-                <rect x="18.5" y="10.5" width="5" height="3" rx="0.5" />
-              </g>
-              <use href="#gear-teeth" transform="rotate(45 12 12)" />
-              <circle cx="12" cy="12" r="7.5" />
-              <circle cx="12" cy="12" r="2.6" fill="#0a0706" />
-            </g>
-          </defs>
-        </svg>
-        <!-- loose gears turning on the ground behind the pet (settings only) -->
-        <svg id="gears" viewBox="0 0 216 135" preserveAspectRatio="none">
-          <g transform="translate(150 118) scale(1.35)">
-            <g>
-              <use href="#gear-unit" x="-12" y="-12" />
-              <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="3s" repeatCount="indefinite" />
-            </g>
-          </g>
-          <g transform="translate(188 124) scale(0.78)">
-            <g>
-              <use href="#gear-unit" x="-12" y="-12" />
-              <animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="2.3s" repeatCount="indefinite" />
-            </g>
-          </g>
-          <g transform="translate(118 125) scale(0.6)">
-            <g>
-              <use href="#gear-unit" x="-12" y="-12" />
-              <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.8s" repeatCount="indefinite" />
-            </g>
-          </g>
+        <svg id="heat-scene" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs><radialGradient id="heat-pool"><stop stop-color="#ea7434" stop-opacity=".13"/><stop offset="1" stop-color="#ea7434" stop-opacity="0"/></radialGradient></defs>
+          <ellipse class="heat-pool" cx="59" cy="110" rx="72" ry="48" fill="url(#heat-pool)"/>
+          <g fill="#edb765"><rect class="ember ember-one" x="28" y="56" width="2" height="2"/><rect class="ember ember-two" x="71" y="64" width="2" height="3"/><rect class="ember ember-three" x="103" y="73" width="1.5" height="2"/></g>
+          <g class="heat-waves" fill="none" stroke="#b98b68" stroke-width="1" opacity=".18"><path d="M139 110q-4-9 0-17t0-17"/><path d="M157 110q-4-9 0-17t0-17"/><path d="M175 110q-4-9 0-17t0-17"/></g>
         </svg>
         <svg id="scene" viewBox="0 0 216 135" preserveAspectRatio="none"></svg>
+        <svg id="reading-room" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs><linearGradient id="reading-light" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e6c78d" stop-opacity=".12"/><stop offset="1" stop-color="#e6c78d" stop-opacity="0"/></linearGradient></defs>
+          <path class="lamp-light" d="M99 38h23l43 89H69Z" fill="url(#reading-light)"/>
+          <path d="M105 42v78M105 120h16" fill="none" stroke="#82715a" stroke-width="2"/>
+          <rect x="94" y="121" width="28" height="3" rx="1" fill="#645849"/>
+          <path d="M97 25h22l8 16H89Z" fill="#a88e65"/><path d="M100 25h16l5 16H94Z" fill="#c5ab7e"/>
+          <path d="M89 41h38" stroke="#dfc492" stroke-width="1"/><path d="M124 42v11" stroke="#9e8664" stroke-width=".7"/>
+          <rect x="123" y="53" width="2" height="3" fill="#baa077"/>
+          <path d="M11 53h54" stroke="#514538" stroke-width="2"/>
+          <rect x="15" y="45" width="43" height="6" rx="1" fill="#997552"/><path d="M19 47h36m-36 2h35" stroke="#d2bea0" stroke-width=".6"/>
+          <rect x="19" y="37" width="37" height="7" rx="1" fill="#707b60"/><path d="M23 39h29m-29 2h28" stroke="#c1b899" stroke-width=".6"/>
+          <rect x="12" y="30" width="41" height="6" rx="1" fill="#aa6c51"/><path d="M16 32h32m-32 2h31" stroke="#d5b89a" stroke-width=".6"/>
+          <path d="M50 36v6l-2-1-2 1v-6" fill="#bf8c66"/>
+          <g class="reading-motes" fill="#ddc298"><circle cx="80" cy="77" r=".65"/><circle cx="93" cy="61" r=".5"/><circle cx="130" cy="61" r=".6"/></g>
+        </svg>
         <!-- editing mode: a coding desk (laptop + coffee + plant) behind the pet -->
-        <svg id="desk" viewBox="0 0 216 135" preserveAspectRatio="none">
-          <rect class="dk-desk" x="4" y="113" width="208" height="3" />
-          <!-- laptop (shrunk + shifted right for breathing room) -->
-          <g class="dk-laptop" transform="translate(49 28) scale(0.7)">
-          <rect class="dk-screen" x="110" y="64" width="66" height="48" rx="3" />
-          <rect class="dk-glass" x="114" y="68" width="58" height="40" rx="2" />
-          <polygon class="dk-deck2" points="106,110 180,110 190,121 96,121" />
-          <rect class="dk-keys" x="112" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="121" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="130" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="139" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="148" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="157" y="112" width="7" height="2.4" rx="0.5" />
-          <rect class="dk-keys" x="109" y="115.5" width="8" height="2.6" rx="0.5" />
-          <rect class="dk-keys" x="119" y="115.5" width="8" height="2.6" rx="0.5" />
-          <rect class="dk-keys" x="129" y="115.5" width="18" height="2.6" rx="0.5" />
-          <rect class="dk-keys" x="149" y="115.5" width="8" height="2.6" rx="0.5" />
-          <rect class="dk-keys" x="159" y="115.5" width="8" height="2.6" rx="0.5" />
-          <rect class="c-grn" x="119" y="75" width="4" height="3" />
-          <rect class="c-grn" x="126" y="75" width="22" height="3" />
-          <rect class="c-grn" x="119" y="82" width="30" height="3" />
-          <rect class="c-yel" x="123" y="89" width="26" height="3" />
-          <rect class="c-blu" x="119" y="96" width="14" height="3" />
-          <rect class="c-yel" x="136" y="96" width="12" height="3" />
-          <rect class="c-grn" x="119" y="103" width="10" height="3" />
-          <rect class="c-cur" x="132" y="103" width="2.5" height="3.6" />
-          </g>
+        <svg id="desk" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs><linearGradient id="monitor-light" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#97b39c" stop-opacity=".065"/><stop offset="1" stop-color="#97b39c" stop-opacity="0"/></linearGradient></defs>
+          <path d="M95 81h76l22 39H78Z" fill="url(#monitor-light)"/>
+          <path d="M77 115h132v4H77Z" fill="#76604a"/><path d="M81 119v10m122-10v10" stroke="#443729" stroke-width="3"/>
+          <path d="M129 91h12v13h-12Z" fill="#a2937b"/><path d="M118 104h34l4 3h-42Z" fill="#b7a78c"/>
+          <rect x="91" y="39" width="86" height="55" rx="4" fill="#b5a58b"/><rect x="95" y="43" width="78" height="44" rx="2" fill="#121815"/>
+          <path d="M99 47h7m3 0h2" stroke="#6e7d6b" stroke-width="1"/><circle cx="166" cy="91" r=".9" fill="#8b9f75"/>
+          <g class="screen-line screen-line-1"><path d="M101 55h13" stroke="#d49472" stroke-width="2"/><path d="M119 55h34" stroke="#b2baa0" stroke-width="2"/></g>
+          <g class="screen-line screen-line-2"><path d="M106 63h21m5 0h19" stroke="#92a584" stroke-width="2"/></g>
+          <g class="screen-line screen-line-3"><path d="M106 71h13" stroke="#c3a575" stroke-width="2"/><path d="M124 71h31" stroke="#a2ab91" stroke-width="2"/></g>
+          <g class="screen-line screen-line-4"><path d="M101 79h7" stroke="#d49472" stroke-width="2"/><rect class="screen-caret" x="114" y="76" width="2" height="5" fill="#d6d5b8"/></g>
+          <path d="M108 110h53l5 4h-64Z" fill="#b7a890"/><path d="M111 112h7m3 0h7m3 0h7m3 0h7m3 0h7" stroke="#736959" stroke-width="1"/>
+          <ellipse cx="178" cy="112" rx="3" ry="2" fill="#baa68b"/>
         </svg>
         <!-- potted plant, shared by the editing + reading desks -->
-        <svg id="plant" viewBox="0 0 216 135" preserveAspectRatio="none">
-          <polygon class="dk-pot" points="188,102 208,102 205,113 191,113" />
-          <path class="dk-leaf" d="M198 103 q-11 -7 -13 -21 q11 4 13 21" />
-          <path class="dk-leaf" d="M198 103 q11 -7 13 -21 q-11 4 -13 21" />
-          <path class="dk-leaf" d="M198 103 q-5 -12 -3 -25 q7 9 3 25" />
-          <path class="dk-leaf" d="M198 103 q5 -12 3 -25 q-7 9 -3 25" />
-          <path class="dk-leaf-c" d="M198 103 q0 -14 0 -27 q3 13 0 27" />
+        <svg id="plant" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <path d="M187 102h19l-3 12h-13Z" fill="#b27b5b"/><path d="M187 102h19v3h-19Z" fill="#cb9270"/>
+          <path d="M196 102V77" fill="none" stroke="#7f906c" stroke-width="1.5"/>
+          <g class="plant-leaves"><path d="M196 90q-13 1-12-12 12 0 12 12" fill="#718a61"/><path d="M197 86q12-1 11-14-12 2-11 14" fill="#94a978"/><path d="M196 78q-8-5-3-14 10 5 3 14" fill="#a2b481"/><path d="M196 100q-11-1-12-11 10 0 12 11" fill="#829a6c"/></g>
         </svg>
         <!-- collapsed: a ring around the pet with the session % inside -->
         <svg id="ring" viewBox="0 0 100 100" aria-hidden="true">
@@ -124,105 +105,60 @@
             <g id="body"></g>
             <g id="eyes"></g>
             <rect id="mouth" x="38" y="54" width="24" height="10" rx="2" />
-            <!-- reading glasses (reading mode) -->
-            <g id="glasses">
-              <circle class="gl-lens" cx="35" cy="35" r="8.5" />
-              <circle class="gl-lens" cx="65" cy="35" r="8.5" />
-              <path class="gl-bridge" d="M43 34 q7 -3 14 0" />
-              <line class="gl-arm" x1="26.5" y1="35" x2="20" y2="33" />
-              <line class="gl-arm" x1="73.5" y1="35" x2="80" y2="33" />
-            </g>
-            <!-- mechanic mode (settings): hard hat + screwdriver -->
-            <g id="robot">
-              <!-- yellow hard hat: pixel-art bitmap, built in pet.js (buildHat) -->
-              <g id="hardhat"></g>
-              <!-- screwdriver held at an angle to the side, tapping away -->
-              <g id="driver">
-                <rect class="dr-tip" x="90" y="39" width="6" height="4" />
-                <rect class="dr-shaft" x="91" y="43" width="4" height="19" />
-                <rect class="dr-hi" x="91" y="43" width="1.6" height="19" />
-                <rect class="dr-collar" x="87" y="61" width="12" height="5" rx="1" />
-                <rect class="dr-handle" x="84" y="66" width="18" height="24" rx="8" />
-                <rect class="dr-handle-hi" x="86.5" y="69" width="2.6" height="17" rx="1.3" />
-                <animateTransform attributeName="transform" type="rotate" values="-32 93 70; -26 93 70; -32 93 70" dur="1s" repeatCount="indefinite" />
-              </g>
-            </g>
           </svg>
           <svg id="zzz" viewBox="0 0 44 44" width="44" height="44">
             <text x="2" y="34" class="z1">Z</text>
             <text x="15" y="23" class="z2">Z</text>
             <text x="26" y="14" class="z3">z</text>
           </svg>
-          <div id="flames"><i></i><i></i><i></i></div>
+          <svg id="flames" viewBox="0 0 100 110" aria-hidden="true">
+            <g class="flame-tongue flame-one"><path d="M12 106Q-5 84 13 35Q9 70 26 80Q40 102 12 106Z" fill="#ed6430"/></g>
+            <g class="flame-tongue flame-two"><path d="M28 108Q7 75 37 12Q29 48 47 62Q65 86 47 108Z" fill="#f39135"/><path d="M31 108Q22 87 39 55Q35 77 48 89L43 108Z" fill="#ffd16a"/></g>
+            <g class="flame-tongue flame-three"><path d="M48 108Q35 76 68 16Q62 51 79 68Q98 91 77 108Z" fill="#ed6830"/><path d="M55 108Q47 89 67 60Q60 85 75 93L69 108Z" fill="#ffc75c"/></g>
+            <g class="flame-tongue flame-four"><path d="M77 108Q66 86 91 36Q85 74 96 87Q103 101 89 108Z" fill="#efa140"/></g>
+          </svg>
           <div id="sweat"><i></i><i></i></div>
           <div id="dropzone"></div>
         </div>
         <!-- editing mode, foreground: coffee mug in front of the pet -->
         <!-- mug: its own SVG with UNIFORM scaling (no stage stretch) so it stays perfectly shaped -->
         <svg id="mug" viewBox="0 0 46 44" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <g class="dk-steam">
-            <path class="dk-wisp" d="M19 15 q4 -4 0 -8 q-4 -4 0 -8" style="animation-delay: 0s" />
-            <path class="dk-wisp" d="M25 15 q4 -4 0 -8 q-4 -4 0 -8" style="animation-delay: 0.9s" />
-          </g>
-          <path class="mug-handle" d="M31 23 q8 1 8 7 q0 6 -8 6.5" />
-          <rect class="mug-body" x="12" y="18" width="19" height="26" rx="2.5" />
-          <rect class="mug-rim" x="12.5" y="18" width="18" height="3" rx="1.6" />
-          <path class="mug-code" d="M17 26 L14 32 L17 38 M20 38 L25 26 M26 26 L29 32 L26 38" />
+          <g class="dk-steam"><path class="dk-wisp" d="M19 19q-3-4 0-8t0-8"/><path class="dk-wisp" d="M25 19q-3-4 0-8t0-8" style="animation-delay: 1.4s"/></g>
+          <path d="M31 25h3q8 6-3 10" fill="none" stroke="#b8a78d" stroke-width="2.5"/>
+          <path d="M13 23h19v15q0 4-4 4H17q-4 0-4-4Z" fill="#b8a78d"/>
+          <path d="M15 24h15" stroke="#342820" stroke-width="2"/>
         </svg>
         <!-- running mode: a task log — Claude working (uniform scale) -->
-        <svg id="terminal" viewBox="0 0 92 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <rect class="tm-win" x="2" y="2" width="88" height="60" rx="4" />
-          <rect class="tm-bar" x="2" y="2" width="88" height="8" rx="4" />
-          <rect class="tm-bar" x="2" y="6.5" width="88" height="3.5" />
-          <circle class="tm-d1" cx="8" cy="6" r="1.6" />
-          <circle class="tm-d2" cx="13" cy="6" r="1.6" />
-          <circle class="tm-d3" cx="18" cy="6" r="1.6" />
-          <!-- hairline border around the content area only (open at the top bar) -->
-          <path class="tm-border" d="M2.4 10 L2.4 58 Q2.4 61.6 6 61.6 L86 61.6 Q89.6 61.6 89.6 58 L89.6 10" />
-          <text class="tm-prompt-c" x="7" y="20">&#10095;</text>
-          <text class="tm-head" x="13" y="20">Running</text>
-          <text class="tm-dots" x="33" y="20">...</text>
-          <rect class="tm-cursor" x="43" y="15" width="2.4" height="5.4" />
-          <g class="tskA">
-            <path class="tm-check" d="M7 30 l1.5 1.5 l2.7 -3.2" />
-            <text class="tm-txt" x="14" y="32">Reading files</text>
-          </g>
-          <g class="tskB">
-            <path class="tm-check" d="M7 38 l1.5 1.5 l2.7 -3.2" />
-            <text class="tm-txt" x="14" y="40">Editing code</text>
-          </g>
-          <g class="tskC">
-            <path class="tm-check" d="M7 46 l1.5 1.5 l2.7 -3.2" />
-            <text class="tm-txt" x="14" y="48">Executing</text>
-          </g>
-          <g class="tskWait">
-            <path class="tm-spin" d="M10.4 54 A2.4 2.4 0 1 1 8 51.6" />
-            <text class="tm-txt" x="14" y="56">Waiting</text>
-            <text class="tm-dots" x="33" y="56">...</text>
-          </g>
-          <g class="tskDone">
-            <path class="tm-check" d="M7 54 l1.5 1.5 l2.7 -3.2" />
-            <text class="tm-done-txt" x="14" y="56">Done</text>
-          </g>
+        <svg id="terminal" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <!-- A moving belt and a job console give running its own silhouette. -->
+          <rect x="14" y="125" width="85" height="5" rx="2.5" fill="#343932"/><path d="M19 126h75" stroke="#78826b" stroke-width=".7"/>
+          <g class="belt-ticks" stroke="#acb599" stroke-width="1"><path d="M22 126v2m11-2v2m11-2v2m11-2v2m11-2v2m11-2v2m11-2v2"/></g>
+          <g class="speed-streaks" stroke="#8d9880" stroke-width="1"><path d="M7 92h8M4 101h11M10 111h6"/></g>
+          <rect x="108" y="34" width="99" height="85" rx="5" fill="#111713" stroke="#445347" stroke-width=".8"/>
+          <path d="M108 51h99" stroke="#344236" stroke-width=".6"/>
+          <path d="M116 41l4 3-4 3" stroke="#b5cba3" stroke-width="1.2" fill="none"/>
+          <text x="126" y="46" class="job-label" fill="#becbad">running</text>
+          <g class="job-spinner" transform="translate(197 43)"><g class="spinner-rotor"><path d="M0-3a3 3 0 1 1-3 3" stroke="#a3bd8c" stroke-width="1" fill="none"/></g></g>
+          <g class="job-row job-row-1"><path d="M116 64l2 2 4-5" stroke="#a5bc8b" stroke-width="1" fill="none"/><text x="128" y="66" class="job-label" fill="#9bab93">build</text><text x="185" y="66" class="job-timing" fill="#61735e">0.4s</text></g>
+          <g class="job-row job-row-2"><path d="M116 78l2 2 4-5" stroke="#a5bc8b" stroke-width="1" fill="none"/><text x="128" y="80" class="job-label" fill="#9bab93">test</text><text x="185" y="80" class="job-timing" fill="#61735e">1.2s</text></g>
+          <g class="job-row job-row-3"><path d="M116 92l2 2 4-5" stroke="#a5bc8b" stroke-width="1" fill="none"/><text x="128" y="94" class="job-label" fill="#c1d4ab">all done</text></g>
+          <path d="M116 108h82" stroke="#2c382d" stroke-width="2"/><path class="job-progress" d="M116 108h82" pathLength="100" stroke="#a5bc8b" stroke-width="2"/>
         </svg>
         <!-- reading mode: a "docs.md" markdown file being read (uniform scale) -->
-        <svg id="reading" viewBox="0 0 84 74" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <rect class="dc-card" x="2" y="2" width="80" height="70" rx="4" />
-          <!-- title bar -->
-          <rect class="dc-ico" x="7" y="7" width="7" height="9" rx="1" />
-          <rect class="dc-ico-fold" x="11.5" y="7" width="2.5" height="2.5" />
-          <text id="dc-fname" class="dc-title" x="17" y="14">README.md</text>
-          <line class="dc-divider" x1="6" y1="19" x2="78" y2="19" />
-          <!-- content -->
-          <text class="dc-h dc-h1" x="7" y="29" style="animation-delay: 0s"># Getting Started</text>
-          <rect class="dc-body" x="9" y="32" width="42" height="2" />
-          <rect class="dc-body" x="9" y="35.5" width="34" height="2" />
-          <text class="dc-h dc-g" x="7" y="45" style="animation-delay: 1s">## Installation</text>
-          <rect class="dc-body" x="9" y="48" width="30" height="2" />
-          <text class="dc-h dc-b" x="7" y="57" style="animation-delay: 2s">## Usage</text>
-          <rect class="dc-body" x="9" y="60" width="40" height="2" />
-          <text class="dc-h dc-a" x="7" y="68" style="animation-delay: 3s">## Examples</text>
-          <rect class="dc-body" x="9" y="70.5" width="26" height="2" />
+        <svg id="reading" viewBox="0 0 96 90" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <title id="dc-fname">README.md</title>
+          <g class="book-float">
+            <ellipse cx="48" cy="82" rx="36" ry="3" fill="#d4b993" opacity=".05"/>
+            <path d="M6 31l42 9 42-9v42l-42 9L6 73Z" fill="#815644"/>
+            <path d="M9 25q19-4 39 8v43Q27 65 9 69Z" fill="#d3c2a2"/>
+            <path d="M48 33q20-12 39-8v44q-18-4-39 7Z" fill="#b8a78b"/>
+            <path d="M12 22q17-2 36 11v40Q27 62 12 66Z" fill="#e3d2af"/>
+            <path d="M48 33q19-13 36-11v44q-15-4-36 7Z" fill="#d6c4a0"/>
+            <g fill="none" stroke="#8d7e62" stroke-width="1.6" stroke-linecap="square" opacity=".7"><path d="M18 35l21 6M18 42l21 6M18 49l16 5M18 56l20 6"/><path d="M56 41l20-6M56 48l20-6M56 55l15-4M56 62l20-6"/></g>
+            <path d="M48 33v42" stroke="#8b7455" stroke-width="1.3"/>
+            <path d="M66 28v21l4-4 4 1V25Z" fill="#b9694e"/>
+            <g class="book-page"><path d="M48 33q19-13 36-11v44q-15-4-36 7Z" fill="#e8d9b9"/><g stroke="#a19275" stroke-width="1.5"><path d="M56 41l20-6M56 48l20-6M56 55l15-4M56 62l20-6"/></g></g>
+          </g>
         </svg>
       </div>
 
