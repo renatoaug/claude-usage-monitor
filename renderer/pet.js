@@ -682,8 +682,11 @@ function paintChip() {
   const a = lastAccounts
   const active = (a?.accounts || []).find((x) => x.id === a?.active)
   const email = p?.email || (active?.connected ? active.label : null)
-  // the settings line says who is connected, not just that someone is
-  el('acc-ok').textContent = email ? `● ${email}${p?.plan ? ` · ${p.plan}` : ''}` : '● Connected'
+  // the settings block says who is connected, not just that someone is: the
+  // avatar carries the initial, the name line the email, the sub line the plan
+  el('acc-ok').textContent = email || 'Connected'
+  el('acc-sub').textContent = p?.plan || 'your real usage is live'
+  el('acc-avatar').textContent = email ? email[0].toUpperCase() : '●'
   const chip = el('account-chip')
   const mini = el('mini-acct')
   if (!email) {

@@ -56,10 +56,12 @@ body {
 
 #controls {
   position: absolute;
-  top: 6px;
-  right: 7px;
+  top: 0;
+  right: 8px;
+  height: 38px;
+  align-items: center;
   display: flex;
-  gap: 5px;
+  gap: 4px;
   opacity: 1;
   z-index: 10;
   -webkit-app-region: no-drag;
@@ -67,10 +69,11 @@ body {
 #controls button {
   width: 19px;
   height: 19px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.035);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(rgba(255, 255, 255, 0.043), rgba(255, 255, 255, 0.012));
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.03);
+  color: #ab9886;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -92,14 +95,6 @@ body {
 }
 #min {
   font-size: 16px;
-}
-#usage svg {
-  stroke: currentColor;
-  stroke-width: 2.6;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
 }
 #gear {
   font-size: 10px;
@@ -136,25 +131,31 @@ body.has-update #gear::after {
     opacity: 1;
   }
 }
-/* minimize icon swaps to an "expand" icon when collapsed */
-.ic-max {
-  display: none;
-  width: 8px;
-  height: 8px;
+/* inline lucide glyphs: one stroke treatment for the whole control row */
+.ic {
+  width: 9px;
+  height: 9px;
   pointer-events: none;
-}
-body.collapsed #min .ic-min {
-  display: none;
-}
-body.collapsed #min .ic-max {
-  display: inline-block;
-}
-.ic-max path {
   stroke: currentColor;
   stroke-width: 2.4;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+#gear .ic {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.2;
+}
+/* minimize icon swaps to an "expand" icon when collapsed */
+.ic-max {
+  display: none;
+}
+body.collapsed #min .ic-min {
+  display: none;
+}
+body.collapsed #min .ic-max {
+  display: block;
 }
 body.collapsed #gear,
 body.collapsed #usage {
@@ -164,18 +165,18 @@ body.collapsed #usage {
 /* logged-in account chip (top-left, mirrors #controls) */
 #account-chip {
   position: absolute;
-  top: 6px;
+  top: 0;
   left: 10px;
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: 19px; /* match #controls buttons so text centers on the same line */
+  gap: 5px;
+  height: 38px; /* the title band — centres the chip against #controls */
   /* #controls starts at ~154px: stop short of it, the pill has padding too */
   max-width: 142px;
-  font-size: 9.5px;
+  font-size: 8px;
   line-height: 1;
-  color: var(--muted);
+  color: #c7b8a7;
 }
 #account-chip[hidden] {
   display: none;
@@ -188,7 +189,7 @@ body.collapsed #usage {
   padding: 0 5px 0 6px;
   margin-left: -6px; /* the text stays where it has always been */
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   transition:
     background 0.15s,
     color 0.15s;
@@ -210,18 +211,9 @@ body.collapsed #usage {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-/* a single account keeps the pill, minus the affordance: nothing to switch to.
-   The email then takes the width the chevron leaves behind. */
-body.one-account #account-chip {
-  cursor: default;
-}
-body.one-account #account-chip:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--muted);
-}
-body.one-account .ac-caret {
-  display: none;
-}
+/* a single account still opens the menu — that is how a second one is added */
+/* the chevron stays even with a single account — it is the only hint that the
+   menu exists at all, and that is where another account gets added */
 /* the widget is mostly a drag region, and those swallow clicks before the page
    ever sees them — so an invisible sheet under the menu catches them instead */
 #acc-backdrop {
@@ -236,18 +228,18 @@ body.one-account .ac-caret {
 /* dropdown under the chip; it overlays the pet rather than resizing the window */
 #acc-menu {
   position: absolute;
-  top: 24px;
+  top: 33px;
   left: 8px;
   z-index: 20;
-  min-width: 118px;
-  max-width: 176px;
-  max-height: 120px;
+  min-width: 150px;
+  max-width: 190px;
+  max-height: 132px;
   overflow-y: auto;
-  padding: 3px;
-  border: 0.5px solid rgba(255, 210, 180, 0.1);
-  border-radius: 7px;
-  background: #221a15;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #30251e;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.33);
   -webkit-app-region: no-drag;
 }
 #acc-menu[hidden] {
@@ -258,14 +250,18 @@ body.one-account .ac-caret {
 }
 /* the add entry closes the list: it belongs to no account */
 #acc-menu .acc-add {
-  margin-top: 2px;
-  padding-top: 6px;
-  border-top: 0.5px solid var(--hair);
+  margin-top: 3px;
+  padding: 9px 4px 0;
+  border-top: 1px solid var(--hair);
   border-radius: 0;
-  color: var(--coral-soft);
+  color: #cb8a67;
   /* no .who inside this one, so it needs the row font itself */
-  font-size: 9.5px;
+  font-size: 9px;
   white-space: nowrap;
+}
+#acc-menu .acc-add:hover {
+  background: transparent;
+  color: #e3b193;
 }
 #acc-menu .acc-add:hover {
   background: none;
@@ -274,18 +270,19 @@ body.one-account .ac-caret {
 /* tighter than the dropdown-less list it replaced: it floats over the pet */
 #acc-menu .acc-item {
   gap: 6px;
-  padding: 4px 6px;
+  padding: 5px 4px;
   border-radius: 5px;
 }
 #acc-menu .acc-item .who {
-  font-size: 9.5px;
+  font-size: 9px;
 }
 .ac-dot {
   flex: none;
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--pixel);
+  background: #a1b786;
+  box-shadow: 0 0 8px rgba(161, 183, 134, 0.19);
 }
 #ac-email {
   /* line-height:1 leaves the ascender inside the box, so the text reads a hair
@@ -299,13 +296,15 @@ body.one-account .ac-caret {
 }
 .plan-badge {
   flex: none;
-  padding: 1.5px 5px;
-  border-radius: 6px;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  color: var(--coral-soft);
-  background: rgba(217, 119, 87, 0.16);
+  text-transform: lowercase;
+  padding: 2px 3px;
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #c6a385;
+  border: 1px solid rgba(181, 144, 109, 0.15);
+  background: rgba(181, 144, 109, 0.04);
 }
 .plan-badge[hidden] {
   display: none;
@@ -417,9 +416,11 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--text);
 }
 .seg-btn.on {
-  background: var(--coral);
-  border-color: var(--coral);
-  color: #fff;
+  background: rgba(193, 177, 176, 0.1);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #eadccf;
 }
 /* menu-bar mode: the popover auto-sizes, so the minimize control is redundant */
 body.is-menubar #min {
@@ -507,10 +508,10 @@ body.is-menubar #min {
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
-  width: 30px;
-  height: 18px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.14);
+  width: 29px;
+  height: 16px;
+  border-radius: 10px;
+  background: #5c5146;
   position: relative;
   cursor: pointer;
   -webkit-app-region: no-drag;
@@ -521,8 +522,8 @@ body.is-menubar #min {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #fff;
   opacity: 0.85;
@@ -675,9 +676,9 @@ body.is-menubar #min {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 11px;
-  padding-top: 9px;
-  border-top: 0.5px solid var(--hair);
+  margin-top: 12px;
+  font-size: 7px;
+  color: #8f755e;
 }
 .upd-ver {
   font-size: 10px;
@@ -816,23 +817,24 @@ body.live .live-only {
     color 0.15s;
 }
 .acc-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
 }
 .acc-item.active {
-  background: rgba(217, 119, 87, 0.14);
-  color: var(--text);
+  background: transparent;
+  color: #e7d6c5;
   cursor: default;
 }
 .acc-item .dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.22); /* logged out: a row with no usage yet */
   flex: none;
 }
 .acc-item.connected .dot {
-  background: var(--green);
+  background: #a1b786;
+  box-shadow: 0 0 8px rgba(161, 183, 134, 0.19);
 }
 .acc-item .who {
   flex: 1;
