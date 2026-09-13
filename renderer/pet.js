@@ -18,6 +18,17 @@ const SPRITE = [
   const body = el('body')
   const eyes = el('eyes')
   const C = 10
+  // Each pixel is its own <rect>, so neighbours share an edge. Under the mood
+  // animations the sprite is scaled by fractions, that edge lands between device
+  // pixels, and the card shows through as a hairline grid — crispEdges cannot
+  // help, it rounds in local space, before the transform. So a cell is grown to
+  // overlap the neighbour it actually has: same fill, invisible seam, and the
+  // silhouette stays exact because edge cells are left alone.
+  const SEAM = 0.5
+  const filled = (r, c) => {
+    const ch = SPRITE[r]?.[c]
+    return ch !== undefined && ch !== '.'
+  }
   SPRITE.forEach((row, r) => {
     for (let c = 0; c < row.length; c++) {
       const ch = row[c]
@@ -25,8 +36,8 @@ const SPRITE = [
       const rect = document.createElementNS(SVGNS, 'rect')
       rect.setAttribute('x', c * C)
       rect.setAttribute('y', r * C)
-      rect.setAttribute('width', C)
-      rect.setAttribute('height', C)
+      rect.setAttribute('width', C + (filled(r, c + 1) ? SEAM : 0))
+      rect.setAttribute('height', C + (filled(r + 1, c) ? SEAM : 0))
       body.appendChild(rect)
       if (ch === 'o') {
         const eye = document.createElementNS(SVGNS, 'rect')
