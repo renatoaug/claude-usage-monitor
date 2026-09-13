@@ -174,7 +174,7 @@ body.collapsed #usage {
   height: 38px; /* the title band — centres the chip against #controls */
   /* #controls starts at ~154px: stop short of it, the pill has padding too */
   max-width: 142px;
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1;
   color: #c7b8a7;
 }
@@ -256,7 +256,7 @@ body.collapsed #usage {
   border-radius: 0;
   color: #cb8a67;
   /* no .who inside this one, so it needs the row font itself */
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
 }
 #acc-menu .acc-add:hover {
@@ -274,7 +274,7 @@ body.collapsed #usage {
   border-radius: 5px;
 }
 #acc-menu .acc-item .who {
-  font-size: 9px;
+  font-size: 10px;
 }
 .ac-dot {
   flex: none;
@@ -299,7 +299,7 @@ body.collapsed #usage {
   text-transform: lowercase;
   padding: 2px 3px;
   border-radius: 3px;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 400;
   letter-spacing: 0;
   color: #c6a385;
@@ -347,13 +347,13 @@ body.collapsed #mini-acct-name {
   min-height: 38px;
 }
 .settings-heading h3 {
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: -0.4px;
   font-weight: 500;
   color: #e7cfb8;
 }
 .settings-heading p {
-  font-size: 9px;
+  font-size: 10px;
   color: #a48b75;
   margin-top: 4px;
 }
@@ -366,7 +366,7 @@ body.collapsed #mini-acct-name {
 /* group label above a cluster of rows */
 .settings-label {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   color: #ac9177;
   margin-bottom: 6px;
 }
@@ -418,14 +418,14 @@ body.collapsed #mini-acct-name {
   background: rgba(255, 255, 255, 0.05);
 }
 .connect-block b {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .connect-block > div > span {
-  font-size: 8px;
+  font-size: 9px;
   color: #a28a73;
 }
 .account-avatar {
@@ -560,7 +560,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .seg-btn {
   flex: 1;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: #938996;
   background: none;
   border: 0;
@@ -597,7 +597,7 @@ body.is-menubar #min {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: #cdb49b;
   margin-top: 11px;
 }
@@ -605,49 +605,19 @@ body.is-menubar #min {
    reference's 14px — the steppers already carry their own height */
 .set-row:has(.num) {
   margin-top: 5px;
-}
-/* the threshold pair lives in an inset card under its toggle row */
-.set-row:has(+ .set-subgroup) {
-  border-bottom: none;
-}
-/* flat, but visibly nested: a soft coral guide bar ties the pair to the
-   toggle above, and each label hugs its own stepper */
-.set-subgroup {
+} /* flat,
+but visibly nested: a soft coral guide bar ties the pair to the
+   toggle above {
   position: relative;
   padding-left: 14px;
   border-bottom: 0.5px solid var(--hair);
   padding-bottom: 3px;
   transition: opacity 0.15s;
 }
-.set-subgroup::before {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: 5px;
-  bottom: 10px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--coral);
-  opacity: 0.35;
-}
-.set-subgroup .set-row {
-  border-bottom: none;
-  justify-content: flex-end;
-  gap: 10px;
-}
 .set-row-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: #cdb49b;
-}
-.set-row-hint {
-  display: block;
-  white-space: nowrap;
-  font-style: normal;
-  font-weight: 400;
-  font-size: 9px;
-  color: var(--muted);
-  margin-top: 2px;
 }
 .set-row.set-sub {
   min-height: 31px;
@@ -723,11 +693,11 @@ body.is-menubar #min {
   background: none;
   border: 0;
   color: var(--text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  padding: 4px 14px 4px 0;
+  padding: 4px 15px 4px 0;
   outline: none;
   transition:
     border-color 0.15s,
@@ -743,7 +713,7 @@ body.is-menubar #min {
   top: 50%;
   transform: translateY(-50%);
   font-style: normal;
-  font-size: 8px;
+  font-size: 9px;
   color: #a1876b;
   pointer-events: none;
 }
@@ -791,7 +761,7 @@ body.is-menubar #min {
   border: 1px solid rgba(255, 255, 255, 0.082);
   border-radius: 5px;
   padding: 7px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   cursor: pointer;
   transition:
@@ -849,7 +819,7 @@ body.is-menubar #min {
   justify-content: space-between;
   gap: 8px;
   margin-top: 12px;
-  font-size: 7px;
+  font-size: 8px;
   color: #8f755e;
 }
 .upd-ver {
@@ -886,7 +856,7 @@ body.has-update #upd-check {
   border: 1px solid rgba(206, 146, 109, 0.35);
   border-radius: 4px;
   padding: 4px 8px;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 400;
   color: #e3b193;
   background: rgba(206, 146, 109, 0.09);
@@ -917,7 +887,7 @@ body.live .live-only {
 }
 #live-tag {
   margin-left: auto;
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.4px;
   font-weight: 400;
   padding: 3px 5px;
@@ -940,7 +910,7 @@ body.live .live-only {
   border: 1px solid rgba(206, 146, 109, 0.35);
   border-radius: 5px;
   padding: 9px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   cursor: pointer;
   background: rgba(206, 146, 109, 0.09);
@@ -1146,10 +1116,14 @@ body.awaiting #acc-intro {
 }
 
 /* limits: real meters when connected, a "connect" prompt otherwise */
-body:not(.auth-on) #statusline {
+/* the connect prompt draws its own frame, so the rules on either side of it
+   would box a box. It is `.live` that decides whether it shows — being logged
+   in is not enough, the usage fetch has to have landed — so that is what these
+   have to key off, not `.auth-on`. */
+body:not(.live) #statusline {
   border-bottom: 0;
 }
-body:not(.auth-on) #bymodel {
+body:not(.live) #bymodel {
   border-top: 0;
 }
 #limits-connect {
@@ -1189,12 +1163,12 @@ body:not(.auth-on) #bymodel {
   line-height: 1.25;
 }
 .lc-text b {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: #e3cdb8;
 }
 .lc-text i {
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
   color: #a28a73;
 }
@@ -2025,7 +1999,7 @@ body.state-tired #status-text {
 /* meter subtitle */
 .sub {
   /* small enough that "resets in 69h 15m (Fri 7:01 AM) · 1.02B tokens" stays on one line */
-  font-size: 8px;
+  font-size: 9px;
   color: #96816d;
   margin-top: 5px;
   letter-spacing: 0px;
@@ -2080,7 +2054,7 @@ body.state-tired #status-text {
 #heat-meta {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 9px;
   color: #a58d77;
   border-top: 1px solid var(--hair);
   padding-top: 9px;
@@ -2113,7 +2087,7 @@ body.state-tired #status-text {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: 11px;
   color: #cbb9a7;
   margin-bottom: 0;
 }
@@ -2125,7 +2099,7 @@ body.state-tired #status-text {
 /* the number is plain while there is nothing to worry about — colour is the
    warning, so spending it at 5% leaves nothing to say at 90% */
 .meter-top span:last-child {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -2182,7 +2156,7 @@ body.state-tired #status-text {
   border: 0;
   cursor: pointer;
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   color: #a38c78;
   letter-spacing: 0;
   -webkit-app-region: no-drag;
@@ -2222,10 +2196,10 @@ body.state-tired #status-text {
 }
 .mrow {
   display: grid;
-  grid-template-columns: 1fr 46px 36px;
+  grid-template-columns: 1fr 40px 44px;
   align-items: center;
   gap: 7px;
-  font-size: 8px;
+  font-size: 10px;
   color: #c7b19a;
   margin-top: 7px;
   margin-bottom: 0;
@@ -2276,7 +2250,7 @@ body.state-tired #status-text {
 }
 .mrow .mval {
   text-align: right;
-  font-size: 8px;
+  font-size: 10px;
   color: #a48b74;
   font-variant-numeric: tabular-nums;
 }
