@@ -1,5 +1,9 @@
 // Records each pet state + the full widget, building a GIF for each (needs ffmpeg).
 //   bun run gifs   (or: electron tools/capture/capture.js)
+//
+// Everything is captured from renderer/index.html itself. This file is the main
+// process, so it can feed the real preload bridge over the very channels main.js
+// uses — no HTML stub, and so no second copy of the markup to drift out of date.
 const { app, BrowserWindow } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
@@ -10,27 +14,62 @@ const ROOT = path.join(__dirname, '..', '..')
 const DOCS = path.join(ROOT, 'docs', 'media')
 const FRAMES = path.join(os.tmpdir(), 'cum-frames')
 
-// base = resting state to set first; trigger = one-shot fired while recording
+// `state` is what ./pet would write; `trigger` is a one-shot fired mid-recording
 const STATES = [
-  { name: 'idle', base: 'idle', ms: 4200 },
-  { name: 'working', base: 'working', ms: 3200 },
-  { name: 'sleeping', base: 'sleeping', ms: 3400 },
-  { name: 'on-fire', base: 'fire', ms: 2200 },
-  { name: 'tired', base: 'tired', ms: 3400 },
-  { name: 'poke', base: 'idle', trigger: 'poke', ms: 1600 },
-  { name: 'celebrate', base: 'idle', trigger: 'celebrate', ms: 2200 },
+  { name: 'idle', state: 'idle', ms: 4200 },
+  { name: 'working', state: 'working', ms: 3200 },
+  { name: 'sleeping', state: 'sleeping', ms: 3400 },
+  { name: 'on-fire', state: 'fire', ms: 2200 },
+  { name: 'tired', state: 'tired', ms: 3400 },
+  { name: 'poke', state: 'idle', trigger: 'poke', ms: 1600 },
+  { name: 'celebrate', state: 'idle', trigger: 'celebrate', ms: 2200 },
+  { name: 'reading', state: 'reading', ms: 5000 },
+  { name: 'editing', state: 'editing', ms: 5000 },
+  { name: 'running', state: 'running', ms: 5500 },
 ]
 
-// activity states (what Claude Code is doing) — these need the full desk scenery
-// (mug/doc/terminal/glasses), so we drive the real renderer directly and capture
-// its #stage region, rather than the minimal capture.html stub.
-const ACT_STATES = [
-  { name: 'reading', cls: 'state-working act-reading live', ms: 5000 },
-  { name: 'editing', cls: 'state-working act-editing live', ms: 5000 },
-  { name: 'running', cls: 'state-working act-running live', ms: 5500 },
-]
+// plausible numbers, so the meters and lists in the overview look inhabited
+const FAKE_USAGE = {
+  session: { pct: 42, tokens: 5_240_000, active: true },
+  week: { pct: 68, tokens: 1_120_000_000 },
+  today: { tokens: 37_800_000 },
+  byModel: [
+    { label: 'Opus 5', tokens: 915_500_000 },
+    { label: 'Fable 5.1', tokens: 200_400_000 },
+  ],
+  byProject: [
+    { label: 'clauddy', tokens: 577_800_000 },
+    { label: 'personal-site', tokens: 366_200_000 },
+    { label: 'little-experiments', tokens: 70_100_000 },
+  ],
+  days30: Array.from({ length: 30 }, (_, i) => 20_000 + ((i * 37) % 148) * 1000),
+  monthTokens: 8_070_000_000,
+  tokensPerMin: 12_400,
+  active: true,
+  sleeping: false,
+  ts: Date.now(),
+}
+const FAKE_REAL = {
+  session: { pct: 42, resetMs: 8_000_000 },
+  week: { pct: 68, resetMs: 90_000_000 },
+}
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// capturePage rejects with UnknownVizError when the compositor has not produced
+// a frame yet — right after a load, or while the window is not being composed.
+// Unhandled, that rejection leaves the run hanging forever, so a frame is worth
+// a few retries and, failing that, worth skipping.
+async function shoot(win, rect) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      return rect ? await win.webContents.capturePage(rect) : await win.webContents.capturePage()
+    } catch {
+      await delay(150)
+    }
+  }
+  return null
+}
 
 async function grab(win, ms, rect) {
   const frames = []
@@ -38,8 +77,8 @@ async function grab(win, ms, rect) {
   const start = Date.now()
   while (Date.now() - start < ms) {
     const t0 = Date.now()
-    const img = rect ? await win.webContents.capturePage(rect) : await win.webContents.capturePage()
-    frames.push(img.toPNG())
+    const img = await shoot(win, rect)
+    if (img) frames.push(img.toPNG())
     const dt = Date.now() - t0
     if (dt < interval) await delay(interval - dt)
   }
@@ -61,64 +100,13 @@ function encode(name, frames, elapsed, width) {
   console.log(`${name}: ${frames.length} frames @ ${fps}fps -> ${out}`)
 }
 
-app.disableHardwareAcceleration()
-
 app.whenReady().then(async () => {
   fs.mkdirSync(DOCS, { recursive: true })
   fs.rmSync(FRAMES, { recursive: true, force: true })
-  fs.mkdirSync(FRAMES, { recursive: true })
 
   const win = new BrowserWindow({
-    width: 300,
-    height: 220,
-    x: 80,
-    y: 80,
-    frame: false,
-    resizable: true,
-    backgroundColor: '#110c0a',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
-  })
-  const load = async (file) => {
-    for (let i = 0; i < 3; i++) {
-      try {
-        await win.loadFile(path.join(__dirname, file))
-        return
-      } catch {
-        await delay(300)
-      }
-    }
-    throw new Error(`failed to load ${file}`)
-  }
-  const exec = (js) => win.webContents.executeJavaScript(js)
-
-  // --- 1) per-state GIFs (just the night-scene stage) ---
-  win.setContentSize(240, 150)
-  await load('capture.html')
-  await delay(1600) // let the welcome "wave" finish
-  await exec('window.__init()')
-
-  for (const s of STATES) {
-    await exec(`window.__set('${s.base}')`)
-    await delay(s.trigger ? 400 : 300)
-    await exec("document.getElementById('dropzone').innerHTML = ''") // drop stale particles
-    const rec = grab(win, s.ms)
-    if (s.trigger) {
-      await delay(60)
-      await exec(`window.__set('${s.trigger}')`)
-    }
-    const { frames, elapsed } = await rec
-    encode(s.name, frames, elapsed, 420)
-  }
-
-  // --- 1b) activity-state GIFs: the real renderer, capturing the #stage region.
-  // These need the full desk scenery, so we drive the actual index.html and set
-  // the body class directly. Uses its own window sized for the full card — the
-  // whole stage must sit inside the viewport or capturePage clips the scene, and
-  // resizing the shared window mid-run trips capturePage (UnknownVizError). ---
-  win.hide() // base captures are done; leave a single window on the compositor
-  const awin = new BrowserWindow({
     width: 320,
-    height: 600,
+    height: 760,
     x: 60,
     y: 60,
     show: true,
@@ -129,33 +117,56 @@ app.whenReady().then(async () => {
       nodeIntegration: false,
     },
   })
-  const aexec = (js) => awin.webContents.executeJavaScript(js)
-  for (const s of ACT_STATES) {
-    // reload fresh per state so no previous scene's fade-out bleeds into the
-    // opening frames, then let the entrance transitions settle before recording.
-    await awin.loadFile(path.join(ROOT, 'renderer', 'index.html'))
-    await delay(500)
-    await aexec(`document.body.className = ${JSON.stringify(s.cls)}`)
-    await delay(900)
-    const rect = await aexec(
-      "(()=>{const r=document.getElementById('stage').getBoundingClientRect();return {x:Math.max(0,Math.floor(r.x)),y:Math.max(0,Math.floor(r.y)),width:Math.ceil(r.width),height:Math.ceil(r.height)}})()",
+  const send = (channel, payload) => win.webContents.send(channel, payload)
+  const exec = (js) => win.webContents.executeJavaScript(js)
+  const rectOf = (sel) =>
+    exec(
+      `(()=>{const r=document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();` +
+        'return {x:Math.max(0,Math.floor(r.x)),y:Math.max(0,Math.floor(r.y)),' +
+        'width:Math.ceil(r.width),height:Math.ceil(r.height)}})()',
     )
-    const { frames, elapsed } = await grab(awin, s.ms, rect)
+
+  // Everything main.js would push on startup, so the card looks connected and
+  // inhabited rather than empty.
+  async function seed() {
+    send('config', { mode: 'floating', zoom: 100, alerts: true, fireThreshold: 90 })
+    send('accounts', {
+      active: 'a1',
+      accounts: [{ id: 'a1', label: 'you@example.com', connected: true }],
+    })
+    send('auth-state', { connected: true })
+    send('profile', { email: 'you@example.com', plan: 'Max' })
+    send('real-usage', FAKE_REAL)
+    send('usage', FAKE_USAGE)
+    send('version', '1.0.0')
+    await delay(400)
+  }
+
+  await win.loadFile(path.join(ROOT, 'renderer', 'index.html'))
+  await delay(600)
+  await seed()
+  await delay(1600) // let the welcome wave finish
+
+  // --- 1) per-state GIFs: just the stage, so the pet fills the frame ---
+  for (const s of STATES) {
+    send('debug-state', { state: s.state })
+    await delay(s.trigger ? 500 : 900) // scene props fade in on their own curve
+    const rect = await rectOf('#stage')
+    const rec = grab(win, s.ms, rect)
+    if (s.trigger) {
+      await delay(60)
+      send('debug-state', { state: s.trigger })
+    }
+    const { frames, elapsed } = await rec
     encode(s.name, frames, elapsed, 420)
   }
-  awin.close()
-  win.show()
 
-  // --- 2) full-widget GIF (the whole card with live-looking data) ---
-  win.setContentSize(300, 220)
-  await load('capture-full.html')
+  // --- 2) full-widget GIF: the whole card ---
+  send('debug-state', { state: 'auto' })
+  send('usage', { ...FAKE_USAGE, active: false, sleeping: false })
   await delay(900)
-  await exec('window.__init()')
-  await delay(400)
-  const cardH = await exec("document.getElementById('card').offsetHeight")
-  win.setContentSize(300, Math.round(cardH) + 44)
-  await delay(500)
-  const overview = await grab(win, 5000)
+  const card = await rectOf('#card')
+  const overview = await grab(win, 5000, card)
   encode('overview', overview.frames, overview.elapsed, 300)
 
   console.log('done')
