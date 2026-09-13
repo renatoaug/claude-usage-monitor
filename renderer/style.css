@@ -517,29 +517,6 @@ body.settings-closing #stage {
   text-align: left;
   margin: -3px 0 9px;
 }
-.set-field {
-  display: block;
-  font-size: 9.5px;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.set-field input,
-.set-field select {
-  width: 100%;
-  margin-top: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 0.5px solid var(--hair);
-  border-radius: 7px;
-  color: var(--text);
-  font-size: 12px;
-  padding: 5px 8px;
-  outline: none;
-  font-variant-numeric: tabular-nums;
-}
-.set-field input:focus,
-.set-field select:focus {
-  border-color: var(--coral);
-}
 /* hide the ugly native number spinners (custom ones below) */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -742,14 +719,6 @@ but visibly nested: a soft coral guide bar ties the pair to the
 }
 .num-btn:active {
   transform: scale(0.9);
-}
-.set-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text);
-  margin-bottom: 9px;
 }
 .set-actions {
   display: flex;
@@ -1484,88 +1453,8 @@ body.settings-open #plant {
 body.act-reading #reading {
   opacity: 1;
 }
-/* reading glasses on the pet */
-#glasses {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-.gl-lens {
-  fill: rgba(190, 225, 255, 0.16);
-  stroke: #241c17;
-  stroke-width: 2.4;
-}
-.gl-bridge,
-.gl-arm {
-  fill: none;
-  stroke: #241c17;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-}
-body.act-reading #glasses {
-  opacity: 1;
-}
-.dc-card {
-  fill: #191d23; /* dark markdown viewer — easier to read on the dark scene */
-}
-.dc-ico {
-  fill: none;
-  stroke: #8a9098;
-  stroke-width: 1.1;
-}
-.dc-ico-fold {
-  fill: #8a9098;
-}
-.dc-title {
-  fill: #e2e5ea;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 7px;
-  font-weight: 700;
-}
 #dc-fname {
   transition: opacity 0.25s ease;
-}
-.dc-divider {
-  stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 1;
-}
-.dc-h {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 6.5px;
-  font-weight: 700;
-}
-.dc-h1 {
-  fill: #c39cf0; /* purple */
-}
-.dc-g {
-  fill: #7ed07e; /* green */
-}
-.dc-b {
-  fill: #6fb3f2; /* blue */
-}
-.dc-a {
-  fill: #e0b46a; /* amber */
-}
-.dc-body {
-  fill: #626b76; /* muted body text */
-}
-/* each heading lights up in turn (a "being read" pulse) */
-body.act-reading .dc-h {
-  animation: dc-read 4s ease-in-out infinite;
-}
-@keyframes dc-read {
-  0% {
-    opacity: 0.5;
-  }
-  7% {
-    opacity: 1;
-  }
-  24% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 0.5;
-  }
 }
 /* editing mode: a coding desk (laptop with colorful code, coffee, plant) */
 #desk {
@@ -1614,31 +1503,6 @@ body.act-reading:not(.collapsed) #pet {
 body.act-running:not(.collapsed) #pet {
   left: 27px;
 }
-.dk-desk {
-  fill: #262626;
-}
-.dk-keys {
-  fill: #4d4d4d;
-}
-.mug-body {
-  fill: #d8cbaf;
-}
-.mug-rim {
-  fill: #c6b896;
-}
-.mug-handle {
-  fill: none;
-  stroke: #d8cbaf;
-  stroke-width: 2.8;
-  stroke-linecap: round;
-}
-.mug-code {
-  fill: none;
-  stroke: #2a211a;
-  stroke-width: 1.7;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
-}
 .dk-wisp {
   fill: none;
   stroke: #c9c9c9;
@@ -1646,36 +1510,6 @@ body.act-running:not(.collapsed) #pet {
   stroke-linecap: round;
   opacity: 0;
   vector-effect: non-scaling-stroke;
-}
-.dk-deck2 {
-  fill: #3a3a3a;
-}
-.dk-screen {
-  fill: #1c1c1c;
-}
-.dk-glass {
-  fill: #0b0b0b;
-}
-.c-grn {
-  fill: #6fcf6f;
-}
-.c-yel {
-  fill: #e2c46a;
-}
-.c-blu {
-  fill: #6fb3f2;
-}
-.c-cur {
-  fill: #cdeccf;
-}
-.dk-pot {
-  fill: #b98a5e;
-}
-.dk-leaf {
-  fill: #3f9150;
-}
-.dk-leaf-c {
-  fill: #57a95f;
 }
 /* shared potted plant (editing + reading desks) */
 #plant {
@@ -1691,23 +1525,10 @@ body.act-running:not(.collapsed) #pet {
 body.act-editing #plant {
   opacity: 1;
 }
-body.act-editing .c-cur {
-  animation: cursor-blink 1s steps(1, end) infinite;
-}
 body.act-editing .dk-wisp,
 body.act-reading .dk-wisp {
   transform-box: view-box;
   animation: steam 2.6s ease-in-out infinite;
-}
-@keyframes cursor-blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
 }
 @keyframes steam {
   0% {
@@ -2065,11 +1886,6 @@ body.state-tired #status-text {
   font-weight: 400;
   color: #a58d77;
   font-variant-numeric: tabular-nums;
-}
-
-/* divider */
-.divider {
-  display: none;
 }
 
 /* meters */
