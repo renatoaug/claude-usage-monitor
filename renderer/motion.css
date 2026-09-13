@@ -9,6 +9,10 @@
    The scenery sits behind the props anyway, so it never competed with them. */
 body.state-working:is(.act-reading, .act-editing, .act-running) .coin,
 body.state-working:is(.act-reading, .act-editing, .act-running) .crumb {
+  /* biome-ignore lint/complexity/noImportantStyles: the coin's opacity comes
+     from a Web Animations API animation (pet.js, coin.animate). Animations beat
+     normal declarations in the cascade, so !important is the only way CSS can
+     hide one. */
   opacity: 0 !important;
 }
 #reading,
@@ -499,9 +503,14 @@ body.collapsed #flames {
   body.state-working #claude,
   body.state-working :is(#reading, #reading-room, #desk, #terminal, #mug, #plant) *,
   body.state-stressed :is(#claude, #flames, #heat-scene) * {
+    /* biome-ignore lint/complexity/noImportantStyles: cancelling an animation
+       has to outrank it, and these blanket selectors are less specific than the
+       per-state rules they switch off. */
     animation: none !important;
   }
   body.state-stressed #claude {
+    /* biome-ignore lint/complexity/noImportantStyles: same — it has to beat the
+       shiver declared on an equally specific selector later in this sheet. */
     animation: none !important;
   }
   body.state-working :is(#reading, #reading-room, #desk, #terminal, #scene, #mug, #plant),
@@ -515,6 +524,8 @@ body.collapsed #flames {
     display: none;
   }
   .job-progress {
+    /* biome-ignore lint/complexity/noImportantStyles: the offset is driven by a
+       keyframe animation, so freezing it takes precedence over one. */
     stroke-dashoffset: 0 !important;
   }
 }
