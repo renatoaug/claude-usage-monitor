@@ -1306,20 +1306,7 @@ body.collapsed #pet {
 /* hide minimize while settings are open (toggling it bugs the layout) */
 body.settings-open #min {
   display: none;
-}
-
-/* pet */
-/* expanded: a little night scene */
-
-/* the ground layers stretch to fill the stage; while it's shortened, pin them
-   at their natural height so the gears stay round — the top just clips away.
-   #scene keeps stretching (dots and stars tolerate it) so its frame rows stay
-   at the edges; the blocky clouds don't, so they sit this screen out. */
-body.settings-open #gears {
-  top: auto;
-  bottom: 0;
-  height: 132px;
-}
+} /* pet */
 body.settings-open .cloud {
   display: none;
 }
@@ -1375,15 +1362,12 @@ body.collapsed #stage {
 }
 body.collapsed #scene {
   display: none;
-}
-/* minimized = just the pet's face: hide all activity scenery + props */
+} /* minimized = just the pet's face: hide all activity scenery + props */
 body.collapsed #desk,
 body.collapsed #plant,
 body.collapsed #mug,
 body.collapsed #reading,
-body.collapsed #terminal,
-body.collapsed #gears,
-body.collapsed #glasses {
+body.collapsed #terminal {
   display: none;
 }
 /* collapsed: the pet sits a bit high, so the % fits under it inside the ring */
@@ -1495,47 +1479,11 @@ body.collapsed #shadow {
   transform-box: fill-box;
   transform-origin: center;
   animation: blink 5.5s infinite;
-}
-/* mechanic mode (settings): hard hat + screwdriver on the pet, loose gears
-   turning behind it. Hidden otherwise. */
-#robot {
+} /* mechanic mode (settings): hard hat + screwdriver on the pet {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
-}
-/* hard hat colors live inline (built pixel-by-pixel in pet.js buildHat) */
-.dr-handle {
-  fill: #c0392b;
-}
-.dr-handle-hi {
-  fill: #e0685a;
-}
-.dr-collar {
-  fill: #9a9a9a;
-}
-.dr-tip,
-.dr-shaft {
-  fill: #d0d0d0;
-}
-.dr-hi {
-  fill: #f2f2f2;
-}
-#gears {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  fill: #7a6a5c;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-body.settings-open #robot,
-body.settings-open #gears {
-  opacity: 1;
-}
-/* declutter the scene while configuring: mood marks AND activity props —
+}/* declutter the scene while configuring: mood marks AND activity props —
    the shortened stage only fits the pet and its gears */
 body.settings-open #zzz,
 body.settings-open #flames,
@@ -1544,8 +1492,7 @@ body.settings-open #terminal,
 body.settings-open #reading,
 body.settings-open #mug,
 body.settings-open #desk,
-body.settings-open #plant,
-body.settings-open #glasses {
+body.settings-open #plant {
   display: none;
 }
 /* reading mode: an open book with a magnifying glass scanning the lines */
@@ -2026,186 +1973,15 @@ body.act-running #claude {
 body.act-running #terminal {
   opacity: 1;
 }
-.tm-win {
-  fill: #14161a;
-}
-.tm-border {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.14);
-  stroke-width: 0.7;
-}
-.tm-bar {
-  fill: #262a30;
-}
-.tm-d1 {
-  fill: #ff5f57;
-}
-.tm-d2 {
-  fill: #febc2e;
-}
-.tm-d3 {
-  fill: #28c840;
-}
-.tm-prompt-c {
-  fill: #6fcf6f;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 7.5px;
-  font-weight: 700;
-}
-.tm-head {
-  fill: #d6d9de;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 7px;
-  font-weight: 600;
-}
-.tm-txt {
-  fill: #cfd3d8;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 6.5px;
-}
-.tm-dots {
-  fill: #8a9098;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 7px;
-  font-weight: 700;
-}
-.tm-cursor {
-  fill: #6fcf6f;
-}
-.tm-check {
-  fill: none;
-  stroke: #28c840;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.tm-spin {
-  fill: none;
-  stroke: #cfd3d8;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  transform-box: view-box;
-  transform-origin: 8px 54px; /* the spinner's own centre */
-}
-.tm-done-txt {
-  fill: #6fcf6f;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 6.5px;
-  font-weight: 600;
-}
-/* task log lifecycle (5s): lines stream in → Waiting spins → ✓ Done → restart */
-.tskA,
-.tskB,
-.tskC,
-.tskWait,
-.tskDone {
-  opacity: 0;
-}
-body.act-running .tskA {
-  animation: tskA 5s linear infinite;
-}
-body.act-running .tskB {
-  animation: tskB 5s linear infinite;
-}
-body.act-running .tskC {
-  animation: tskC 5s linear infinite;
-}
-body.act-running .tskWait {
-  animation: tskWait 5s linear infinite;
-}
-body.act-running .tskDone {
-  animation: tskDone 5s linear infinite;
-}
-body.act-running .tm-spin {
-  animation: tm-spin-rot 0.8s linear infinite;
-}
-body.act-running .tm-cursor {
-  animation: cursor-blink 1s steps(1, end) infinite;
-}
-@keyframes tm-spin-rot {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes tskA {
-  0%,
-  4% {
-    opacity: 0;
-  }
-  8%,
-  90% {
-    opacity: 1;
-  }
-  96%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes tskB {
-  0%,
-  16% {
-    opacity: 0;
-  }
-  20%,
-  90% {
-    opacity: 1;
-  }
-  96%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes tskC {
-  0%,
-  30% {
-    opacity: 0;
-  }
-  34%,
-  90% {
-    opacity: 1;
-  }
-  96%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes tskWait {
-  0%,
-  6% {
-    opacity: 0;
-  }
-  10%,
-  46% {
-    opacity: 1;
-  }
-  52%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes tskDone {
-  0%,
-  52% {
-    opacity: 0;
-  }
-  58%,
-  90% {
-    opacity: 1;
-  }
-  96%,
-  100% {
-    opacity: 0;
-  }
-}
 
 /* status */
 #statusline {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 0 12px;
+  padding: 11px 0 12px; /* clear the stage's edge — the live pill sat on it */
   border-bottom: 1px solid var(--hair);
-  font-size: 10px;
+  font-size: 11px;
   color: #c4b29f;
 }
 #statusline .sep {
@@ -2222,7 +1998,7 @@ body.act-running .tm-cursor {
   color: var(--text);
 }
 #rate {
-  font-size: 9px;
+  font-size: 10px;
   color: #978572;
   font-variant-numeric: tabular-nums;
 }

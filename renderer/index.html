@@ -59,17 +59,18 @@
         <svg id="scene" viewBox="0 0 216 135" preserveAspectRatio="none"></svg>
         <svg id="reading-room" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <defs><linearGradient id="reading-light" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e6c78d" stop-opacity=".12"/><stop offset="1" stop-color="#e6c78d" stop-opacity="0"/></linearGradient></defs>
-          <path class="lamp-light" d="M99 38h23l43 89H69Z" fill="url(#reading-light)"/>
-          <path d="M105 42v78M105 120h16" fill="none" stroke="#82715a" stroke-width="2"/>
-          <rect x="94" y="121" width="28" height="3" rx="1" fill="#645849"/>
-          <path d="M97 25h22l8 16H89Z" fill="#a88e65"/><path d="M100 25h16l5 16H94Z" fill="#c5ab7e"/>
-          <path d="M89 41h38" stroke="#dfc492" stroke-width="1"/><path d="M124 42v11" stroke="#9e8664" stroke-width=".7"/>
-          <rect x="123" y="53" width="2" height="3" fill="#baa077"/>
-          <path d="M11 53h54" stroke="#514538" stroke-width="2"/>
-          <rect x="15" y="45" width="43" height="6" rx="1" fill="#997552"/><path d="M19 47h36m-36 2h35" stroke="#d2bea0" stroke-width=".6"/>
-          <rect x="19" y="37" width="37" height="7" rx="1" fill="#707b60"/><path d="M23 39h29m-29 2h28" stroke="#c1b899" stroke-width=".6"/>
-          <rect x="12" y="30" width="41" height="6" rx="1" fill="#aa6c51"/><path d="M16 32h32m-32 2h31" stroke="#d5b89a" stroke-width=".6"/>
-          <path d="M50 36v6l-2-1-2 1v-6" fill="#bf8c66"/>
+          <!-- the pool of light, aimed left so it actually falls on the book -->
+          <path class="lamp-light" d="M158 58h24l30 64H62Z" fill="url(#reading-light)"/>
+          <!-- the lamp itself: pushed to the right edge and down to 0.72, so it
+               stops out-towering the pet and stops standing between him and the
+               book. Its base lands back on the floor at y 121. -->
+          <g transform="translate(92 34) scale(0.72)">
+            <path d="M105 42v78M105 120h16" fill="none" stroke="#82715a" stroke-width="2"/>
+            <rect x="94" y="121" width="28" height="3" rx="1" fill="#645849"/>
+            <path d="M97 25h22l8 16H89Z" fill="#a88e65"/><path d="M100 25h16l5 16H94Z" fill="#c5ab7e"/>
+            <path d="M89 41h38" stroke="#dfc492" stroke-width="1"/><path d="M124 42v11" stroke="#9e8664" stroke-width=".7"/>
+            <rect x="123" y="53" width="2" height="3" fill="#baa077"/>
+          </g>
           <g class="reading-motes" fill="#ddc298"><circle cx="80" cy="77" r=".65"/><circle cx="93" cy="61" r=".5"/><circle cx="130" cy="61" r=".6"/></g>
         </svg>
         <!-- editing mode: a coding desk (laptop + coffee + plant) behind the pet -->
@@ -130,9 +131,7 @@
         </svg>
         <!-- running mode: a task log — Claude working (uniform scale) -->
         <svg id="terminal" viewBox="0 0 216 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <!-- A moving belt and a job console give running its own silhouette. -->
-          <rect x="14" y="125" width="85" height="5" rx="2.5" fill="#343932"/><path d="M19 126h75" stroke="#78826b" stroke-width=".7"/>
-          <g class="belt-ticks" stroke="#acb599" stroke-width="1"><path d="M22 126v2m11-2v2m11-2v2m11-2v2m11-2v2m11-2v2m11-2v2"/></g>
+          <!-- A job console gives running its own silhouette. -->
           <g class="speed-streaks" stroke="#8d9880" stroke-width="1"><path d="M7 92h8M4 101h11M10 111h6"/></g>
           <rect x="108" y="34" width="99" height="85" rx="5" fill="#111713" stroke="#445347" stroke-width=".8"/>
           <path d="M108 51h99" stroke="#344236" stroke-width=".6"/>

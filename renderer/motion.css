@@ -2,16 +2,11 @@
 #scene {
   transition: opacity 0.7s ease;
 }
-body.state-working #stage,
-body.state-stressed #stage {
-  background: #050505;
-}
-body.state-working:is(.act-reading, .act-editing, .act-running) #scene {
-  opacity: 0.12;
-}
-body.state-stressed #scene {
-  opacity: 0.3;
-}
+/* The night backdrop — dotted frame, stars and clouds — and the stage's own
+   warm radial belong to every state, not just the idle one. Dimming #scene to
+   0.12 during an activity and flattening #stage to solid black made the card
+   look like a different widget depending on what Claude happened to be doing.
+   The scenery sits behind the props anyway, so it never competed with them. */
 body.state-working:is(.act-reading, .act-editing, .act-running) .coin,
 body.state-working:is(.act-reading, .act-editing, .act-running) .crumb {
   opacity: 0 !important;
@@ -52,10 +47,14 @@ body.state-stressed #heat-scene {
   opacity: 1;
 }
 body.act-reading #reading {
-  width: 91px;
-  height: 85px;
-  left: 52%;
-  bottom: 5px;
+  /* the lamp and the rest of the room are drawn 1:1 in the stage's 216x135
+     space; at 91px the book came out nearly as wide as the pet and read as a
+     lectern. 62px puts it at about two thirds of him, and the bottom matches
+     the lamp's base so both stand on the same floor. */
+  width: 56px;
+  height: 52px;
+  left: 44%;
+  bottom: 11px;
 }
 body.act-editing #desk,
 body.act-running #terminal {
@@ -120,12 +119,9 @@ body.act-editing .dk-wisp {
   stroke: #b4aa98;
   stroke-width: 1;
 }
-/* Running: gait + moving belt; the console completes a job in a single cycle. */
+/* Running: gait + speed streaks; the console completes a job in a single cycle. */
 body.state-working.act-running #claude {
   animation: execution-stride 1.1s ease-in-out infinite;
-}
-body.act-running .belt-ticks {
-  animation: belt-ticks 1.1s ease-in-out infinite;
 }
 body.act-running .speed-streaks {
   animation: speed-streaks 1.1s ease-out infinite;
@@ -360,14 +356,6 @@ body.collapsed #flames {
   }
   77% {
     transform: translateY(-2px);
-  }
-}
-@keyframes belt-ticks {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-11px);
   }
 }
 @keyframes speed-streaks {
