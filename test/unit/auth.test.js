@@ -251,6 +251,17 @@ describe('token refresh', () => {
     expect(calls[1].opts.headers.Authorization).toBe('Bearer fresh')
   })
 
+  test('concurrent callers share one refresh, so the token rotates once', async () => {
+    seedToken(EXPIRED)
+    mockFetch({
+      '/oauth/token': { body: { access_token: 'fresh', refresh_token: 'ref-2', expires_in: 3600 } },
+      '/oauth/usage': { body: {} },
+      '/oauth/profile': { body: { account: { email: 'a@b.com' } } },
+    })
+    await Promise.all([auth.fetchUsage(), auth.fetchProfile()])
+    expect(calls.filter((c) => c.url.includes('/oauth/token')).length).toBe(1)
+  })
+
   test('keeps the old refresh token when the response omits one', async () => {
     seedToken(EXPIRED)
     mockFetch({

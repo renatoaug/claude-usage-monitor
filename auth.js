@@ -139,7 +139,15 @@ async function complete(pasted) {
   pending = null
 }
 
-async function refresh() {
+// Usage and profile both ask for a valid token at once. Two refreshes would
+// rotate the refresh token twice, and the loser's grant comes back rejected —
+// so callers share the one in flight.
+let refreshing = null
+function refresh() {
+  if (!refreshing) refreshing = doRefresh().finally(() => (refreshing = null))
+  return refreshing
+}
+async function doRefresh() {
   const t = load()
   if (!t?.refresh_token) throw Object.assign(new Error('no refresh token'), { status: 401 })
   const res = await fetch(TOKEN_URL, {

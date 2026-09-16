@@ -466,6 +466,24 @@ describe('threshold alerts', () => {
     authState.connected = true
   })
 
+  test('a token that comes back after a clear brings the account chip back too', async () => {
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    const poll = timers.timeouts.at(-1).fn // pollUsage itself
+    authState.usageError = Object.assign(new Error('dead'), { status: 401 })
+    await poll()
+    await poll()
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(lastOf('profile')).toBeNull()
+    // a refresh that was still in flight rewrites the token after the clear
+    authState.usageError = null
+    authState.connected = true
+    await poll()
+    await new Promise((r) => realSetTimeout(r, 5))
+    expect(lastOf('auth-state')).toEqual({ connected: true })
+    expect(lastOf('profile').email).toBe('a@b.com')
+  })
+
   test('editing the thresholds re-arms the alerts, on disk too', async () => {
     await at(85, 0)
     expect(JSON.parse(fs.readFileSync(ALERTS_PATH, 'utf8')).armed).toContain('Session:80')

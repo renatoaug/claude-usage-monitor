@@ -273,6 +273,7 @@ function switchAccount(id) {
     win.webContents.send('auth-state', { connected: auth.isConnected() })
     win.webContents.send('profile', null)
   }
+  profileShown = false
   sendAccounts(id) // the row goes pending right away…
 
   // …because the rest is synchronous and slow: re-reading the new account's
@@ -684,6 +685,13 @@ async function pollUsage() {
     usageBackoff = 5 * 60 * 1000
     authFails = 0
     pushRealUsage(u)
+    // a token that came back after being cleared (a refresh that landed late)
+    // brings the % back, but nothing re-sent the chip: restate who this is
+    if (!profileShown) {
+      if (win && !win.isDestroyed()) win.webContents.send('auth-state', { connected: true })
+      sendAccounts()
+      sendProfile()
+    }
   } catch (e) {
     if (e && e.status === 429) {
       usageBackoff = Math.min(usageBackoff * 2, 30 * 60 * 1000)
@@ -705,6 +713,7 @@ async function pollUsage() {
         win.webContents.send('auth-state', { connected: false })
         win.webContents.send('profile', null)
       }
+      profileShown = false
     }
   }
   scheduleUsagePoll()
@@ -729,6 +738,7 @@ function onResume() {
 
 // push the logged-in account's identity (email + plan) to the renderer
 let profileTimer = null
+let profileShown = false // the renderer holds this account's profile
 async function sendProfile(tries = 0) {
   clearTimeout(profileTimer)
   if (!auth.isConnected()) return
@@ -743,6 +753,7 @@ async function sendProfile(tries = 0) {
       sendAccounts()
     }
     if (win && !win.isDestroyed()) win.webContents.send('profile', p)
+    profileShown = true
   } catch {
     // a rate limit or a blip would otherwise hide the chip — and with it the
     // account switcher — until the app is restarted, so keep trying for a while
@@ -804,6 +815,7 @@ ipcMain.on('auth-logout', () => {
     win.webContents.send('auth-state', { connected: false })
     win.webContents.send('profile', null)
   }
+  profileShown = false
 })
 
 ipcMain.on('save-config', (_e, patch) => {
