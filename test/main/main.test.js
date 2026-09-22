@@ -200,6 +200,15 @@ mock.module('../../usage.js', () => ({
 // mock has to model that, or every account looks logged in at once
 let authDir = DATA_DIR
 const tokenFile = () => path.join(authDir, 'auth.json')
+let codexResult = null
+let codexThrows = false
+mock.module('../../codex.js', () => ({
+  getCodexUsage: () => {
+    if (codexThrows) throw new Error('codex boom')
+    return codexResult
+  },
+}))
+
 mock.module('../../auth.js', () => ({
   setDataDir: (dir) => {
     authDir = dir
@@ -344,6 +353,13 @@ describe('startup', () => {
     tick()
     expect(lastOf('usage-error')).toContain('disk gone')
     usageThrows = null
+  })
+
+  test('Codex stays off until enabled', () => {
+    codexResult = { active: true, session: { pct: 12 } }
+    tick()
+    expect(lastOf('codex')).toBeNull()
+    codexResult = null
   })
 })
 
@@ -1036,6 +1052,95 @@ describe('accounts', () => {
     sent.length = 0
     fire('accounts-switch', 'default')
     expect(lastOf('accounts')).toBeUndefined()
+  })
+})
+
+describe('codex', () => {
+  const cx = (over = {}) => ({
+    active: false,
+    limitsAt: Date.now(),
+    session: { pct: 12, resetMs: 3600000 },
+    weekly: { pct: 30, resetMs: 86400000 },
+    ...over,
+  })
+
+  test('detecting reports what it found, without enabling anything', () => {
+    fire('codex-detect')
+    expect(lastOf('codex-detected')).toHaveProperty('found')
+    expect(startupOf('config').codex).toBe(false)
+  })
+
+  test('enabling persists the choice and starts pushing Codex usage', () => {
+    codexResult = cx()
+    fire('codex-enable', true)
+    expect(JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')).codex.enabled).toBe(true)
+    expect(lastOf('config').codex).toBe(true)
+    expect(lastOf('codex').session.pct).toBe(12)
+  })
+
+  test('a Codex failure leaves Claude alone', () => {
+    const before = sent.filter((m) => m.channel === 'usage-error').length
+    const err = console.error
+    console.error = () => {}
+    codexThrows = true
+    tick()
+    codexThrows = false
+    console.error = err
+    expect(sent.filter((m) => m.channel === 'usage-error').length).toBe(before)
+    expect(lastOf('usage')).toBeTruthy()
+  })
+
+  test('alerts on Codex windows under their own names', () => {
+    notifications.length = 0
+    codexResult = cx({ session: { pct: 85, resetMs: 3600000 } })
+    tick()
+    expect(notifications.map((n) => n.title)).toContain('Codex session at 85%')
+    notifications.length = 0
+    tick()
+    expect(notifications.length).toBe(0)
+  })
+
+  test('the tray names both services', () => {
+    fire('save-config', { mode: 'menubar' })
+    // only macOS renders a title beside the icon: pin it, as the tray tests above do
+    const real = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+    try {
+      tick()
+    } finally {
+      Object.defineProperty(process, 'platform', { value: real, configurable: true })
+    }
+    expect(trayState.title).toContain('X 85%')
+    expect(trayState.tooltip).toContain('Codex session 85%')
+    trayState.handlers.get('right-click')()
+    const labels = trayState.menu.map((i) => i.label)
+    expect(labels).toContain('Open Codex usage')
+    trayState.menu.find((i) => i.label === 'Open Codex usage').click()
+    trayState.menu.find((i) => i.label === 'Open Claude usage').click()
+    expect(opened.slice(-2)).toEqual([
+      'https://chatgpt.com/usage#settings/Usage',
+      'https://claude.ai/settings/usage',
+    ])
+    fire('save-config', { mode: 'floating' })
+  })
+
+  test('the Usage arrow opens the page of the service on screen', () => {
+    opened.length = 0
+    fire('open-usage', 'codex')
+    fire('open-usage', 'claude')
+    fire('open-usage')
+    expect(opened).toEqual([
+      'https://chatgpt.com/usage#settings/Usage',
+      'https://claude.ai/settings/usage',
+      'https://claude.ai/settings/usage',
+    ])
+  })
+
+  test('disconnecting stops monitoring and clears it from the tray', () => {
+    fire('codex-enable', false)
+    expect(lastOf('config').codex).toBe(false)
+    expect(lastOf('codex')).toBeNull()
+    codexResult = null
   })
 })
 

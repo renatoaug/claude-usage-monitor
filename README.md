@@ -1,6 +1,6 @@
 # 🟫 Clauddy
 
-A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations.
+A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations. Use Codex too? It can track that alongside (see [Codex](#codex)).
 
 <p align="center">
 
@@ -24,7 +24,7 @@ The **percentages are real**, pulled from your account (you log in once — see 
 
 The session/weekly **%** comes straight from your Anthropic account, so it matches the official panel exactly. You connect once via a browser login:
 
-1. Open **⚙ Settings → "Log in with browser"** — your browser opens an Anthropic auth page.
+1. Open **⚙ Settings → Connections → Claude → Connect** — your browser opens an Anthropic auth page.
 2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
 
 The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a _"Connect your account"_ prompt instead of percentages.
@@ -38,6 +38,20 @@ The widget follows **one account at a time**: the one you pick is the one whose 
 Removing an account (the **×** on its row) deletes its token from disk. The one you're currently on can't be removed — switch away first — and neither can the last one left. Removing the first account clears its token without touching the settings that live in the same folder.
 
 > Prefer one widget per account instead? Setting `CLAUDE_CONFIG_DIR` still isolates a whole instance — token, settings and logs — so you can run two Clauddys side by side.
+
+## Codex
+
+Clauddy can follow [Codex](https://openai.com/codex) (the CLI and the desktop app) next to Claude. Open **⚙ Settings → Connections → Codex → Connect**: it looks for a Codex session on this computer and starts monitoring if it finds one. There's nothing to log into — Codex writes its token counts and rate limits to `~/.codex/sessions` (or `$CODEX_HOME`), and Clauddy only reads those files.
+
+With both connected, **tabs under the pet** pick which service the whole panel shows — account chip, pet mood, session and weekly %, the breakdowns, the 30-day map and the **↗** Usage link. The other tab keeps its % in view and gets a **!** when it crosses an alert threshold. Minimized, the ring becomes one reading per service; click one to switch.
+
+A few things differ from Claude:
+
+- **The % updates when Codex runs.** Its logs are only written during a session, so an idle Codex shows the last reading with its age (`read 1h 30m ago`). A window that has already reset since then shows **—** rather than a made-up 0%.
+- **It can lag the account page.** Codex limits are shared with other ChatGPT products (Work, Agents, Excel) that don't write to these logs.
+- **No burn-rate projection and no activity scenes** — the logs don't carry enough to draw them honestly.
+
+Disconnecting (the **×** on the Codex card) only stops monitoring in Clauddy; your Codex login and logs are untouched.
 
 ## Burn rate
 
@@ -171,17 +185,17 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 ## Controls
 
 - **Drag** the widget anywhere on screen
-- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring); the **⤢** button or a double-click on the pet expands it back
+- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with Claude and Codex both connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
-- **↗** opens the official Usage page
+- **↗** opens the official Usage page of the service on screen
 - **×** quits
 
 ### Floating or menu bar
 
-Under **⚙ Settings → Display** you can pick where Clauddy lives:
+Under **⚙ Settings → Preferences** you can pick where Clauddy lives:
 
 - **Floating pet** — the always-on widget in the corner (default).
-- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
+- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex too it reads `C 64% · X 28%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
 
 Switching is instant — no restart. (On Windows/Linux the icon lives in the system tray; the live % shows in its tooltip.)
 
@@ -194,6 +208,7 @@ Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Setti
 | _Session at 82%_ — `2h 39m left · resets 6:50 PM` | Your session crosses a threshold (default **80%** and **95%**) |
 | _Weekly usage at 84%_ — `resets Fri 7:00 AM` | Same, for the weekly limit |
 | _Fable weekly at 84%_ — `resets Fri 7:00 AM` | Same, for a per-model weekly limit |
+| _Codex session at 82%_ / _Codex weekly at 84%_ | Same, for Codex, when it's connected |
 | _Session window reset_ — `full budget again` | A session you had pushed past 80% rolls over |
 | _Clauddy lost access to your usage_ | The OAuth token expired or was revoked, so the % went back to being an estimate |
 
@@ -216,6 +231,7 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
   "pollIntervalMs": 4000, // how often local logs are re-read
   "activeThresholdMs": 20000, // "active" if Claude wrote to its logs within this window
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
+  "codex": { "enabled": false }, // set by Settings → Codex → Connect
 }
 ```
 
@@ -254,6 +270,8 @@ Everything lives on your machine, in `~/.claude-usage-monitor/`:
 - `config.json` — your alert settings
 - `alerts.json` — which notifications are already armed, so a restart doesn't repeat them
 - `accounts.json` — your list of accounts and which one is active
+
+With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions`.
 - `debug.json` — scratch file for the `./pet` simulator
 - `accounts/<id>/` — the same `auth.json` + `alerts.json`, for each extra account
 

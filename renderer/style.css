@@ -3,11 +3,16 @@
   --coral-soft: #e6a07f;
   --pixel: #d57658; /* pet terracotta — matches the real Claude logo */
   --eye: #221b16;
-  --text: #f3ebe3;
-  --muted: #9d9085;
-  --hair: rgba(255, 255, 255, 0.08);
+  --text: #eeeae5;
+  --muted: #a39f98;
+  --hair: rgba(255, 255, 255, 0.075);
   --track: rgba(255, 255, 255, 0.1);
   --green: #7ec77d;
+  --panel-bg:
+    radial-gradient(130% 110% at 20% 0%, #89543445, transparent 60%),
+    linear-gradient(158deg, #30241c, #211912 55%, #18120e);
+  --panel-border: #e8bb8e20;
+  --settings-bg: linear-gradient(150deg, #30241d, #211912);
 }
 
 * {
@@ -33,16 +38,13 @@ body {
   position: absolute;
   top: 12px;
   left: 12px;
-  width: 252px;
-  background:
-    radial-gradient(135% 115% at 32% 0%, rgba(132, 80, 52, 0.6), rgba(60, 38, 28, 0) 55%),
-    linear-gradient(158deg, #2c211b 0%, #1d1714 52%, #110c0a 100%);
-  border: 0.5px solid rgba(255, 210, 180, 0.1);
-  border-radius: 14px;
+  width: 280px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
   box-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.3),
-    0 16px 40px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 12px 32px #0005,
+    inset 0 1px 0 #ffffff05;
   padding: 14px 18px 14px;
   display: flex;
   flex-direction: column;
@@ -70,10 +72,10 @@ body {
   width: 19px;
   height: 19px;
   border: 1px solid rgba(255, 255, 255, 0.035);
-  border-radius: 50%;
-  background: linear-gradient(rgba(255, 255, 255, 0.043), rgba(255, 255, 255, 0.012));
+  border-radius: 6px;
+  background: #ffffff04;
   box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.03);
-  color: #ab9886;
+  color: #aaa59d;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -165,18 +167,18 @@ body.collapsed #usage {
 /* logged-in account chip (top-left, mirrors #controls) */
 #account-chip {
   position: absolute;
-  top: 0;
+  top: 7px;
   left: 10px;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 38px; /* the title band — centres the chip against #controls */
+  height: 24px;
   /* #controls starts at ~154px: stop short of it, the pill has padding too */
-  max-width: 142px;
-  font-size: 9px;
+  max-width: 164px;
+  font-size: 10px;
   line-height: 1;
-  color: #c7b8a7;
+  color: #c3beb7;
 }
 #account-chip[hidden] {
   display: none;
@@ -188,7 +190,7 @@ body.collapsed #usage {
   cursor: pointer;
   padding: 0 5px 0 6px;
   margin-left: -6px; /* the text stays where it has always been */
-  border-radius: 10px;
+  border-radius: 6px;
   background: transparent;
   transition:
     background 0.15s,
@@ -336,7 +338,7 @@ body.collapsed #mini-acct-name {
   display: none;
   margin: 24px -18px -14px;
   padding: 12px 16px;
-  background: linear-gradient(145deg, #2c221c, #17120f);
+  background: var(--settings-bg);
   -webkit-app-region: no-drag;
 }
 /* panel heading: gives the screen a title instead of opening cold on a form */
@@ -347,27 +349,21 @@ body.collapsed #mini-acct-name {
   min-height: 38px;
 }
 .settings-heading h3 {
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: -0.4px;
   font-weight: 500;
-  color: #e7cfb8;
+  color: var(--text);
 }
 .settings-heading p {
   font-size: 10px;
-  color: #a48b75;
+  color: var(--muted);
   margin-top: 4px;
-}
-.sh-ico {
-  width: 18px;
-  height: 18px;
-  color: var(--text);
-  stroke-width: 2;
 }
 /* group label above a cluster of rows */
 .settings-label {
   display: block;
   font-size: 10px;
-  color: #ac9177;
+  color: var(--muted);
   margin-bottom: 6px;
 }
 .threshold-label {
@@ -383,9 +379,9 @@ body.collapsed #mini-acct-name {
   gap: 8px;
   margin: 11px 0 13px;
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.043);
+  border: 1px solid var(--hair);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.012);
+  background: #ffffff03;
 }
 .connect-block > div {
   flex: 1;
@@ -445,7 +441,7 @@ body.settings-open #mini {
 }
 body.settings-open #settings {
   display: block;
-  animation: set-in 0.78s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: set-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* the panel covers the card, so the stage keeps its normal height behind it */
 body.settings-open #stage {
@@ -1260,9 +1256,9 @@ body.settings-open #pet {
   position: relative;
   height: 132px;
   margin-top: 24px; /* the title band is 38px; the card already pads 14 of it */
-  border-radius: 12px;
-  background: radial-gradient(125% 145% at 50% 36%, #050505 52%, #150e0a 100%);
-  box-shadow: 0 0 22px 7px rgba(6, 5, 4, 0.7);
+  border-radius: 11px;
+  background: radial-gradient(100% 130% at 50% 30%, #141714, #0d100e);
+  box-shadow: inset 0 0 0 1px #ffffff06;
   overflow: hidden;
 }
 #scene {
@@ -1774,10 +1770,10 @@ body.act-running #terminal {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 11px 0 12px; /* clear the stage's edge — the live pill sat on it */
+  padding: 10px 0;
   border-bottom: 1px solid var(--hair);
   font-size: 11px;
-  color: #c4b29f;
+  color: #b9b4ad;
 }
 #statusline .sep {
   opacity: 0.4;
@@ -1794,7 +1790,7 @@ body.act-running #terminal {
 }
 #rate {
   font-size: 10px;
-  color: #978572;
+  color: #a39f98;
   font-variant-numeric: tabular-nums;
 }
 body.state-working #status-dot {
@@ -1819,9 +1815,8 @@ body.state-tired #status-text {
 
 /* meter subtitle */
 .sub {
-  /* small enough that "resets in 69h 15m (Fri 7:01 AM) · 1.02B tokens" stays on one line */
-  font-size: 9px;
-  color: #96816d;
+  font-size: 10px;
+  color: #a8a29a;
   margin-top: 5px;
   letter-spacing: 0px;
   white-space: nowrap;
@@ -1832,7 +1827,7 @@ body.state-tired #status-text {
 /* burn-rate projection — calm by default, warm when you'd run out first */
 .sub.proj {
   margin-top: 2px;
-  font-style: italic;
+  font-style: normal;
   opacity: 0.85;
 }
 .sub.proj.tight {
@@ -1876,7 +1871,7 @@ body.state-tired #status-text {
   display: flex;
   justify-content: space-between;
   font-size: 9px;
-  color: #a58d77;
+  color: #aaa39b;
   border-top: 1px solid var(--hair);
   padding-top: 9px;
   margin-top: 0;
@@ -1884,7 +1879,7 @@ body.state-tired #status-text {
 }
 #month-total {
   font-weight: 400;
-  color: #a58d77;
+  color: #aaa39b;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1904,7 +1899,7 @@ body.state-tired #status-text {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #cbb9a7;
+  color: #bdb7af;
   margin-bottom: 0;
 }
 .meter-top i {
@@ -1924,7 +1919,7 @@ body.state-tired #status-text {
 .track {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.035);
+  background: #ffffff0a;
   border-radius: 4px;
   overflow: hidden;
   margin-top: 7px;
@@ -1973,7 +1968,7 @@ body.state-tired #status-text {
   cursor: pointer;
   font: inherit;
   font-size: 10px;
-  color: #a38c78;
+  color: #aaa59d;
   letter-spacing: 0;
   -webkit-app-region: no-drag;
 }
@@ -2016,7 +2011,7 @@ body.state-tired #status-text {
   align-items: center;
   gap: 7px;
   font-size: 10px;
-  color: #c7b19a;
+  color: #d0cac2;
   margin-top: 7px;
   margin-bottom: 0;
 }
@@ -2067,7 +2062,7 @@ body.state-tired #status-text {
 .mrow .mval {
   text-align: right;
   font-size: 10px;
-  color: #a48b74;
+  color: #aaa39b;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2258,4 +2253,540 @@ body.state-tired #status-text {
   100% {
     transform: translateY(0) rotate(0) scale(1, 1);
   }
+}
+
+#harness-tabs {
+  display: none;
+  gap: 6px;
+  min-width: 0;
+  margin: 10px 0 0;
+  -webkit-app-region: no-drag;
+}
+body.dual #harness-tabs {
+  display: flex;
+}
+#harness-tabs button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 1px solid #ffffff12;
+  border-radius: 6px;
+  background: #ffffff03;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+#harness-tabs button[aria-selected="true"] {
+  color: var(--text);
+  border-color: #dc997351;
+  background: #d977571c;
+  box-shadow: inset 0 1px 0 #ffffff05;
+}
+#harness-tabs #tab-codex[aria-selected="true"] {
+  border-color: #a7baa14d;
+  background: #a7baa11c;
+}
+#harness-tabs button:hover {
+  border-color: #ffffff2b;
+  color: var(--text);
+}
+#harness-tabs .tab-logo {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: currentColor;
+  opacity: 0.65;
+}
+#harness-tabs button[aria-selected="true"] .tab-logo {
+  opacity: 1;
+}
+/* brand colours, as in Settings; a working service lights up fully */
+#tab-claude .tab-logo {
+  color: #e4a17c;
+}
+#tab-codex .tab-logo {
+  color: #b9c8b0;
+}
+#harness-tabs button.active .tab-logo {
+  opacity: 1;
+}
+#harness-tabs .tab-value {
+  margin-left: auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+#harness-tabs button.urgent .tab-value,
+#harness-tabs .tab-alert {
+  color: #f3a38b;
+}
+#harness-tabs .tab-alert[hidden] {
+  display: none;
+}
+#mini-reset {
+  margin-top: 6px;
+  color: #b4a18a;
+  font-size: 9px;
+  line-height: 1.4;
+}
+#mini-reset[hidden] {
+  display: none;
+}
+
+/* the session % is the headline number */
+#limits-meters > .meter:first-child {
+  margin-top: 8px;
+}
+#limits-meters > .meter:first-child .meter-top {
+  align-items: baseline;
+}
+#limits-meters #session-pct {
+  font-size: 27px;
+  letter-spacing: -1px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+#limits-meters > .meter:first-child .track {
+  height: 5px;
+  margin-top: 5px;
+}
+#session-proj:not(.tight) {
+  color: #a6b39c;
+}
+
+/* the Codex view: logs, not a live feed — and its own tint */
+body.view-codex #live-tag {
+  display: none;
+}
+body.view-codex #session-fill,
+body.view-codex #week-fill {
+  background: #a7baa1;
+}
+body.view-codex #session-fill.mid,
+body.view-codex #week-fill.mid {
+  background: #e5b55d;
+}
+body.view-codex #session-fill.hot,
+body.view-codex #week-fill.hot {
+  background: #ee705e;
+}
+body.view-codex .mrow .mbar > i {
+  background: #a7baa1;
+}
+body.view-codex .sq.lv1 {
+  background: #3a503b;
+}
+body.view-codex .sq.lv2 {
+  background: #5b7655;
+}
+body.view-codex .sq.lv3 {
+  background: #8d9f72;
+}
+body.view-codex .sq.lv4 {
+  background: #c2c994;
+}
+
+/* collapsed with both: one line per service instead of the ring, never an average */
+#mini-dual {
+  display: none;
+}
+body.collapsed.dual #card {
+  width: 216px;
+  padding: 32px 12px 12px;
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-radius: 16px;
+}
+body.collapsed.dual #stage {
+  height: 70px;
+  width: 66px;
+  margin: 0;
+  background: radial-gradient(ellipse at center, #d9775710, transparent 70%);
+}
+body.collapsed.dual #pet {
+  zoom: 0.7;
+  transform: translateY(-2px);
+}
+body.collapsed.dual #shadow {
+  top: calc(50% + 22px);
+  width: 35px;
+}
+body.collapsed.dual #ring,
+body.collapsed.dual #ring-pct {
+  display: none;
+}
+body.collapsed.dual #mini {
+  min-width: 0;
+  margin: 0;
+}
+body.collapsed.dual #mini-acct-name {
+  max-width: 112px;
+  font-size: 10px;
+}
+body.collapsed.dual .mini-line {
+  justify-content: flex-start;
+  margin: 0 0 5px 3px;
+}
+body.collapsed.dual #mini-text {
+  font-size: 10px;
+  font-weight: 400;
+}
+body.collapsed.dual #mini-dot {
+  width: 4px;
+  height: 4px;
+}
+body.collapsed.dual #mini-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mini-source {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #aba59d;
+  text-align: left;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.mini-source:hover {
+  background: #ffffff08;
+}
+.mini-source[aria-pressed="true"] > span:first-child {
+  color: #eee4d9;
+}
+/* the selected service gets the tab's tinted plate; the other steps back */
+.mini-source[aria-pressed="false"] {
+  opacity: 0.5;
+}
+.mini-source[aria-pressed="false"]:hover {
+  opacity: 0.8;
+}
+.mini-source[data-provider="claude"][aria-pressed="true"] {
+  background: #d977571c;
+}
+.mini-source[data-provider="codex"][aria-pressed="true"] {
+  background: #a7baa11c;
+}
+.mini-source b {
+  grid-row: 2;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -0.4px;
+  font-weight: 500;
+  color: #eee4d9;
+  font-variant-numeric: tabular-nums;
+}
+.mini-source.urgent b {
+  color: #f3a38b;
+}
+.mini-source.urgent > span:first-child::after {
+  content: " !";
+  color: #f3a38b;
+}
+.mini-track {
+  grid-row: 3;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #ffffff0d;
+}
+.mini-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #d97757;
+}
+#mini-codex-bar {
+  background: #a7baa1;
+}
+.mini-track i.hot,
+#mini-codex-bar.hot {
+  background: #ee705e;
+}
+
+/* Settings → Connections: Claude and Codex share one card shape */
+.connections-label {
+  margin-top: 18px;
+  margin-bottom: 0;
+}
+#account .connect-block {
+  margin: 7px 0 8px;
+}
+#codex-settings {
+  display: flex;
+  margin: 0 0 18px;
+}
+.codex-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+#codex-setup:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.codex-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.codex-x:hover {
+  color: var(--text);
+  background: #ffffff0d;
+}
+.codex-x .ic {
+  width: 12px;
+  height: 12px;
+}
+/* which pieces show: off, setting up, or on */
+#codex-disconnect,
+body.codex-on #codex-hint,
+body.codex-on #codex-connect,
+body.codex-setup #codex-connect {
+  display: none;
+}
+body.codex-on #codex-disconnect {
+  display: grid;
+}
+body.view-codex .mrow .mname::before {
+  background: #a7baa1;
+}
+/* no account switcher on the Codex side: the chip opens Settings */
+body.view-codex .ac-caret {
+  display: none;
+}
+#card button:focus-visible,
+#card input:focus-visible,
+#account-chip:focus-visible {
+  outline: 2px solid #c9bda6;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  #card,
+  #settings,
+  .fill,
+  .sec-body,
+  .sec-chev {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* the Codex view is tinted sage, even when Codex is the only service */
+body.view-codex {
+  --panel-bg:
+    radial-gradient(130% 110% at 20% 0%, #6c816830, transparent 60%),
+    linear-gradient(158deg, #242b24, #1b211c 55%, #141a15);
+  --panel-border: #b4c6ac20;
+  --settings-bg: linear-gradient(150deg, #283028, #1b211c);
+}
+#details-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 9px 0 1px;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  background: none;
+  color: #c4b9aa;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+#details-toggle:hover {
+  color: var(--text);
+}
+#details-toggle[aria-expanded="true"] .sec-chev {
+  transform: rotate(180deg);
+}
+#usage-details[hidden] {
+  display: none;
+}
+#usage-details {
+  padding-top: 10px;
+}
+#usage-details > .sec:first-child {
+  border-top: 0;
+}
+
+#acc-connected.connection-card,
+#acc-intro.connection-card,
+#codex-settings.connection-card {
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: #ffffff03;
+}
+#acc-connected.connection-card,
+body.codex-on #codex-settings.connection-card {
+  height: 64px;
+}
+.connection-card .connection-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+.claude-avatar {
+  background: #d9775718;
+  color: #e4a17c;
+}
+.codex-avatar {
+  background: #9eaf9614;
+  color: #b9c8b0;
+}
+.connection-logo,
+.codex-logo {
+  fill: currentColor;
+}
+.connection-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+.connection-card .connection-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 5px;
+}
+.connection-heading {
+  min-height: 17px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.connection-heading b {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+}
+.connection-heading .plan-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid #cbb3942b;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1;
+  color: #beaa92;
+  text-transform: capitalize;
+}
+.connection-heading .plan-badge[hidden] {
+  display: none;
+}
+.connection-card .connection-caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ada193;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+#codex-connected-caption {
+  display: none;
+}
+body.codex-on #codex-connected-caption {
+  display: block;
+}
+.connection-card .connection-remove {
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  color: #b0a498;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.connection-card .connection-remove:hover {
+  background: #ffffff0b;
+  color: #f0bc9b;
+}
+.connection-card .connection-remove .ic {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.8;
+}
+#acc-intro.connection-card {
+  display: flex;
+}
+body.awaiting #acc-intro.connection-card {
+  display: none;
+}
+.connection-card .connection-hint {
+  white-space: normal;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+.connection-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #a6b79b42;
+  border-radius: 6px;
+  background: #a6b79b0c;
+  color: #c2d0b8;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.connection-btn:hover {
+  background: #a6b79b1c;
+}
+.connection-btn svg {
+  width: 12px;
+  height: 12px;
+}
+.claude-connect-btn {
+  border-color: #ce926d59;
+  background: #ce926d17;
+  color: #e3b193;
+}
+.claude-connect-btn:hover {
+  background: #ce926d33;
 }

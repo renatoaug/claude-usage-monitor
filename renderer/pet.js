@@ -136,6 +136,9 @@ function fmtTokens(t) {
 }
 function fmtReset(ms) {
   if (!ms || ms <= 0) return 'now'
+  // past a day, hours are the useful grain: "6d 16h", not "160h 57m"
+  if (ms >= 86400000)
+    return `${Math.floor(ms / 86400000)}d ${Math.floor((ms % 86400000) / 3600000)}h`
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
@@ -468,28 +471,203 @@ function celebrate() {
   for (let i = 0; i < 24; i++) spawnConfetti(i)
 }
 
+// ---- services ---------------------------------------------------------------
+// Claude and Codex are monitored side by side, but the panel shows one at a
+// time: the tabs under the pet pick which one owns the chip, the pet, the
+// meters, the breakdowns and the Usage arrow.
+const PROVIDER_KEY = 'clauddy.provider'
+let codexData = null // last Codex payload; null while Codex isn't enabled
+let pickedProvider = (() => {
+  try {
+    return localStorage.getItem(PROVIDER_KEY) === 'codex' ? 'codex' : 'claude'
+  } catch {
+    return 'claude'
+  }
+})()
+
+const claudeOn = () => document.body.classList.contains('auth-on')
+const codexOn = () => !!currentConfig.codex
+const bothOn = () => claudeOn() && codexOn()
+// the service on screen: the pick, unless that one isn't there any more
+function viewProvider() {
+  if (!codexOn()) return 'claude'
+  if (!claudeOn()) return 'codex'
+  return pickedProvider
+}
+
+function pickProvider(p) {
+  if (p === pickedProvider) return
+  pickedProvider = p
+  try {
+    localStorage.setItem(PROVIDER_KEY, p)
+  } catch {}
+  paint()
+}
+
+const STALE_MS = 15 * 60000
+const CODEX_SLEEP_MS = 5 * 60000 // main's default sleepThresholdMs
+// Codex logs are only written while it runs, so a reading can be hours old
+const codexStale = (c) =>
+  !!c && (c.session?.expired || (c.limitsAt != null && Date.now() - c.limitsAt > STALE_MS))
+
+// Codex's numbers in the shape the panel draws; its logs have no activity or tok/min
+function codexView(c) {
+  const idleFor = c.lastSeen ? Date.now() - c.lastSeen : null
+  return {
+    d: {
+      active: c.active,
+      activity: null,
+      // no data is not the same as asleep
+      sleeping: !c.active && idleFor != null && idleFor >= CODEX_SLEEP_MS,
+      tokensPerMin: 0,
+      today: { tokens: c.tokensToday || 0 },
+      session: { tokens: c.tokens5h || 0 },
+      week: { tokens: c.tokensWeek || 0 },
+      byModel: c.byModel || [],
+      byProject: c.byProject || [],
+      days30: c.days30 || [],
+      monthTokens: c.monthTokens ?? null,
+    },
+    sess: c.session,
+    week: c.weekly,
+    stale: c.limitsAt != null && Date.now() - c.limitsAt > STALE_MS ? c.limitsAt : null,
+  }
+}
+
+// a Codex meter caption: its reset, or how old the reading is when that's what matters
+function codexSub(w, tokens, stale) {
+  const t = `${fmtTokens(tokens)} tokens`
+  if (!w) return `limits not recorded yet · ${t}`
+  if (w.pct == null) return `waiting for a fresh reading · ${t}`
+  if (stale) {
+    const at = w.resetMs != null ? `resets ${fmtResetClock(w.resetMs)} · ` : ''
+    return `${at}read ${fmtReset(Date.now() - stale)} ago`
+  }
+  const reset = w.resetMs != null ? `resets in ${fmtResetIn(w.resetMs)} · ` : ''
+  return `${reset}${t}`
+}
+
+const pctText = (v) => (v == null ? '—' : `${Math.round(v)}%`)
+const warnAt = () => Math.min(...(currentConfig.alertThresholds || [80, 95]))
+
+// tabs + the collapsed pair: both services' session %, whichever is on screen
+function paintServices(view) {
+  const dual = bothOn()
+  document.body.classList.toggle('dual', dual)
+  document.body.classList.toggle('view-codex', view === 'codex')
+  // collapsed with both: when the selected service's session resets
+  const resetMs = view === 'codex' ? codexData?.session?.resetMs : realUsage?.session?.resetMs
+  el('mini-reset').hidden = !dual || resetMs == null
+  el('mini-reset').textContent = resetMs == null ? '' : `resets ${fmtResetClock(resetMs)}`
+  el('service-panel').setAttribute('role', dual ? 'tabpanel' : 'region')
+  if (dual) {
+    el('service-panel').setAttribute('aria-labelledby', `tab-${view}`)
+    el('service-panel').removeAttribute('aria-label')
+  } else {
+    el('service-panel').removeAttribute('aria-labelledby')
+    el('service-panel').setAttribute('aria-label', `${view === 'codex' ? 'Codex' : 'Claude'} usage`)
+    return
+  }
+  const cl = realUsage
+  const cx = codexData
+  const rows = {
+    claude: {
+      pct: cl?.session?.pct ?? null,
+      week: cl?.week?.pct ?? null,
+      active: !!lastData?.active,
+    },
+    codex: {
+      pct: cx?.session?.pct ?? null,
+      week: cx?.weekly?.pct ?? null,
+      active: !!cx?.active,
+      stale: codexStale(cx),
+    },
+  }
+  for (const [p, r] of Object.entries(rows)) {
+    const on = p === view
+    const urgent = Math.max(r.pct ?? 0, r.week ?? 0) >= warnAt()
+    const tab = el(`tab-${p}`)
+    tab.setAttribute('aria-selected', String(on))
+    tab.tabIndex = on ? 0 : -1
+    tab.classList.toggle('active', r.active)
+    tab.classList.toggle('urgent', urgent)
+    tab.querySelector('.tab-alert').hidden = !urgent
+    el(`tab-${p}-value`).textContent = pctText(r.pct)
+    const name = p === 'claude' ? 'Claude' : 'Codex'
+    tab.title = `${name} session ${pctText(r.pct)} · weekly ${pctText(r.week)}${r.active ? ' · working' : ''}${r.stale ? ' · not updated recently' : ''}`
+    const line = document.querySelector(`.mini-source[data-provider="${p}"]`)
+    line.setAttribute('aria-pressed', String(on))
+    line.title = tab.title
+    line.setAttribute('aria-label', `Show ${tab.title}`)
+    line.classList.toggle('urgent', urgent)
+    tab.setAttribute('aria-label', `Show ${tab.title}`)
+    el(`mini-${p}-value`).textContent = pctText(r.pct)
+    const bar = el(`mini-${p}-bar`)
+    bar.style.width = `${Math.min(r.pct ?? 0, 100)}%`
+    bar.classList.toggle('hot', (r.pct ?? 0) >= 80)
+  }
+}
+
+for (const b of document.querySelectorAll('#harness-tabs button, .mini-source')) {
+  b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    pickProvider(b.dataset.provider)
+  })
+}
+el('harness-tabs').addEventListener('keydown', (e) => {
+  const providers = ['claude', 'codex']
+  const current = providers.indexOf(e.target.dataset.provider)
+  if (current < 0) return
+  let next
+  if (e.key === 'ArrowRight') next = (current + 1) % providers.length
+  else if (e.key === 'ArrowLeft') next = (current + providers.length - 1) % providers.length
+  else if (e.key === 'Home') next = 0
+  else if (e.key === 'End') next = providers.length - 1
+  else return
+  e.preventDefault()
+  pickProvider(providers[next])
+  el(`tab-${providers[next]}`).focus()
+})
+
 // main render
 let prevState = null
-let prevPct = null
+const prevPct = {} // per service: a switch must not read as a reset
 let lastData = null
 function render(d) {
   lastData = d
-  // % comes only from the connected account — no estimates
-  const liveOn = !!realUsage
+  // the burn trail is Claude's, fed on every Claude tick whatever is on screen
+  const cl = realUsage
+  burn.note(d.session.tokens, !!cl && cl.session.resetMs != null)
+  paint()
+}
+
+function paint() {
+  setPlan(el('codex-plan'), codexData?.plan)
+  const d0 = lastData
+  if (!d0) return
+  const view = viewProvider()
+  paintServices(view)
+  const isCodex = view === 'codex' && !!codexData
+  const cv = isCodex ? codexView(codexData) : null
+  const d = isCodex ? cv.d : d0
+  // % comes only from the connected account (or Codex's own logs) — no estimates
+  const liveOn = isCodex || !!realUsage
   document.body.classList.toggle('live', liveOn)
-  const sessPct = liveOn ? realUsage.session.pct : 0
-  const sessReset = liveOn ? realUsage.session.resetMs : null
+  const sessPct = isCodex ? (cv.sess?.pct ?? null) : liveOn ? realUsage.session.pct : 0
+  const sessReset = isCodex ? (cv.sess?.resetMs ?? null) : liveOn ? realUsage.session.resetMs : null
   const sessActive = liveOn && sessReset != null
-  const wkPct = liveOn ? realUsage.week.pct : 0
-  const wkReset = liveOn ? realUsage.week.resetMs : null
+  const wkPct = isCodex ? (cv.week?.pct ?? null) : liveOn ? realUsage.week.pct : 0
+  const wkReset = isCodex ? (cv.week?.resetMs ?? null) : liveOn ? realUsage.week.resetMs : null
+  const sp = sessPct ?? 0
+  const wp = wkPct ?? 0
 
   const fireAt = currentConfig.fireThreshold ?? 90
   let st =
-    liveOn && sessPct >= 100
+    liveOn && sp >= 100
       ? 'tired'
       : d.active
         ? 'working'
-        : liveOn && sessPct >= fireAt
+        : liveOn && sp >= fireAt
           ? 'stressed'
           : d.sleeping
             ? 'sleeping'
@@ -542,32 +720,34 @@ function render(d) {
       ? `${fmtTokens(d.tokensPerMin)} tok/min`
       : `${fmtTokens(d.today.tokens)} tokens today`
 
-  if (liveOn && prevPct != null && sessActive && prevPct - sessPct > 25) celebrate()
-  prevPct = sessPct
-  el('session-pct').textContent = `${Math.round(sessPct)}%`
-  setLevel(el('session-pct'), liveOn ? sessPct : 0)
+  const was = prevPct[view]
+  if (liveOn && was != null && sessActive && sessPct != null && was - sessPct > 25) celebrate()
+  prevPct[view] = sessPct
+  el('session-pct').textContent = pctText(liveOn ? sessPct : 0)
+  setLevel(el('session-pct'), liveOn ? sp : 0)
   const mini = el('mini-pct')
-  mini.textContent = liveOn ? `${Math.round(sessPct)}%` : '—'
-  mini.classList.toggle('high', liveOn && sessPct >= 80)
+  mini.textContent = liveOn ? pctText(sessPct) : '—'
+  mini.classList.toggle('high', liveOn && sp >= 80)
   // the collapsed ring: how much of the session is already spent
   const rf = el('ring-fill')
-  rf.style.strokeDashoffset = `${RING_LEN * (1 - Math.min(sessPct, 100) / 100)}`
-  rf.classList.toggle('high', sessPct >= 80)
+  rf.style.strokeDashoffset = `${RING_LEN * (1 - Math.min(sp, 100) / 100)}`
+  rf.classList.toggle('high', sp >= 80)
   const rp = el('ring-pct')
   rp.textContent = mini.textContent
-  rp.classList.toggle('high', liveOn && sessPct >= 80)
+  rp.classList.toggle('high', liveOn && sp >= 80)
   const sf = el('session-fill')
-  sf.style.width = `${sessPct}%`
-  sf.classList.toggle('high', sessPct >= 80)
-  setLevel(sf, sessPct)
-  el('session-sub').textContent = sessActive
-    ? `resets in ${fmtResetIn(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
-    : 'no active session'
+  sf.style.width = `${sp}%`
+  sf.classList.toggle('high', sp >= 80)
+  setLevel(sf, sp)
+  el('session-sub').textContent = isCodex
+    ? codexSub(cv.sess, d.session.tokens, cv.stale)
+    : sessActive
+      ? `resets in ${fmtResetIn(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
+      : 'no active session'
 
-  // where this pace is taking you — hidden until there's enough trail to tell
-  burn.note(d.session.tokens, sessActive)
+  // where this pace is taking you — Claude's only: Codex has no trail to read
   const proj =
-    sessActive && sessPct < 100 ? burn.project(sessPct, sessReset, d.session.tokens) : null
+    !isCodex && sessActive && sp < 100 ? burn.project(sp, sessReset, d.session.tokens) : null
   const pe = el('session-proj')
   pe.hidden = !proj
   pe.classList.toggle('tight', proj?.kind === 'eta')
@@ -576,22 +756,24 @@ function render(d) {
       proj.kind === 'eta' ? `~${fmtReset(proj.ms)} left at this pace` : 'resets before you run out'
   }
 
-  el('week-pct').textContent = `${Math.round(wkPct)}%`
-  setLevel(el('week-pct'), wkPct)
+  el('week-pct').textContent = pctText(liveOn ? wkPct : 0)
+  setLevel(el('week-pct'), wp)
   const wf = el('week-fill')
-  wf.style.width = `${wkPct}%`
-  wf.classList.toggle('high', wkPct >= 80)
-  setLevel(wf, wkPct)
-  el('week-sub').textContent =
-    wkReset != null
+  wf.style.width = `${wp}%`
+  wf.classList.toggle('high', wp >= 80)
+  setLevel(wf, wp)
+  el('week-sub').textContent = isCodex
+    ? codexSub(cv.week, d.week.tokens, cv.stale)
+    : wkReset != null
       ? `resets in ${fmtResetIn(wkReset)} · ${fmtTokens(d.week.tokens)} tokens`
       : `${fmtTokens(d.week.tokens)} tokens · last 7 days`
 
-  renderScoped(liveOn ? realUsage.scoped || [] : [], d.byModel || [])
+  renderScoped(!isCodex && liveOn ? realUsage.scoped || [] : [], d.byModel || [])
   renderModels(d.byModel || [])
   renderProjects(d.byProject || [])
   renderHeat(d.days30 || [])
-  el('month-total').textContent = `${fmtTokens(d.monthTokens)} tokens`
+  el('month-total').textContent = d.monthTokens == null ? '—' : `${fmtTokens(d.monthTokens)} tokens`
+  paintChip()
 
   currentRate = d.tokensPerMin || 0
   if (st === 'working') {
@@ -614,7 +796,9 @@ function fitSize() {
   requestAnimationFrame(() => {
     const collapsed = document.body.classList.contains('collapsed')
     const zoom = Number.parseFloat(document.body.style.zoom) || 1
-    const w = (collapsed ? 168 : 276) * zoom
+    // The dual-service dock trades height for a little horizontal room.
+    const dual = document.body.classList.contains('dual')
+    const w = (collapsed ? (dual ? 240 : 168) : 304) * zoom
     // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
     // empirically against this Electron build) — so measure the unzoomed content
     // height, then scale the whole thing (content + margin) ourselves
@@ -651,8 +835,15 @@ window.api.onError((msg) => {
 window.api.onConfig((cfg) => {
   currentConfig = cfg || {}
   document.body.classList.toggle('is-menubar', currentConfig.mode === 'menubar')
+  document.body.classList.toggle('codex-on', !!currentConfig.codex)
+  if (!currentConfig.codex) codexData = null
+  paint()
   applyZoom(currentConfig.zoom)
   fitSize()
+})
+window.api.onCodex((c) => {
+  codexData = c || null
+  paint()
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
@@ -669,6 +860,7 @@ window.api.onAuthState((s) => {
     endLogin()
     showProfile(null)
   }
+  paint() // losing Claude can leave Codex as the only service
   if (document.body.classList.contains('settings-open')) fitSize()
 })
 
@@ -689,12 +881,24 @@ function paintChip() {
   const active = (a?.accounts || []).find((x) => x.id === a?.active)
   const email = p?.email || (active?.connected ? active.label : null)
   // the settings block says who is connected, not just that someone is: the
-  // avatar carries the initial, the name line the email, the sub line the plan
+  // logo identifies the service, followed by the same plan badge and email.
   el('acc-ok').textContent = email || 'Connected'
-  el('acc-sub').textContent = p?.plan || 'your real usage is live'
-  el('acc-avatar').textContent = email ? email[0].toUpperCase() : '●'
+  setPlan(el('acc-sub'), p?.plan)
+  el('acc-ok').title = email || 'Connected'
   const chip = el('account-chip')
   const mini = el('mini-acct')
+  // the Codex view never borrows Claude's identity: its logs carry no email
+  if (viewProvider() === 'codex') {
+    const plan = codexData?.plan || null
+    el('ac-email').textContent = 'Codex'
+    chip.title = 'Codex on this computer'
+    setPlan(el('ac-plan'), plan)
+    chip.hidden = false
+    el('mini-acct-name').textContent = 'Codex'
+    setPlan(el('mini-acct-plan'), plan)
+    mini.hidden = false
+    return
+  }
   if (!email) {
     chip.hidden = true
     mini.hidden = true
@@ -832,6 +1036,8 @@ function toggleAccountMenu() {
 
 el('account-chip').addEventListener('click', (e) => {
   e.stopPropagation()
+  // Codex has no account switcher: its chip leads to its Settings block
+  if (viewProvider() === 'codex') return openSettings()
   toggleAccountMenu()
 })
 // clicking anywhere else — the pet, the gear, another app — puts it away
@@ -890,7 +1096,7 @@ window.api.onAuthResult((r) => {
     }, 6000)
     celebrate()
   } else {
-    // failed: put "Log in with browser" back, so a retry is one click away
+    // failed: restore the connection card so a retry is one click away
     document.body.classList.remove('awaiting')
     const e = r?.error || ''
     el('acc-msg').textContent = /429|rate_limit/i.test(e)
@@ -898,6 +1104,26 @@ window.api.onAuthResult((r) => {
       : `Failed: ${e || 'check the code and try again'}`
   }
   fitSize()
+})
+
+// Keep the main view focused on limits; history is an explicit, remembered choice.
+const DETAILS_KEY = 'clauddy.details-open'
+function setDetailsOpen(open) {
+  el('usage-details').hidden = !open
+  el('details-toggle').setAttribute('aria-expanded', String(open))
+  fitSize()
+}
+try {
+  setDetailsOpen(localStorage.getItem(DETAILS_KEY) === 'true')
+} catch {
+  setDetailsOpen(false)
+}
+el('details-toggle').addEventListener('click', () => {
+  const open = el('usage-details').hidden
+  setDetailsOpen(open)
+  try {
+    localStorage.setItem(DETAILS_KEY, String(open))
+  } catch {}
 })
 
 // collapsible panel sections — the widget is a desktop pet, not a dashboard, so
@@ -955,7 +1181,36 @@ for (const head of document.querySelectorAll('.sec-head')) {
 for (const id of readFolded()) toggleSection(id, true)
 
 el('close').addEventListener('click', () => window.api.quit())
-el('usage').addEventListener('click', () => window.api.openUsage())
+el('usage').addEventListener('click', () => window.api.openUsage(viewProvider()))
+
+// Settings → Codex: Connect looks for a local session and turns monitoring on if found
+function endCodexSetup() {
+  document.body.classList.remove('codex-setup')
+  el('codex-setup').hidden = true
+  el('codex-hint').textContent = 'Track Codex alongside Claude, in this pet.'
+}
+el('codex-connect').addEventListener('click', () => {
+  el('codex-hint').textContent = 'Looking…'
+  window.api.codexDetect()
+})
+el('codex-retry').addEventListener('click', () => window.api.codexDetect())
+// Connect is the consent: found → monitoring starts, not found → say why
+window.api.onCodexDetected((r) => {
+  if (r?.found) {
+    endCodexSetup()
+    window.api.codexEnable(true)
+    return
+  }
+  document.body.classList.add('codex-setup')
+  el('codex-setup').hidden = false
+  el('codex-hint').textContent = 'No session — sign in to Codex'
+  fitSize()
+})
+el('codex-setup-cancel').addEventListener('click', () => {
+  endCodexSetup()
+  fitSize()
+})
+el('codex-disconnect').addEventListener('click', () => window.api.codexEnable(false))
 
 // account login (browser flow)
 el('acc-connect').addEventListener('click', () => window.api.authStart())
@@ -1105,6 +1360,7 @@ let closingTimer = null
 function closeSettings() {
   if (!document.body.classList.contains('settings-open')) return
   abandonLogin()
+  endCodexSetup()
   document.body.classList.remove('settings-open')
   document.body.classList.add('settings-closing')
   clearTimeout(closingTimer)
@@ -1217,6 +1473,8 @@ if (typeof module === 'object' && module.exports) {
     showProfile,
     renderAccounts,
     renderAccountMenu,
+    paint,
+    pickProvider,
     burn,
   }
 }
