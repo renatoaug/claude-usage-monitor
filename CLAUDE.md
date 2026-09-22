@@ -18,6 +18,9 @@ macOS-first, with Windows (x64) support and Linux on the way.
 - `usage.js` — reads `~/.claude/projects/**/*.jsonl` (tokens, session window, activity)
 - `auth.js` — OAuth (PKCE) login + authoritative usage % fetch
 - `accounts.js` — the account list (several subscriptions, one active at a time)
+- `codex.js` — reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (limits %, tokens, 30-day history).
+  Opt-in from Settings (`config.codex.enabled`); with Claude too, tabs under the pet pick
+  which service the whole panel shows
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
 - `make-icon.js` — generates the macOS `.icns` from the pixel sprite
 - `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)

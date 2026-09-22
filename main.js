@@ -18,8 +18,13 @@ const usage = require('./usage')
 const { getUsage } = usage
 const auth = require('./auth')
 const accounts = require('./accounts')
+const codex = require('./codex')
 
 const REPO = 'renatoaug/claude-usage-monitor'
+const USAGE_URLS = {
+  claude: 'https://claude.ai/settings/usage',
+  codex: 'https://chatgpt.com/usage#settings/Usage',
+}
 
 // data dir: kept outside the project folder so moving the repo doesn't break it.
 // when CLAUDE_CONFIG_DIR is set (e.g. via direnv for multi-account setups), nest
@@ -47,7 +52,7 @@ let win
 let pollTimer
 let config
 let doTick = null
-const W = 276
+const W = 304
 
 // menu-bar (tray) mode state
 let tray = null
@@ -55,6 +60,7 @@ let currentMode = 'floating' // 'floating' widget | 'menubar' popover
 let trayBounds = null // last known tray icon rect, to anchor the popover
 let lastBlurHide = 0 // debounce: ignore the tray click that dismissed the popover
 let sessionPct = null // authoritative session % shown in the tray title
+let codexUsage = null // last Codex payload, null while it isn't enabled
 let realUsage = null // last OAuth usage payload — the % alerts trust when logged in
 let lastProgrammaticMove = 0 // ignore the 'moved' event our own setPosition triggers
 let displayChanging = 0 // ignore OS window-shuffles while a display (dis)connects
@@ -70,6 +76,7 @@ function publicConfig(c) {
     alertThresholds: c.alertThresholds,
     fireThreshold: c.fireThreshold,
     zoom: c.zoom,
+    codex: !!c.codex?.enabled,
   }
 }
 
@@ -84,6 +91,7 @@ function loadConfig() {
     alertThresholds: [80, 95],
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
     zoom: 100, // widget scale %, 100-200
+    codex: { enabled: false }, // opt-in from Settings, never on by finding ~/.codex
     pollIntervalMs: 4000,
     activeThresholdMs: 20000,
     sleepThresholdMs: 300000,
@@ -187,6 +195,15 @@ function checkAlerts(config, d) {
     { label: 'Weekly usage', pct: week.pct, resetMs: week.resetMs },
   ])
   checkWindowReset(config, session.pct)
+}
+// Codex has its own windows, so its own keys: `Codex session:80` never
+// collides with Claude's `Session:80`
+function checkCodexAlerts(config, c) {
+  if (!c) return
+  alertScopes(config, [
+    { label: 'Codex session', pct: c.session?.pct, resetMs: c.session?.resetMs, session: true },
+    { label: 'Codex weekly', pct: c.weekly?.pct, resetMs: c.weekly?.resetMs },
+  ])
 }
 // per-model weekly limits only exist on the account side, so they're checked
 // off the OAuth poll rather than the local tick
@@ -408,6 +425,16 @@ function createWindow() {
     } catch (err) {
       win.webContents.send('usage-error', String(err))
     }
+    // Codex is a separate, optional source: its failure must not blank Claude's
+    try {
+      const c = config.codex?.enabled ? codex.getCodexUsage() : null
+      codexUsage = c
+      win.webContents.send('codex', c)
+      checkCodexAlerts(config, c)
+      updateTray()
+    } catch (err) {
+      console.error('codex:', err)
+    }
   }
   doTick = tick
 
@@ -497,10 +524,12 @@ function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Open Clauddy', click: () => showPopover() },
     ...accountsMenuItems(),
-    {
-      label: 'Open Usage page',
-      click: () => shell.openExternal('https://claude.ai/settings/usage'),
-    },
+    ...(config.codex?.enabled
+      ? [
+          { label: 'Open Claude usage', click: () => shell.openExternal(USAGE_URLS.claude) },
+          { label: 'Open Codex usage', click: () => shell.openExternal(USAGE_URLS.codex) },
+        ]
+      : [{ label: 'Open Usage page', click: () => shell.openExternal(USAGE_URLS.claude) }]),
     { type: 'separator' },
     { label: 'Quit Clauddy', click: () => app.quit() },
   ])
@@ -595,6 +624,18 @@ function positionFloating() {
 // the tray shows the live session % (macOS title), turning 🔥 near the limit
 function updateTray() {
   if (!tray) return
+  const cx = codexUsage
+  const cxPct = cx?.session?.pct
+  // both services: one icon, both numbers, each labelled — never one blended %
+  if (cx) {
+    const fmt = (v) => (v == null ? '—' : `${Math.round(v)}%`)
+    const title = sessionPct == null ? `X ${fmt(cxPct)}` : `C ${fmt(sessionPct)} · X ${fmt(cxPct)}`
+    if (process.platform === 'darwin') tray.setTitle(` ${title}`)
+    const age = cx.limitsAt ? ` (as of ${new Date(cx.limitsAt).toLocaleTimeString()})` : ''
+    const claude = sessionPct == null ? '' : `Claude session ${fmt(sessionPct)} · `
+    tray.setToolTip(`Clauddy — ${claude}Codex session ${fmt(cxPct)}${age}`)
+    return
+  }
   if (sessionPct == null) {
     if (process.platform === 'darwin') tray.setTitle('')
     tray.setToolTip('Clauddy — connect your account for live %')
@@ -637,7 +678,20 @@ ipcMain.on('resize', (_e, w, h) => {
   }
 })
 
-ipcMain.on('open-usage', () => shell.openExternal('https://claude.ai/settings/usage'))
+// the arrow opens the page of whichever service the panel is showing
+ipcMain.on('open-usage', (_e, provider) =>
+  shell.openExternal(USAGE_URLS[provider] || USAGE_URLS.claude),
+)
+
+// Settings → Connect Codex: look first; the renderer enables it when found
+ipcMain.on('codex-detect', () => {
+  let r = { found: false, plan: null }
+  try {
+    r = codex.detectCodex()
+  } catch {}
+  if (win && !win.isDestroyed()) win.webContents.send('codex-detected', r)
+})
+ipcMain.on('codex-enable', (_e, on) => setCodexEnabled(!!on))
 
 // watch the debug file; forward forced states to the renderer
 function watchDebug() {
@@ -818,7 +872,17 @@ ipcMain.on('auth-logout', () => {
   profileShown = false
 })
 
-ipcMain.on('save-config', (_e, patch) => {
+// off only stops monitoring here; Codex's own logs and login are untouched
+function setCodexEnabled(on) {
+  writeConfigPatch({ codex: { ...(config.codex || {}), enabled: on } })
+  config = loadConfig()
+  if (!on) codexUsage = null
+  if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
+  if (doTick) doTick()
+  updateTray()
+}
+
+function writeConfigPatch(patch) {
   let obj = {}
   for (const p of [EXTERNAL_CONFIG, path.join(__dirname, 'config.json')]) {
     try {
@@ -831,6 +895,10 @@ ipcMain.on('save-config', (_e, patch) => {
     fs.mkdirSync(path.dirname(EXTERNAL_CONFIG), { recursive: true })
     fs.writeFileSync(EXTERNAL_CONFIG, JSON.stringify(obj, null, 2))
   } catch {}
+}
+
+ipcMain.on('save-config', (_e, patch) => {
+  writeConfigPatch(patch)
   const prevThresholds = String(config.alertThresholds)
   config = loadConfig()
   // re-arm only when the thresholds actually moved: saving an unrelated setting

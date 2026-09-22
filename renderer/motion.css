@@ -231,9 +231,127 @@ body.settings-open :is(#reading, #reading-room, #desk, #terminal, #heat-scene, #
 body.collapsed :is(#reading, #reading-room, #desk, #terminal, #heat-scene) {
   opacity: 0;
 }
+/* collapsed: a smaller fire behind the head that never covers the face or the % */
 body.collapsed #flames {
-  width: 90px;
-  height: 98px;
+  display: none;
+}
+#compact-flames {
+  display: none;
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  width: 76px;
+  height: 46px;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+body.collapsed.state-stressed #compact-flames {
+  display: block;
+}
+/* In the single-provider ring, flames overlap only the top of the head. */
+body.collapsed.state-stressed:not(.dual) #compact-flames {
+  z-index: 3;
+  height: 40px;
+}
+body.collapsed.state-stressed:not(.dual) #pet {
+  transform: translateY(-5px);
+}
+body.collapsed.dual.state-stressed #compact-flames {
+  top: -30px;
+}
+body.collapsed.dual.state-stressed #pet {
+  transform: translateY(4px);
+}
+body.collapsed.state-stressed .compact-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: compact-fire-dance 1.25s ease-in-out infinite alternate;
+}
+body.collapsed.state-stressed .compact-flame-left {
+  animation-duration: 0.95s;
+  animation-delay: -0.4s;
+}
+body.collapsed.state-stressed .compact-flame-right {
+  animation-duration: 1.45s;
+  animation-delay: -0.8s;
+}
+.compact-glow {
+  opacity: 0.2;
+}
+body.collapsed.state-stressed .compact-glow {
+  animation: compact-fire-glow 2.4s ease-in-out infinite alternate;
+}
+.compact-ember {
+  opacity: 0;
+}
+body.collapsed.state-stressed .compact-ember {
+  animation: compact-ember-rise 2.2s ease-out infinite;
+}
+body.collapsed.state-stressed .compact-ember-two {
+  animation-delay: -0.8s;
+}
+body.collapsed.state-stressed .compact-ember-three {
+  animation-delay: -1.5s;
+}
+body.collapsed.state-stressed:not(.poke):not(.celebrate) #claude {
+  animation: compact-heat-rock 1.8s ease-in-out infinite;
+}
+body.collapsed.state-stressed #shadow {
+  background: radial-gradient(ellipse, #ef74332b, transparent 70%);
+}
+body.settings-open #compact-flames {
+  display: none;
+}
+@keyframes compact-fire-dance {
+  0% {
+    transform: scale(0.92, 0.78) rotate(-5deg);
+  }
+  55% {
+    transform: scale(1.03, 0.95) rotate(2deg);
+  }
+  100% {
+    transform: scale(0.97, 1.05) rotate(5deg);
+  }
+}
+@keyframes compact-fire-glow {
+  from {
+    opacity: 0.14;
+  }
+  to {
+    opacity: 0.32;
+  }
+}
+@keyframes compact-ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 5px) scale(0.7);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(3px, -7px) scale(0.3);
+  }
+}
+@keyframes compact-heat-rock {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(0.6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.collapsed.state-stressed #compact-flames * {
+    animation: none;
+  }
+  body.collapsed.state-stressed .compact-ember {
+    display: none;
+  }
 }
 @keyframes book-attention {
   0%,

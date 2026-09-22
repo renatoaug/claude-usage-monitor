@@ -40,6 +40,8 @@ for (const name of [
   'onError',
   'onConfig',
   'onRealUsage',
+  'onCodex',
+  'onCodexDetected',
   'onAuthState',
   'onProfile',
   'onAuthResult',
@@ -58,6 +60,8 @@ for (const name of [
   'saveConfig',
   'resize',
   'openUsage',
+  'codexDetect',
+  'codexEnable',
   'authStart',
   'authCode',
   'authLogout',
@@ -141,6 +145,7 @@ describe('number formatting', () => {
     [90_000, '1m'],
     [45 * 60_000, '45m'],
     [3 * 3600_000 + 25 * 60_000, '3h 25m'],
+    [160 * 3600_000 + 57 * 60_000, '6d 16h'],
   ])('%i ms → %s', (ms, s) => expect(pet.fmtReset(ms)).toBe(s))
 
   test('the reset countdown carries the local clock time it lands on', () => {
@@ -152,7 +157,7 @@ describe('number formatting', () => {
 
     expect(pet.fmtResetIn(2 * 3600_000)).toBe(`2h 0m (${at(2 * 3600_000)})`)
     // past a day the weekday matters as much as the hour
-    expect(pet.fmtResetIn(69 * 3600_000)).toBe(`69h 0m (Fri ${at(69 * 3600_000)})`)
+    expect(pet.fmtResetIn(69 * 3600_000)).toBe(`2d 21h (Fri ${at(69 * 3600_000)})`)
     expect(pet.fmtResetIn(0)).toBe('now')
     Date.now = realNow
   })
@@ -368,6 +373,39 @@ describe('the model and month panels', () => {
     pet.renderHeat(days)
     const sq = el('heat-row').children
     expect(sq[29].className).not.toBe(sq[0].className)
+  })
+})
+
+describe('the history disclosure', () => {
+  test('Details opens every history section and remembers its state', () => {
+    expect(el('details-toggle').getAttribute('aria-expanded')).toBe('false')
+    expect(el('usage-details').hidden).toBe(true)
+    for (const id of ['bymodel', 'byproject', 'heat']) {
+      expect(el('usage-details').contains(el(id))).toBe(true)
+    }
+    el('details-toggle').click()
+    expect(el('usage-details').hidden).toBe(false)
+    expect(el('details-toggle').getAttribute('aria-expanded')).toBe('true')
+    expect(localStorage.getItem('clauddy.details-open')).toBe('true')
+    pet.render(usage({ byModel: [{ label: 'Opus', tokens: 1234 }] }))
+    expect(el('usage-details').hidden).toBe(false)
+    expect(el('bymodel-list').textContent).toContain('Opus')
+    el('details-toggle').click()
+    expect(el('usage-details').hidden).toBe(true)
+    expect(localStorage.getItem('clauddy.details-open')).toBe('false')
+    expect(el('limits').closest('#usage-details')).toBeNull()
+  })
+
+  test('profile updates keep the Claude logo and use a plan badge that hides when unknown', () => {
+    api.handlers.onProfile({ email: 'ana@example.com', plan: 'Max' })
+    expect(el('acc-avatar').querySelector('svg.connection-logo')).not.toBeNull()
+    expect(el('acc-ok').textContent).toBe('ana@example.com')
+    expect(el('acc-sub').classList.contains('plan-badge')).toBe(true)
+    expect(el('acc-sub').textContent).toBe('Max')
+    expect(el('acc-sub').hidden).toBe(false)
+    api.handlers.onProfile({ email: 'ana@example.com' })
+    expect(el('acc-sub').hidden).toBe(true)
+    expect(el('acc-avatar').querySelector('svg.connection-logo')).not.toBeNull()
   })
 })
 
@@ -633,5 +671,220 @@ describe('the debug simulator', () => {
     api.handlers.onDebugState({ state: 'auto' })
     pet.render(usage())
     expect([...document.body.classList].find((c) => c.startsWith('state-'))).toBe('state-idle')
+  })
+})
+
+describe('codex', () => {
+  const codex = (over = {}) => ({
+    active: false,
+    lastSeen: Date.now() - 60_000,
+    limitsAt: Date.now(),
+    model: 'gpt-6-astra',
+    plan: 'plus',
+    session: { pct: 72.4, resetMs: 3600000 },
+    weekly: { pct: 31, resetMs: 5 * 86400000 },
+    tokensToday: 900,
+    tokens5h: 1500,
+    tokensWeek: 2_000_000,
+    byModel: [{ label: 'gpt-6-astra', tokens: 2_000_000 }],
+    byProject: [{ label: 'clauddy', tokens: 2_000_000 }],
+    days30: new Array(30).fill(0).map((_, i) => (i === 29 ? 900 : 0)),
+    monthTokens: 900,
+    ...over,
+  })
+  const claudeLive = () => {
+    api.handlers.onAuthState({ connected: true })
+    api.handlers.onRealUsage({
+      session: { pct: 40, resetMs: 3600000 },
+      week: { pct: 20, resetMs: 86400000 },
+      scoped: [],
+    })
+  }
+  const setConfig = (on) => api.handlers.onConfig({ alertThresholds: [80, 95], codex: on })
+  beforeEach(claudeLive)
+
+  test('without Codex enabled the panel is the classic one', () => {
+    claudeLive()
+    setConfig(false)
+    pet.render(usage())
+    api.handlers.onCodex(codex())
+    expect(document.body.classList.contains('dual')).toBe(false)
+    expect(document.body.classList.contains('view-codex')).toBe(false)
+    expect(el('session-pct').textContent).toBe('40%')
+  })
+
+  test('both services: tabs with each session %, Claude on screen', () => {
+    pet.pickProvider('claude')
+    setConfig(true)
+    api.handlers.onCodex(codex())
+    expect(document.body.classList.contains('dual')).toBe(true)
+    expect(el('tab-claude-value').textContent).toBe('40%')
+    expect(el('tab-codex-value').textContent).toBe('72%')
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+    expect(el('session-pct').textContent).toBe('40%')
+    expect(el('mini-codex-value').textContent).toBe('72%')
+  })
+
+  test('a Codex window near the limit flags its tab without taking focus', () => {
+    api.handlers.onCodex(codex({ weekly: { pct: 90, resetMs: 1000 } }))
+    expect(el('tab-codex').classList.contains('urgent')).toBe(true)
+    expect(el('tab-codex').querySelector('.tab-alert').hidden).toBe(false)
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+  })
+
+  test('the Codex tab swaps the whole panel', () => {
+    api.handlers.onCodex(codex())
+    el('tab-codex').click()
+    expect(document.body.classList.contains('view-codex')).toBe(true)
+    expect(el('session-pct').textContent).toBe('72%')
+    expect(el('session-sub').textContent).toContain('1.5k tokens')
+    expect(el('week-pct').textContent).toBe('31%')
+    expect(el('ac-email').textContent).toBe('Codex')
+    expect(el('ac-plan').textContent).toBe('plus')
+    expect(el('bymodel-list').textContent).toContain('gpt-6-astra')
+    expect(el('byproject-list').textContent).toContain('clauddy')
+    expect(el('status-text').textContent).toBe('idle')
+    expect(el('rate').textContent).toBe('900 tokens today')
+    expect(el('session-proj').hidden).toBe(true)
+  })
+
+  test('the Usage arrow follows the tab', () => {
+    api.sent.length = 0
+    el('usage').click()
+    expect(api.sent.find((s) => s.name === 'openUsage').args).toEqual(['codex'])
+  })
+
+  test('the chip leads to Settings instead of the Claude account menu', () => {
+    el('account-chip').click()
+    expect(document.body.classList.contains('settings-open')).toBe(true)
+    expect(el('acc-menu').hidden).toBe(true)
+    el('gear').click()
+  })
+
+  test('an active Codex puts the pet to work', () => {
+    api.handlers.onCodex(codex({ active: true }))
+    expect(el('status-text').textContent).toBe('working')
+    expect(el('tab-codex').classList.contains('active')).toBe(true)
+  })
+
+  test('a long-idle Codex sleeps; no data never does', () => {
+    api.handlers.onCodex(codex({ lastSeen: Date.now() - 3600_000 }))
+    expect(el('status-text').textContent).toBe('sleeping')
+    api.handlers.onCodex(codex({ lastSeen: null }))
+    expect(el('status-text').textContent).toBe('idle')
+  })
+
+  test('unknown and stale windows read as such, never as 0%', () => {
+    api.handlers.onCodex(codex({ session: null, weekly: null }))
+    expect(el('session-pct').textContent).toBe('—')
+    expect(el('session-sub').textContent).toContain('limits not recorded yet')
+    api.handlers.onCodex(
+      codex({ session: { pct: null, expired: true }, limitsAt: Date.now() - 3600_000 }),
+    )
+    expect(el('session-sub').textContent).toContain('waiting for a fresh reading')
+    expect(el('week-sub').textContent).toMatch(/read 1h 0m ago$/)
+    expect(el('mini-reset').hidden).toBe(true) // no reset to tell
+    api.handlers.onCodex(codex({ monthTokens: undefined }))
+    expect(el('mini-reset').textContent).toMatch(/^resets /)
+    el('tab-claude').click()
+    expect(el('mini-reset').hidden).toBe(false)
+    el('tab-codex').click()
+    expect(el('month-total').textContent).toBe('—')
+  })
+
+  test('subtle tabs switch directly and support roving keyboard focus', () => {
+    setConfig(true)
+    pet.pickProvider('claude')
+    api.handlers.onCodex(codex())
+    expect(el('tab-claude').tabIndex).toBe(0)
+    expect(el('tab-codex').tabIndex).toBe(-1)
+    el('tab-claude').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    )
+    expect(document.activeElement).toBe(el('tab-codex'))
+    expect(el('tab-codex').getAttribute('aria-selected')).toBe('true')
+    expect(el('tab-claude').tabIndex).toBe(-1)
+    expect(el('service-panel').getAttribute('aria-labelledby')).toBe('tab-codex')
+    expect(el('session-pct').textContent).toBe('72%')
+    el('tab-codex').dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(el('session-pct').textContent).toBe('40%')
+    el('tab-claude').dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement).toBe(el('tab-codex'))
+    el('tab-codex').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(document.activeElement).toBe(el('tab-claude'))
+  })
+
+  test('the inactive tab and dock keep weekly alerts visible without stealing focus', () => {
+    pet.pickProvider('claude')
+    api.handlers.onCodex(codex({ weekly: { pct: 90, resetMs: 1000 } }))
+    expect(el('tab-codex-value').textContent).toBe('72%')
+    expect(el('tab-codex').querySelector('.tab-alert').hidden).toBe(false)
+    expect(
+      document.querySelector('.mini-source[data-provider="codex"]').classList.contains('urgent'),
+    ).toBe(true)
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+    el('tab-codex').click()
+    expect(el('week-pct').textContent).toBe('90%')
+    api.handlers.onCodex(codex({ session: null, limitsAt: Date.now() - 3600000 }))
+    expect(el('tab-codex-value').textContent).toBe('—')
+    api.handlers.onCodex(codex())
+  })
+
+  test('compact sizing and single-source labels survive a disconnect', () => {
+    el('min').click()
+    expect(api.all.filter((s) => s.name === 'resize').at(-1).args[0]).toBe(240)
+    el('min').click()
+    expect(api.all.filter((s) => s.name === 'resize').at(-1).args[0]).toBe(304)
+    setConfig(false)
+    expect(el('service-panel').getAttribute('role')).toBe('region')
+    expect(el('service-panel').getAttribute('aria-label')).toBe('Claude usage')
+    expect(el('service-panel').hasAttribute('aria-labelledby')).toBe(false)
+    setConfig(true)
+    api.handlers.onCodex(codex())
+  })
+
+  test('collapsed with both: a line per service, and a click picks one', () => {
+    api.handlers.onCodex(codex())
+    document.body.classList.add('collapsed')
+    document.querySelector('.mini-source[data-provider="claude"]').click()
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+    expect(el('mini-claude-value').textContent).toBe('40%')
+    document.body.classList.remove('collapsed')
+  })
+
+  test('with Claude signed out, Codex is the only service', () => {
+    api.handlers.onAuthState({ connected: false })
+    expect(document.body.classList.contains('dual')).toBe(false)
+    expect(document.body.classList.contains('view-codex')).toBe(true)
+    expect(el('session-pct').textContent).toBe('72%')
+    claudeLive()
+  })
+
+  test('Settings: connect turns Codex on when a session is found', () => {
+    setConfig(false)
+    api.sent.length = 0
+    el('codex-connect').click()
+    expect(api.sent.map((s) => s.name)).toContain('codexDetect')
+    api.handlers.onCodexDetected({ found: false, plan: null })
+    expect(el('codex-hint').textContent).toContain('No session')
+    expect(el('codex-setup').hidden).toBe(false)
+    expect(api.sent.some((s) => s.name === 'codexEnable')).toBe(false)
+    el('codex-setup-cancel').click()
+    expect(el('codex-setup').hidden).toBe(true)
+    el('codex-connect').click()
+    el('codex-retry').click()
+    api.handlers.onCodexDetected({ found: true, plan: 'plus' })
+    expect(api.sent.find((s) => s.name === 'codexEnable').args).toEqual([true])
+    expect(el('codex-setup').hidden).toBe(true)
+  })
+
+  test('Settings: disconnect stops monitoring', () => {
+    setConfig(true)
+    expect(document.body.classList.contains('codex-on')).toBe(true)
+    api.sent.length = 0
+    el('codex-disconnect').click()
+    expect(api.sent.find((s) => s.name === 'codexEnable').args).toEqual([false])
+    setConfig(false)
+    expect(document.body.classList.contains('view-codex')).toBe(false)
   })
 })
