@@ -2429,13 +2429,20 @@ body.collapsed.dual #mini-acct-name {
   max-width: 112px;
   font-size: 10px;
 }
+/* The mood sits beneath the pet, level with the selected source reset. */
 body.collapsed.dual .mini-line {
-  justify-content: flex-start;
-  margin: 0 0 5px 3px;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: 66px;
+  justify-content: center;
+  margin: 0;
+  gap: 5px;
 }
 body.collapsed.dual #mini-text {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 400;
+  color: #b9afa3;
 }
 body.collapsed.dual #mini-dot {
   width: 4px;
@@ -2443,67 +2450,97 @@ body.collapsed.dual #mini-dot {
 }
 body.collapsed.dual #mini-dual {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 .mini-source {
+  --src: #e4a17c;
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 3px;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 5px;
+  row-gap: 4px;
   min-width: 0;
-  padding: 4px 6px;
+  min-height: 29px;
+  padding: 3px 0 3px 5px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: transparent;
-  color: #aba59d;
+  color: #aaa298;
   text-align: left;
   font: inherit;
   font-size: 10px;
   cursor: pointer;
   -webkit-app-region: no-drag;
+  transition: color 0.15s;
 }
-.mini-source:hover {
-  background: #ffffff08;
+.mini-source[data-provider="codex"] {
+  --src: #b9c8b0;
 }
-.mini-source[aria-pressed="true"] > span:first-child {
+.mini-logo {
+  grid-column: 1;
+  grid-row: 1;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.mini-source-name {
+  grid-column: 2;
+  grid-row: 1;
+}
+/* Selection uses contrast; urgent readings retain their warning color. */
+.mini-source[aria-pressed="false"] .mini-track i {
+  opacity: 0.55;
+}
+.mini-source[aria-pressed="false"]:hover .mini-track i,
+.mini-source.urgent .mini-track i {
+  opacity: 1;
+}
+.mini-source[aria-pressed="true"] {
   color: #eee4d9;
 }
-/* the selected service gets the tab's tinted plate; the other steps back */
-.mini-source[aria-pressed="false"] {
-  opacity: 0.5;
+.mini-source[aria-pressed="true"] .mini-logo {
+  color: var(--src);
 }
-.mini-source[aria-pressed="false"]:hover {
-  opacity: 0.8;
+.mini-source:hover {
+  color: #fff4e8;
 }
-.mini-source[data-provider="claude"][aria-pressed="true"] {
-  background: #d977571c;
-}
-.mini-source[data-provider="codex"][aria-pressed="true"] {
-  background: #a7baa11c;
+.mini-source:hover .mini-logo {
+  color: var(--src);
 }
 .mini-source b {
-  grid-row: 2;
-  font-size: 18px;
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 15px;
   line-height: 1.1;
   letter-spacing: -0.4px;
   font-weight: 500;
-  color: #eee4d9;
+  color: inherit;
   font-variant-numeric: tabular-nums;
 }
 .mini-source.urgent b {
   color: #f3a38b;
 }
-.mini-source.urgent > span:first-child::after {
+.mini-source.urgent .mini-source-name::after {
   content: " !";
   color: #f3a38b;
 }
 .mini-track {
-  grid-row: 3;
+  grid-column: 2 / -1;
+  grid-row: 2;
   height: 2px;
   border-radius: 2px;
   overflow: hidden;
   background: #ffffff0d;
 }
+body.collapsed.dual #mini-reset {
+  text-align: right;
+  margin-top: 7px;
+  font-size: 8px;
+  color: #b4a18a;
+}
+
 .mini-track i {
   display: block;
   height: 100%;
