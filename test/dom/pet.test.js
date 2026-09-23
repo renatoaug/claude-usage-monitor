@@ -84,6 +84,7 @@ window.api = api
 // its CommonJS branch under import, so the global the widget relies on has to
 // be planted before pet.js loads.
 globalThis.Burn = await import('../../renderer/burn.js')
+globalThis.Voice = await import('../../renderer/voice.js')
 const pet = await import('../../renderer/pet.js')
 
 afterAll(() => GlobalRegistrator.unregister())
@@ -886,5 +887,262 @@ describe('codex', () => {
     expect(api.sent.find((s) => s.name === 'codexEnable').args).toEqual([false])
     setConfig(false)
     expect(document.body.classList.contains('view-codex')).toBe(false)
+  })
+})
+
+describe('the voice', () => {
+  // the bubble keeps a 10-minute gap between remarks, so every test starts
+  // well past the last one
+  const realNow = Date.now
+  let clock = realNow() + 3600_000
+  const tick = (ms) => {
+    clock += ms
+  }
+  const bubble = () => (el('bubble').hidden ? null : el('bubble-text').textContent)
+  const floating = (over = {}) =>
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], ...over })
+
+  // a recording Web Audio, installed before the blipper first reaches for one
+  const made = []
+  globalThis.AudioContext = class {
+    constructor() {
+      this.state = 'running'
+      this.currentTime = 0
+      this.destination = {}
+      this.oscs = 0
+      made.push(this)
+    }
+    createOscillator() {
+      this.oscs++
+      return { frequency: { setValueAtTime() {} }, connect() {}, start() {}, stop() {} }
+    }
+    createGain() {
+      const f = () => {}
+      return {
+        gain: { setValueAtTime: f, linearRampToValueAtTime: f, exponentialRampToValueAtTime: f },
+        connect() {},
+      }
+    }
+  }
+  const blips = () => made.reduce((n, c) => n + c.oscs, 0)
+
+  beforeEach(() => {
+    tick(11 * 60000)
+    Date.now = () => clock
+    document.body.classList.remove('collapsed', 'settings-open')
+    el('bubble').hidden = true
+    floating()
+  })
+  afterAll(() => {
+    Date.now = realNow
+  })
+
+  test('a remark shows in the bubble, and a click puts it away', async () => {
+    expect(pet.say('hello')).toBe(true)
+    expect(bubble()).toBe('hello')
+    el('bubble').click()
+    expect(el('bubble').classList.contains('leaving')).toBe(true)
+    await new Promise((r) => setTimeout(r, 200))
+    expect(el('bubble').hidden).toBe(true)
+  })
+
+  test('keeps a gap between remarks — unless the moment is a headline', () => {
+    expect(pet.say('one')).toBe(true)
+    tick(60000)
+    expect(pet.say('two')).toBe(false)
+    expect(pet.say('three', { headline: true })).toBe(true)
+    expect(bubble()).toBe('three')
+  })
+
+  test('stays quiet when talk is off, or in settings', () => {
+    floating({ talk: false })
+    expect(pet.say('no')).toBe(false)
+    floating()
+    document.body.classList.add('settings-open')
+    expect(pet.say('no')).toBe(false)
+    expect(pet.say('')).toBe(false)
+  })
+
+  test('sound is opt-in, and silent in the menu bar, collapsed, or muted', () => {
+    expect(pet.soundOn()).toBe(false)
+    floating({ sound: true })
+    expect(pet.soundOn()).toBe(true)
+    api.handlers.onConfig({ mode: 'menubar', sound: true })
+    expect(pet.soundOn()).toBe(false)
+    floating({ sound: true })
+    document.body.classList.add('collapsed')
+    expect(pet.soundOn()).toBe(false)
+    document.body.classList.remove('collapsed')
+    floating({ sound: true, soundMutedUntil: clock + 60000 })
+    expect(pet.soundOn()).toBe(false)
+  })
+
+  test('collapsed, the bubble moves above the pet — and back when expanded', () => {
+    document.body.classList.add('collapsed')
+    expect(pet.say({ text: 'a whole sentence', short: 'up here' })).toBe(true)
+    expect(bubble()).toBe('up here') // the mini face gets the glance
+    expect(el('bubble').nextElementSibling).toBe(el('stage'))
+    document.body.classList.remove('collapsed')
+    tick(11 * 60000)
+    pet.say('in the scene')
+    expect(el('bubble').parentElement).toBe(el('stage'))
+  })
+
+  test('only a headline blips', () => {
+    floating({ sound: true })
+    const before = blips()
+    pet.say('plain remark')
+    expect(blips()).toBe(before)
+    tick(11 * 60000)
+    pet.say('big news', { headline: true })
+    expect(blips()).toBeGreaterThan(before)
+  })
+
+  test('the mute button: shown with the voice on, one click for an hour', () => {
+    floating()
+    expect(el('mute').hidden).toBe(true)
+    floating({ sound: true })
+    expect(el('mute').hidden).toBe(false)
+    expect(document.body.classList.contains('has-mute')).toBe(true) // the chip makes room
+    api.handlers.onConfig({ mode: 'menubar', sound: true })
+    expect(el('mute').hidden).toBe(true) // always silent there
+    expect(document.body.classList.contains('has-mute')).toBe(false)
+    floating({ sound: true })
+    api.sent.length = 0
+    el('mute').click()
+    const muted = api.sent.find((s) => s.name === 'saveConfig').args[0]
+    expect(muted.soundMutedUntil).toBe(clock + 3600_000)
+    expect(el('mute').classList.contains('muted')).toBe(true)
+    expect(el('mute').title).toContain('Muted until')
+    expect(pet.soundOn()).toBe(false)
+    el('mute').click()
+    expect(api.sent.at(-1).args[0].soundMutedUntil).toBe(0)
+    expect(el('mute').classList.contains('muted')).toBe(false)
+  })
+
+  test('catching fire is announced once, on the crossing', () => {
+    live(50)
+    pet.render(usage())
+    live(92)
+    pet.render(usage())
+    expect(bubble()).toContain('92% already')
+    el('bubble').hidden = true
+    tick(11 * 60000)
+    pet.render(usage())
+    expect(bubble()).toBeNull()
+  })
+
+  test('hitting the ceiling says when it comes back', () => {
+    live(97)
+    pet.render(usage())
+    tick(11 * 60000) // 97% just caught fire, and that remark holds the gap
+    live(100)
+    pet.render(usage())
+    expect(bubble()).toContain("That's the limit")
+  })
+
+  test('a fresh window recaps the one that closed', () => {
+    live(90)
+    pet.render(usage({ session: { tokens: 34e6, resetMs: 60000 } }))
+    for (let i = 0; i < 20; i++) {
+      tick(10000)
+      pet.render(usage({ active: true, activity: i < 15 ? 'editing' : 'reading' }))
+    }
+    tick(10000)
+    live(2)
+    pet.render(usage())
+    expect(bubble()).toBe('Fresh window! That was 34.0M tokens over 3m, mostly editing code.')
+  })
+
+  test('welcomes you back after hours away', () => {
+    live(0)
+    api.handlers.onRealUsage(null)
+    pet.render(usage({ sleeping: true, lastActivityMs: 3 * 3600_000 }))
+    tick(11 * 60000)
+    pet.render(usage({ active: true }))
+    expect(bubble()).toContain('Welcome back! You were gone 3h 0m.')
+  })
+
+  test('notices a long unbroken streak, once', () => {
+    for (let m = 0; m <= 95; m += 5) {
+      pet.render(usage({ active: true }))
+      tick(5 * 60000)
+    }
+    expect(bubble()).toContain('Stretch break?')
+  })
+
+  test('calls a record day, once a day', () => {
+    localStorage.removeItem('clauddy.record')
+    const days = [...new Array(29).fill(2e6), 9e6]
+    pet.render(usage({ days30: days }))
+    expect(bubble()).toContain('New record! 9.0M tokens today')
+    el('bubble').hidden = true
+    tick(11 * 60000)
+    pet.render(usage({ days30: days }))
+    expect(bubble()).toBeNull()
+  })
+
+  test('Codex speaks for itself: fire, ceiling and a fresh window', () => {
+    const cx = (pct) =>
+      api.handlers.onCodex({
+        session: { pct, resetMs: 3600_000 },
+        weekly: { pct: 1 },
+        limitsAt: clock,
+      })
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], codex: true })
+    cx(40)
+    cx(92)
+    expect(bubble()).toBe('Codex is at 92% now. It resets in 1h 0m.')
+    tick(11 * 60000)
+    cx(100)
+    expect(bubble()).toContain('Codex is maxed out')
+    cx(3)
+    expect(bubble()).toBe('Codex has a fresh window! The last one closed at 100%.')
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], codex: false })
+  })
+
+  test('the simulator can make it talk', () => {
+    api.handlers.onDebugState({ state: 'say' })
+    expect(bubble()).toMatch(/yesterday/i)
+  })
+
+  test.each([
+    ['fire', 'At this pace'],
+    ['reset', 'Fresh window'],
+    ['maxed', "That's the limit"],
+    ['welcome', 'Welcome back'],
+    ['streak', 'Stretch break?'],
+    ['record', 'New record!'],
+    ['greeting', 'yesterday'],
+    ['codex', 'Codex is at 91%'],
+  ])('the simulator previews the %s remark', (kind, text) => {
+    api.handlers.onDebugState({ state: 'say', kind })
+    expect(bubble()?.toLowerCase()).toContain(text.toLowerCase())
+  })
+
+  test('collapsing or opening settings puts the bubble away', () => {
+    pet.say('hi', { headline: true })
+    el('min').click()
+    expect(el('bubble').classList.contains('leaving')).toBe(true)
+    el('min').click()
+  })
+
+  test('Settings: talk and sound round-trip, and turning sound on plays a sample', () => {
+    floating({ talk: false, sound: false })
+    el('gear').click()
+    expect(el('set-talk').checked).toBe(false)
+    expect(el('set-rows').classList.contains('talk-off')).toBe(true)
+    el('set-talk').checked = true
+    el('set-talk').dispatchEvent(new Event('change'))
+    expect(el('set-rows').classList.contains('talk-off')).toBe(false)
+    const before = blips()
+    el('set-sound').checked = true
+    el('set-sound').dispatchEvent(new Event('change'))
+    expect(blips()).toBeGreaterThan(before)
+    api.sent.length = 0
+    el('set-save').click()
+    const saved = api.sent.find((s) => s.name === 'saveConfig').args[0]
+    expect(saved.talk).toBe(true)
+    expect(saved.sound).toBe(true)
   })
 })

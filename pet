@@ -7,6 +7,8 @@
 #   ./pet idle        -> idle
 #   ./pet poke        -> one-shot squish + hearts
 #   ./pet celebrate   -> one-shot jump + sparkles
+#   ./pet say [kind]  -> one-shot remark in the speech bubble (blips if the voice is on)
+#                        kinds: greeting (default) fire reset maxed welcome streak record codex
 #   ./pet reading     -> reading a book (also: editing planning running researching delegating waiting)
 #   ./pet auto        -> back to real data
 DIR="$HOME/.claude-usage-monitor"
@@ -14,15 +16,28 @@ state="${1:-auto}"
 mkdir -p "$DIR"
 
 case "$state" in
-  fire|sleeping|working|tired|idle|poke|celebrate|auto|clear) ;;
+  fire|sleeping|working|tired|idle|poke|celebrate|say|auto|clear) ;;
   editing|reading|planning|running|researching|delegating|waiting) ;;
   *)
     echo "unknown state: $state"
-    echo "use: fire | sleeping | working | tired | idle | poke | celebrate | auto"
+    echo "use: fire | sleeping | working | tired | idle | poke | celebrate | say | auto"
     echo "     activities: editing | reading | planning | running | researching | delegating | waiting"
     exit 1
     ;;
 esac
 
-printf '{"state":"%s","t":%s}\n' "$state" "$(date +%s)" > "$DIR/debug.json"
-echo "pet -> $state"
+kind=""
+if [ "$state" = "say" ]; then
+  kind="${2:-greeting}"
+  case "$kind" in
+    greeting|fire|reset|maxed|welcome|streak|record|codex) ;;
+    *)
+      echo "unknown remark: $kind"
+      echo "use: ./pet say [greeting | fire | reset | maxed | welcome | streak | record | codex]"
+      exit 1
+      ;;
+  esac
+fi
+
+printf '{"state":"%s","kind":"%s","t":%s}\n' "$state" "$kind" "$(date +%s)" > "$DIR/debug.json"
+echo "pet -> $state${kind:+ $kind}"

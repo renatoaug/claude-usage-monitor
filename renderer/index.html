@@ -33,6 +33,14 @@
             <circle cx="7" cy="7" r="3" />
           </svg>
         </button>
+        <button id="mute" title="Mute the voice for 1 hour" hidden>
+          <svg class="ic ic-sound" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 5 6 9H2v6h4l5 4Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
+          </svg>
+          <svg class="ic ic-muted" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11 5 6 9H2v6h4l5 4Z" /><path d="m22 9-6 6M16 9l6 6" />
+          </svg>
+        </button>
         <button id="usage" title="Open Usage page">
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 7h10v10M7 17 17 7" />
@@ -146,6 +154,8 @@
           <div id="sweat"><i></i><i></i></div>
           <div id="dropzone"></div>
         </div>
+        <!-- the pet's remarks: only on transitions, never on a timer -->
+        <div id="bubble" role="status" aria-live="polite" hidden><span id="bubble-text"></span></div>
         <!-- editing mode, foreground: coffee mug in front of the pet -->
         <!-- mug: its own SVG with UNIFORM scaling (no stage stretch) so it stays perfectly shaped -->
         <svg id="mug" viewBox="0 0 46 44" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -380,6 +390,15 @@
             <span class="set-row-label">Zoom</span>
             <span class="num"><button type="button" class="num-btn" data-for="set-zoom" data-step="-25">−</button><span class="num-val"><input id="set-zoom" type="number" min="100" max="200" step="25" /><i>%</i></span><button type="button" class="num-btn" data-for="set-zoom" data-step="25">+</button></span>
           </div>
+          <div class="settings-label threshold-label">voice</div>
+          <div class="set-row">
+            <span class="set-row-label">Speech bubbles</span>
+            <input id="set-talk" class="set-toggle" type="checkbox" aria-label="Let the pet talk" />
+          </div>
+          <div class="set-row voice-sub">
+            <span class="set-row-label">Chiptune voice</span>
+            <input id="set-sound" class="set-toggle" type="checkbox" aria-label="Play blips when the pet talks" />
+          </div>
         </div>
 
         <div class="set-actions">
@@ -398,6 +417,7 @@
       </div>
     </div>
     <script src="burn.js"></script>
+<script src="voice.js"></script>
 <script src="pet.js"></script>
   </body>
 </html>
