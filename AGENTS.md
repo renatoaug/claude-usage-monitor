@@ -22,6 +22,8 @@ macOS-first, with Windows (x64) support and Linux on the way.
   Opt-in from Settings (`config.codex.enabled`); with Claude too, tabs under the pet pick
   which service the whole panel shows
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
+- `reminders.js` — persistent, one-shot session reset reminders, keyed by provider and Claude account.
+- `renderer/companion.js` — provider activity transitions, with a shared cooldown.
 - `renderer/voice.js` — the pet's voice: remark lines for the speech bubble and the
   chiptune blips (Web Audio square waves, no assets). Talk is on by default, sound is
   opt-in (`config.sound`) and silent in menu-bar mode, collapsed, or muted
@@ -85,6 +87,7 @@ without coverage. Runs on every PR.
 - All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json`
   (OAuth token, mode 600), `config.json` (settings), `debug.json` (simulator),
   `alerts.json` (which notifications are already armed, so restarts don't repeat them),
+  `reset-reminders.json` (one-shot deadlines and recently delivered reminders),
   `accounts.json` (the account list + the active one).
 - Extra accounts nest their own `auth.json`/`alerts.json` under `accounts/<id>/`;
   the first account keeps the top-level paths, so existing installs are untouched.
@@ -127,3 +130,28 @@ Examples:
 1. `bun run check` is clean.
 2. `bun run pack` builds successfully (the app still launches).
 3. Commit follows the convention above.
+
+## Companion behavior
+
+- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage
+  remembers the choice. Pet-only is floating-mode only; its hover/focus glance
+  fades below the pet within fixed window bounds, without resizing or moving it.
+- In pet-only mode, the sprite is a native Electron drag region. The separate
+  expand button opens compact and appears with the glance on hover/focus. Enter on the
+  focused pet also opens compact. Pointer clicks on the sprite do not change size.
+  Main sends window-relative cursor coordinates only in this mode: native drag
+  regions suppress DOM hover events. Keep logo descriptions accessible, without
+  visible activity captions or native title tooltips.
+- Session reset reminders are explicitly requested, separate from threshold
+  notifications. They run while Clauddy is open and catch up after sleep/restart.
+  They persist before firing, cancel on disconnect/removal, and are account-scoped.
+- A deadline alone does not prove a new budget. Only a fresh, lower reading
+  after that deadline earns “budget is back”; otherwise say the reset time arrived.
+  Codex logs can be stale. Never substitute an expired reading with zero.
+- Compact and pet-only moods follow activity across connected providers, independently
+  of the selected usage tab. Logos identify the workers; simultaneous work uses a
+  stable generic working animation. No active sources means rest, with quota warnings
+  still shown in the meters. Stale activity and disconnected sources are ignored.
+- Provider cues preserve manual selection and do not claim task completion from
+  inactivity. First reads establish a baseline; cues share a 30-second cooldown.
+- `AGENTS.md` is the single source of project instructions.
