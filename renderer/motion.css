@@ -261,9 +261,6 @@ body.collapsed.state-stressed:not(.dual) #pet {
 body.collapsed.dual.state-stressed #compact-flames {
   top: -30px;
 }
-body.collapsed.dual.state-stressed #pet {
-  transform: translateY(4px);
-}
 body.collapsed.state-stressed .compact-flame {
   transform-box: fill-box;
   transform-origin: 50% 100%;

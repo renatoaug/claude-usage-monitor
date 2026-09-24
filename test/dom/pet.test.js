@@ -859,6 +859,32 @@ describe('codex', () => {
     document.body.classList.remove('collapsed')
   })
 
+  test('collapsed at rest, the hottest session sets the mood, whatever the tab', () => {
+    document.body.classList.add('collapsed')
+    el('tab-claude').click()
+    api.handlers.onCodex(codex({ session: { pct: 99, resetMs: 3600000 } }))
+    expect(el('mini-text').textContent).toBe('on fire')
+    // the service on fire shows its logo instead of the dot
+    expect(el('mini-dot').hidden).toBe(true)
+    expect(el('mini-workers').hidden).toBe(false)
+    expect(el('mini-workers').getAttribute('aria-label')).toBe('Codex · on fire')
+    expect(el('mini-workers').querySelector('[data-provider="claude"]').hidden).toBe(true)
+    api.handlers.onCodex(codex({ session: { pct: 100, resetMs: 3600000 } }))
+    expect(el('mini-text').textContent).toBe('maxed out')
+    expect(el('mini-workers').getAttribute('aria-label')).toBe('Codex · maxed out')
+    api.handlers.onCodex(
+      codex({ active: true, lastSeen: Date.now(), session: { pct: 99, resetMs: 3600000 } }),
+    )
+    expect(el('mini-text').textContent).toBe('working')
+    api.handlers.onCodex(codex({ session: { pct: null, expired: true } }))
+    expect(el('mini-text').textContent).toBe('idle')
+    expect(el('mini-workers').hidden).toBe(true)
+    expect(el('mini-dot').hidden).toBe(false)
+    document.body.classList.remove('collapsed')
+    api.handlers.onCodex(codex())
+    pet.pickProvider('codex')
+  })
+
   test('with Claude signed out, Codex is the only service', () => {
     api.handlers.onAuthState({ connected: false })
     expect(document.body.classList.contains('dual')).toBe(false)
@@ -1278,9 +1304,10 @@ describe('pet-only companion and reset controls', () => {
       expect(el('mini-workers').getAttribute('aria-label')).toBe('Claude · reading')
       expect(document.body.classList.contains('act-reading')).toBe(true)
       pet.render(usage({ active: false }))
-      expect(el('pet-activity').hidden).toBe(true)
-      expect(el('mini-workers').hidden).toBe(true)
-      expect(document.body.classList.contains('state-idle')).toBe(true)
+      // at rest, Claude's maxed session still shows, logo and all
+      expect(el('mini-workers').getAttribute('aria-label')).toBe('Claude · maxed out')
+      expect(el('pet-activity').getAttribute('aria-label')).toBe('Claude · maxed out')
+      expect(document.body.classList.contains('state-tired')).toBe(true)
       expect(el('tab-codex').getAttribute('aria-selected')).toBe('true')
       pet.setDisplaySize('expanded')
       expect(document.body.classList.contains('state-stressed')).toBe(true)
@@ -1288,12 +1315,13 @@ describe('pet-only companion and reset controls', () => {
   }
   test('compact workers clear on disconnect, account switch and stale snapshots', () => {
     pet.setDisplaySize('compact')
+    live(40) // cool sessions: only workers put logos up here
     pet.render(usage({ active: true, activity: 'editing' }))
-    api.handlers.onCodex(cx({ active: true, lastSeen: Date.now() - 120000 }))
+    api.handlers.onCodex(cx({ active: true, lastSeen: Date.now() - 120000, session: { pct: 10 } }))
     expect(el('mini-workers').getAttribute('aria-label')).toBe('Claude · editing')
     api.handlers.onAccounts({ active: 'different', accounts: [] })
     expect(el('mini-workers').hidden).toBe(true)
-    api.handlers.onCodex(cx({ active: true }))
+    api.handlers.onCodex(cx({ active: true, session: { pct: 10 } }))
     expect(el('mini-workers').hidden).toBe(false)
     api.handlers.onConfig({ mode: 'floating', codex: false, talk: false })
     expect(el('mini-workers').hidden).toBe(true)
