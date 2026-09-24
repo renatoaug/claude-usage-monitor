@@ -309,6 +309,8 @@ describe('startup', () => {
     expect(winOptions.show).toBe(false) // applyMode reveals it
     expect(winOptions.webPreferences.contextIsolation).toBe(true)
     expect(winOptions.webPreferences.nodeIntegration).toBe(false)
+    // the pet's blips start from a usage change, not a click
+    expect(winOptions.webPreferences.autoplayPolicy).toBe('no-user-gesture-required')
     expect(loadedFile).toContain(path.join('renderer', 'index.html'))
   })
 
@@ -344,6 +346,10 @@ describe('startup', () => {
     const cfg = startupOf('config')
     expect(cfg).toHaveProperty('alertThresholds')
     expect(cfg).toHaveProperty('fireThreshold')
+    // the voice ships talking but silent: sound is an explicit opt-in
+    expect(cfg.talk).toBe(true)
+    expect(cfg.sound).toBe(false)
+    expect(cfg.soundMutedUntil).toBe(0)
     expect(cfg).not.toHaveProperty('pollIntervalMs') // internal only
     expect(cfg).not.toHaveProperty('sleepThresholdMs')
   })

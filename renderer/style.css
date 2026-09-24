@@ -1100,7 +1100,10 @@ body:not(.live) #bymodel {
   border: 1px solid rgba(206, 146, 109, 0.22);
   border-radius: 7px;
   background: rgba(206, 146, 109, 0.055);
-  padding: 10px 11px;
+  /* the same breathing room the meters get, so it never touches the tabs
+     above it or the Details rule below */
+  margin: 12px 0;
+  padding: 12px 13px;
   cursor: pointer;
   -webkit-app-region: no-drag;
   transition:
@@ -2429,13 +2432,21 @@ body.collapsed.dual #mini-acct-name {
   max-width: 112px;
   font-size: 10px;
 }
+
+/* The mood sits beneath the pet, level with the selected source reset. */
 body.collapsed.dual .mini-line {
-  justify-content: flex-start;
-  margin: 0 0 5px 3px;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: 66px;
+  justify-content: center;
+  margin: 0;
+  gap: 5px;
 }
 body.collapsed.dual #mini-text {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 400;
+  color: #b9afa3;
 }
 body.collapsed.dual #mini-dot {
   width: 4px;
@@ -2443,67 +2454,97 @@ body.collapsed.dual #mini-dot {
 }
 body.collapsed.dual #mini-dual {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 .mini-source {
+  --src: #e4a17c;
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 3px;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 5px;
+  row-gap: 4px;
   min-width: 0;
-  padding: 4px 6px;
+  min-height: 29px;
+  padding: 3px 0 3px 5px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: transparent;
-  color: #aba59d;
+  color: #aaa298;
   text-align: left;
   font: inherit;
   font-size: 10px;
   cursor: pointer;
   -webkit-app-region: no-drag;
+  transition: color 0.15s;
 }
-.mini-source:hover {
-  background: #ffffff08;
+.mini-source[data-provider="codex"] {
+  --src: #b9c8b0;
 }
-.mini-source[aria-pressed="true"] > span:first-child {
+.mini-logo {
+  grid-column: 1;
+  grid-row: 1;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.mini-source-name {
+  grid-column: 2;
+  grid-row: 1;
+}
+/* Selection uses contrast; urgent readings retain their warning color. */
+.mini-source[aria-pressed="false"] .mini-track i {
+  opacity: 0.55;
+}
+.mini-source[aria-pressed="false"]:hover .mini-track i,
+.mini-source.urgent .mini-track i {
+  opacity: 1;
+}
+.mini-source[aria-pressed="true"] {
   color: #eee4d9;
 }
-/* the selected service gets the tab's tinted plate; the other steps back */
-.mini-source[aria-pressed="false"] {
-  opacity: 0.5;
+.mini-source[aria-pressed="true"] .mini-logo {
+  color: var(--src);
 }
-.mini-source[aria-pressed="false"]:hover {
-  opacity: 0.8;
+.mini-source:hover {
+  color: #fff4e8;
 }
-.mini-source[data-provider="claude"][aria-pressed="true"] {
-  background: #d977571c;
-}
-.mini-source[data-provider="codex"][aria-pressed="true"] {
-  background: #a7baa11c;
+.mini-source:hover .mini-logo {
+  color: var(--src);
 }
 .mini-source b {
-  grid-row: 2;
-  font-size: 18px;
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 15px;
   line-height: 1.1;
   letter-spacing: -0.4px;
   font-weight: 500;
-  color: #eee4d9;
+  color: inherit;
   font-variant-numeric: tabular-nums;
 }
 .mini-source.urgent b {
   color: #f3a38b;
 }
-.mini-source.urgent > span:first-child::after {
+.mini-source.urgent .mini-source-name::after {
   content: " !";
   color: #f3a38b;
 }
 .mini-track {
-  grid-row: 3;
+  grid-column: 2 / -1;
+  grid-row: 2;
   height: 2px;
   border-radius: 2px;
   overflow: hidden;
   background: #ffffff0d;
 }
+body.collapsed.dual #mini-reset {
+  text-align: right;
+  margin-top: 7px;
+  font-size: 8px;
+  color: #b4a18a;
+}
+
 .mini-track i {
   display: block;
   height: 100%;
@@ -2578,11 +2619,19 @@ body.view-codex .mrow .mname::before {
 body.view-codex .ac-caret {
   display: none;
 }
+/* keyboard focus: a soft inner glow in the brand coral rather than a detached
+   cream ring — still visible, but it reads as the control lighting up */
 #card button:focus-visible,
 #card input:focus-visible,
 #account-chip:focus-visible {
-  outline: 2px solid #c9bda6;
-  outline-offset: 2px;
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px #e6a07f8c,
+    0 0 0 3px #d977571f;
+}
+#controls button:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 @media (prefers-reduced-motion: reduce) {
   #card,
@@ -2789,4 +2838,185 @@ body.awaiting #acc-intro.connection-card {
 }
 .claude-connect-btn:hover {
   background: #ce926d33;
+}
+
+/* ---- voice: speech bubble + mute ---- */
+/* the bubble speaks the sprite's language: square pixels, a notched 2px
+   outline (no radius), a stepped tail aimed at the pet's head, small type */
+#bubble {
+  --ink: #221b16;
+  --paper: #f1e9dd;
+  position: absolute;
+  left: 84px;
+  top: 16px;
+  z-index: 4;
+  max-width: 148px;
+  padding: 5px 7px 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    600 9px / 1.35 ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  letter-spacing: -0.01em;
+  /* four offset edges instead of a border: the corners stay open, like a sprite */
+  box-shadow:
+    0 -2px 0 0 var(--ink),
+    0 2px 0 0 var(--ink),
+    -2px 0 0 0 var(--ink),
+    2px 0 0 0 var(--ink),
+    2px 4px 0 0 #0006;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transform-origin: 0% 100%;
+  animation: bubble-pop 0.18s steps(3, end);
+}
+#bubble[hidden] {
+  display: none;
+}
+/* the tail: a stepped right triangle hanging off the bottom-left edge, aimed
+   down at the pet. The ink one is the outline; the paper one sits 2px inside it
+   and starts on the outline row, so the bubble opens into the tail */
+#bubble::before,
+#bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+}
+#bubble::before {
+  left: 8px;
+  width: 14px;
+  height: 12px;
+  background: var(--ink);
+  clip-path: polygon(
+    0 0,
+    14px 0,
+    14px 2px,
+    12px 2px,
+    12px 4px,
+    10px 4px,
+    10px 6px,
+    8px 6px,
+    8px 8px,
+    6px 8px,
+    6px 10px,
+    4px 10px,
+    4px 12px,
+    0 12px
+  );
+}
+#bubble::after {
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+  clip-path: polygon(
+    0 0,
+    10px 0,
+    10px 2px,
+    8px 2px,
+    8px 4px,
+    6px 4px,
+    6px 6px,
+    4px 6px,
+    4px 8px,
+    2px 8px,
+    2px 10px,
+    0 10px
+  );
+}
+#bubble.leaving {
+  animation: bubble-out 0.15s steps(2, end) forwards;
+}
+@keyframes bubble-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes bubble-out {
+  to {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+body.settings-open #bubble {
+  display: none;
+}
+/* collapsed: above the pet, in the card's flow, tail pointing straight down */
+body.collapsed #bubble {
+  position: relative;
+  left: auto;
+  top: auto;
+  max-width: none;
+  margin: 6px 2px 14px;
+  grid-column: 1 / -1;
+  transform-origin: 50% 100%;
+}
+/* one service: the card has no title band, so clear the window controls, and
+   hug the short line instead of spanning the whole card */
+body.collapsed:not(.dual) #bubble {
+  align-self: center;
+  margin-top: 26px;
+  text-align: center;
+}
+body.collapsed.dual #bubble {
+  justify-self: start;
+}
+body.collapsed #bubble::before {
+  left: calc(50% - 7px);
+}
+body.collapsed #bubble::after {
+  left: calc(50% - 5px);
+}
+/* with both services the pet sits in the left column: aim there */
+body.collapsed.dual #bubble::before {
+  left: 24px;
+}
+body.collapsed.dual #bubble::after {
+  left: 26px;
+}
+
+#controls button[hidden] {
+  display: none;
+}
+/* a fifth button pushes #controls ~23px left: the account chip gives that up.
+   Minimized is always silent, so the button (and the squeeze) go away there */
+body.has-mute #account-chip {
+  max-width: 141px;
+}
+body.collapsed #mute {
+  display: none;
+}
+#mute .ic-muted,
+#mute.muted .ic-sound {
+  display: none;
+}
+#mute.muted .ic-muted {
+  display: block;
+}
+#mute.muted {
+  color: var(--coral-soft);
+}
+
+.set-row.voice-sub .set-row-label {
+  font-weight: 400;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+#set-rows.talk-off .voice-sub {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #bubble,
+  #bubble.leaving {
+    animation: none;
+  }
 }

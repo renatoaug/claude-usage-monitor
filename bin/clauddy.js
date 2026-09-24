@@ -20,6 +20,7 @@ const STATES = [
   'idle',
   'poke',
   'celebrate',
+  'say',
   'auto',
   'clear',
   // activity states (what Claude Code is doing)
@@ -31,7 +32,10 @@ const STATES = [
   'delegating',
   'waiting',
 ]
+// `clauddy say <kind>` previews one of the pet's remarks
+const REMARKS = ['greeting', 'fire', 'reset', 'maxed', 'welcome', 'streak', 'record', 'codex']
 const arg = process.argv[2]
+const kind = arg === 'say' ? process.argv[3] || 'greeting' : undefined
 
 if (!arg) {
   // no argument → launch the app
@@ -47,19 +51,25 @@ if (!arg) {
       'Usage:',
       '  clauddy            launch the widget',
       '  clauddy <state>    poke the running widget (just for fun)',
+      '  clauddy say [kind] make the pet say one of its remarks',
       '',
       'States: fire, sleeping, working, tired, idle, poke, celebrate, auto',
+      `Remarks: ${REMARKS.join(', ')}`,
       '(the widget must be running for a state to show)',
     ].join('\n'),
   )
+} else if (kind && !REMARKS.includes(kind)) {
+  console.error(`clauddy: unknown remark "${kind}"`)
+  console.error(`try: ${REMARKS.join(', ')}`)
+  process.exit(1)
 } else if (STATES.includes(arg)) {
   // write the state for the running app to pick up
   fs.mkdirSync(dataDir, { recursive: true })
   fs.writeFileSync(
     path.join(dataDir, 'debug.json'),
-    `${JSON.stringify({ state: arg, t: Date.now() })}\n`,
+    `${JSON.stringify({ state: arg, kind, t: Date.now() })}\n`,
   )
-  console.log(`clauddy → ${arg} (the running widget will react)`)
+  console.log(`clauddy → ${arg}${kind ? ` ${kind}` : ''} (the running widget will react)`)
 } else {
   console.error(`clauddy: unknown command "${arg}"`)
   console.error('try: fire, sleeping, working, tired, idle, poke, celebrate, auto — or --help')

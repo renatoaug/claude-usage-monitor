@@ -77,6 +77,9 @@ function publicConfig(c) {
     fireThreshold: c.fireThreshold,
     zoom: c.zoom,
     codex: !!c.codex?.enabled,
+    talk: c.talk,
+    sound: c.sound,
+    soundMutedUntil: c.soundMutedUntil,
   }
 }
 
@@ -92,6 +95,9 @@ function loadConfig() {
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
     zoom: 100, // widget scale %, 100-200
     codex: { enabled: false }, // opt-in from Settings, never on by finding ~/.codex
+    talk: true, // speech bubbles on transitions
+    sound: false, // chiptune blips: opt-in, audio must never surprise anyone
+    soundMutedUntil: 0, // the one-click "mute for 1 hour", as an epoch ms
     pollIntervalMs: 4000,
     activeThresholdMs: 20000,
     sleepThresholdMs: 300000,
@@ -379,6 +385,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // the pet's blips start from a usage change, never from a click, so
+      // Chromium would otherwise hold the AudioContext suspended
+      autoplayPolicy: 'no-user-gesture-required',
     },
   })
 

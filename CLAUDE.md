@@ -22,6 +22,9 @@ macOS-first, with Windows (x64) support and Linux on the way.
   Opt-in from Settings (`config.codex.enabled`); with Claude too, tabs under the pet pick
   which service the whole panel shows
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
+- `renderer/voice.js` — the pet's voice: remark lines for the speech bubble and the
+  chiptune blips (Web Audio square waves, no assets). Talk is on by default, sound is
+  opt-in (`config.sound`) and silent in menu-bar mode, collapsed, or muted
 - `make-icon.js` — generates the macOS `.icns` from the pixel sprite
 - `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
 - `make-tray.js` — generates the menu-bar (tray) template icon from the same sprite
@@ -46,7 +49,7 @@ bun run test:coverage
 ```
 
 `./pet <state>` states: `fire`, `sleeping`, `working`, `tired`, `idle`, `poke`,
-`celebrate`, `auto`, plus the activity scenes `reading`, `editing`, `running`,
+`celebrate`, `say`, `auto`, plus the activity scenes `reading`, `editing`, `running`,
 `planning`, `researching`, `delegating`, `waiting`.
 
 > Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't
@@ -59,7 +62,7 @@ bun run test:coverage
 
 `bun run test` — three processes, not plain `bun test`:
 
-- `test/unit/` — `usage.js`, `auth.js`, `renderer/burn.js` (no mocks)
+- `test/unit/` — `usage.js`, `auth.js`, `renderer/burn.js`, `renderer/voice.js` (no mocks)
 - `test/main/` — `main.js` (mocks `electron`, `./usage`, `./auth`)
 - `test/dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
 
@@ -71,7 +74,7 @@ process and fails.
 `bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js`
 without coverage. Runs on every PR.
 
-`pet.js` and `burn.js` end with a `module.exports` guard so one file works as a
+`pet.js`, `burn.js` and `voice.js` end with a `module.exports` guard so one file works as a
 `<script>` in the widget and as an import in the tests.
 
 > `main.js`'s update path spawns `curl … | bash` — always stub

@@ -109,6 +109,35 @@ Other activities — **planning**, **researching**, **delegating**, **waiting** 
 show up in the status line as they happen. When Claude goes quiet, the pet drops
 back to plain **working** / **idle**.
 
+## The pet talks
+
+Now and then the pet says something in a speech bubble. It only speaks when something changes, never on a timer, and it keeps quiet when it has nothing specific to say. Remarks are at least 10 minutes apart; the big moments can cut that line.
+
+| Moment | What it says (expanded) | Minimized | Blip |
+| --- | --- | --- | --- |
+| First launch of the day | _Good morning! Yesterday was your heaviest day this week, 12M tokens._ | _Morning! Big day yesterday._ | ✓ |
+| Session crosses your fire threshold | _Getting warm, 91% already. At this pace you'll run out in about 40m._ | _91%, getting warm!_ | ✓ |
+| The session window resets | _Fresh window! That was 34M tokens over 4h 12m, mostly editing code._ | _Fresh window! 34M last time._ | ✓ |
+| The session hits 100% | _That's the limit. I'll be back at 2:35 PM._ | _Maxed out till 2:35 PM._ | |
+| You're back after 2+ hours away | _Welcome back! You were gone 3h 12m. The session's at 12%._ | _Welcome back!_ | |
+| 90 minutes of unbroken work | _You've been at it for 1h 35m straight. Stretch break?_ | _Stretch break?_ | |
+| A new record day (30-day best) | _New record! 45M tokens today, your biggest day in a month._ | _New record: 45M!_ | |
+| Codex crosses fire, hits 100%, or resets | _Codex is at 91% now. It resets in 1h 12m._ | _Codex at 91%!_ | ✓ (fire, reset) |
+
+The greeting follows your clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and appears once a day, and so does the record. The reset recap covers only what the pet actually saw, so if you launch it mid-session it says less. Click the bubble to dismiss it.
+
+### The voice
+
+Optionally the pet also **blips** as it talks: short chiptune notes, one per letter, generated live with Web Audio (square waves, no sound files). It blips faster and higher when it's on fire, slower and lower when it's sleepy. Only the headline moments blip (the ✓ rows above), because a sound on every remark wears out fast.
+
+Audio should never catch you off guard in a meeting:
+
+- **Off by default.** Turn it on under **⚙ Settings → voice → Chiptune voice** (you'll hear a sample).
+- **One-click mute.** While the voice is on, a 🔊 button sits in the title bar. Click it to mute for an hour, and again to unmute.
+- **Always silent** in menu-bar mode and while the pet is minimized.
+
+**Speech bubbles** can be switched off entirely in the same place. Try any remark from the terminal with `bunx clauddy say <kind>` ([see below](#play-with-the-pet)).
+
 ## Install
 
 **macOS (Apple Silicon)** is the first-class build. **Windows (x64)** and **Linux (x64)** work too. The `bunx`/`npx` route below runs on all of them today.
@@ -232,6 +261,9 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
   "activeThresholdMs": 20000, // "active" if Claude wrote to its logs within this window
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
   "codex": { "enabled": false }, // set by Settings → Codex → Connect
+  "talk": true, // speech bubbles on transitions
+  "sound": false, // chiptune blips, opt-in
+  "soundMutedUntil": 0, // set by the 🔊 button: muted until this epoch ms
 }
 ```
 
@@ -248,6 +280,8 @@ bunx clauddy working     # 🍴 eats token coins
 bunx clauddy tired       # 🥵 maxed out
 bunx clauddy idle        # 🙂 calm
 bunx clauddy auto        # ↩️ back to your real usage
+bunx clauddy say         # 💬 a remark in the speech bubble
+bunx clauddy say fire    #    or a specific one: greeting, fire, reset, maxed, welcome, streak, record, codex
 ```
 
 Each state is written to the data dir the running widget watches, so it reacts
@@ -259,7 +293,7 @@ live. (Installed globally? Drop the `bunx`: `clauddy poke`. Working on the repo?
 - **`main.js`** — Electron main process: frameless, transparent, always-on-top window; polls usage; fires macOS notifications; watches `config.json` and `debug.json`.
 - **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/project/day, detects the rolling 5-hour session window, the working/sleeping status, and which activity (reading/editing/running/…) Claude is on from its latest tool use.
 - **`auth.js`** — OAuth login (PKCE, same public client as Claude Code) that fetches the authoritative usage %. Token stored locally, never committed.
-- **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles.
+- **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles. `voice.js` writes its remarks and synthesizes the blips.
 - **`make-icon.js`** — generates the app icon from the pixel sprite (`build/icon.icns`).
 
 ## Data & privacy

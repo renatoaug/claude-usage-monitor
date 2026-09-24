@@ -471,6 +471,276 @@ function celebrate() {
   for (let i = 0; i < 24; i++) spawnConfetti(i)
 }
 
+// ---- voice ------------------------------------------------------------------
+// The bubble speaks on transitions only, at most once per REMARK_GAP_MS. The
+// headline moments (the day's first hello, a fresh window, catching fire) may
+// jump that queue, and only they blip: a noise on every remark wears out far
+// faster than the remark itself.
+const REMARK_GAP_MS = 10 * 60000
+const MUTE_MS = 60 * 60000
+const blipper = Voice.createBlipper(() => {
+  const AC = globalThis.AudioContext || globalThis.webkitAudioContext
+  return AC ? new AC() : null
+})
+let lastRemarkAt = 0
+let bubbleTimer = null
+
+const talkOn = () => currentConfig.talk !== false
+const mutedNow = () => currentConfig.soundMutedUntil > Date.now()
+// opt-in, and never where it would surprise someone: the menu-bar popover, the
+// mini face, or the hour after a mute
+function soundOn() {
+  if (!currentConfig.sound || currentConfig.mode === 'menubar') return false
+  if (document.body.classList.contains('collapsed')) return false
+  return !mutedNow()
+}
+
+function moodOf(st) {
+  return st === 'stressed' ? 'fire' : st === 'sleeping' || st === 'tired' ? 'sleepy' : 'normal'
+}
+
+// `line` is a remark from voice.js ({ text, short }) or a plain string. The
+// mini face has room for a glance, not a sentence, so it gets the short one.
+// `force` is the simulator's: it skips the gates but still respects the mute
+function say(line, { headline = false, mood = 'normal', force = false } = {}) {
+  if (!line) return false
+  const collapsed = document.body.classList.contains('collapsed')
+  const text = typeof line === 'string' ? line : collapsed ? line.short : line.text
+  if (!force) {
+    const b = document.body.classList
+    if (!talkOn() || b.contains('settings-open')) return false
+    if (!headline && Date.now() - lastRemarkAt < REMARK_GAP_MS) return false
+  }
+  lastRemarkAt = Date.now()
+  const bubble = el('bubble')
+  el('bubble-text').textContent = text
+  bubble.classList.remove('leaving')
+  placeBubble()
+  bubble.hidden = false
+  fitSize() // collapsed, the bubble is in the flow: the window grows to fit it
+  clearTimeout(bubbleTimer)
+  bubbleTimer = setTimeout(hideBubble, Math.max(4500, text.length * 70 + 2500))
+  // the mouth moves along, whether or not there's sound
+  for (let i = 0; i < Math.min(4, Math.ceil(text.length / 18)); i++) setTimeout(chomp, i * 260)
+  if ((headline || force) && soundOn()) blipper.play(text, mood)
+  return true
+}
+
+// expanded, the bubble floats over the scene beside the pet; collapsed there's
+// no room beside it, so it moves above the pet, into the card's flow
+function placeBubble() {
+  const bubble = el('bubble')
+  const stage = el('stage')
+  if (document.body.classList.contains('collapsed')) {
+    if (bubble.nextElementSibling !== stage) stage.before(bubble)
+  } else if (bubble.parentElement !== stage) stage.appendChild(bubble)
+}
+
+function hideBubble() {
+  clearTimeout(bubbleTimer)
+  const bubble = el('bubble')
+  if (bubble.hidden) return
+  bubble.classList.add('leaving')
+  bubbleTimer = setTimeout(() => {
+    bubble.hidden = true
+    bubble.classList.remove('leaving')
+    fitSize()
+  }, 180)
+}
+el('bubble').addEventListener('click', (e) => {
+  e.stopPropagation()
+  hideBubble()
+})
+
+// once-a-day remarks, keyed by local date; memory is the fallback when storage
+// isn't there, so a broken profile can't make the pet repeat itself
+const toldMemo = {}
+const dayKey = () => new Date().toDateString()
+function toldToday(key) {
+  try {
+    if (localStorage.getItem(key) === dayKey()) return true
+  } catch {}
+  return toldMemo[key] === dayKey()
+}
+function markToday(key) {
+  toldMemo[key] = dayKey()
+  try {
+    localStorage.setItem(key, dayKey())
+  } catch {}
+}
+
+// what the pet has noticed so far — the transitions are all relative to it
+const AWAY_MS = 2 * 3600000
+const STREAK_MS = 90 * 60000
+const STREAK_GAP_MS = 10 * 60000
+let greeted = false
+let heardConfig = false
+let lastLivePct = null // Claude's session %, null until a live reading lands
+let awayMs = 0
+let streakFrom = 0
+let lastWorkAt = 0
+let streakTold = false
+
+// what the current Claude window has been like, for the recap when it closes
+// (#31). The peak is the session's tokens just before the rollover — after it
+// the counter starts over. Only the time the pet actually watched counts.
+const TALLY_GAP_MS = 15000 // a longer gap is the machine asleep, not work
+let tally = { peak: 0, activeMs: 0, acts: {}, at: 0 }
+function noteSession(d) {
+  const now = Date.now()
+  const dt = tally.at ? Math.min(now - tally.at, TALLY_GAP_MS) : 0
+  tally.at = now
+  if (d.active) {
+    tally.activeMs += dt
+    if (d.activity) tally.acts[d.activity] = (tally.acts[d.activity] || 0) + dt
+  }
+  tally.peak = Math.max(tally.peak, d.session?.tokens || 0)
+}
+function takeRecap(was) {
+  const top = Object.entries(tally.acts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+  const r = { was, tokens: tally.peak, activeMs: tally.activeMs, top }
+  tally = { peak: 0, activeMs: 0, acts: {}, at: tally.at }
+  return r
+}
+
+// Codex, followed whichever tab is on screen. Its logs only move while it
+// runs, so a stale reading keeps the baseline: the next fresh one is compared
+// against the last number actually seen.
+let lastCodexPct = null
+function listenCodex() {
+  const c = codexData
+  if (!codexOn() || !c) {
+    lastCodexPct = null
+    return
+  }
+  const pct = c.session?.pct
+  if (pct == null || codexStale(c)) return
+  const was = lastCodexPct
+  lastCodexPct = pct
+  if (was == null) return
+  const fireAt = currentConfig.fireThreshold ?? 90
+  const reset = c.session.resetMs
+  if (was - pct > 25) say(Voice.codexResetLine(was), { headline: true })
+  else if (was < 100 && pct >= 100)
+    say(Voice.codexMaxedLine(fmtResetClock(reset)), { mood: 'sleepy' })
+  else if (was < fireAt && pct >= fireAt && pct < 100)
+    say(Voice.codexFireLine(pct, reset, fmtReset), { headline: true, mood: 'fire' })
+}
+
+// called by paint() with the state it just drew. The Claude remarks follow the
+// Claude view; Codex has its own, above.
+function listen(before, st, { isCodex, liveOn, sp, sessReset, proj }) {
+  // the saved config decides whether it talks at all, and it lands just after
+  // the first usage tick: speaking before it would ignore a "talk: false"
+  if (!heardConfig) return
+  const d = lastData
+  const mood = moodOf(st)
+  if (!greeted) {
+    greeted = true
+    if (!toldToday('clauddy.greeted')) {
+      markToday('clauddy.greeted')
+      const line = Voice.greetingLine(d.days30, new Date().getHours(), fmtTokens)
+      if (say(line, { headline: true, mood })) return
+    }
+  }
+  listenCodex()
+  if (isCodex) return
+  const now = Date.now()
+
+  if (liveOn) {
+    const fireAt = currentConfig.fireThreshold ?? 90
+    const was = lastLivePct
+    lastLivePct = sp
+    // a first reading is a baseline: launching at 95% is not "catching fire"
+    if (was != null && was < 100 && sp >= 100) {
+      say(Voice.maxedLine(fmtResetClock(sessReset)), { mood: 'sleepy' })
+    } else if (was != null && was < fireAt && sp >= fireAt && sp < 100) {
+      const eta = proj?.kind === 'eta' ? proj.ms : null
+      say(Voice.fireLine(sp, eta, sessReset, fmtReset), { headline: true, mood: 'fire' })
+    }
+  } else {
+    lastLivePct = null // logged out, or switching: the next reading starts over
+  }
+
+  if (st === 'sleeping' && Number.isFinite(d.lastActivityMs))
+    awayMs = Math.max(awayMs, d.lastActivityMs)
+  else if (before === 'sleeping') {
+    if (awayMs >= AWAY_MS) say(Voice.welcomeLine(awayMs, liveOn ? sp : null, fmtReset))
+    awayMs = 0
+  }
+
+  if (st === 'working') {
+    if (!streakFrom || now - lastWorkAt > STREAK_GAP_MS) {
+      streakFrom = now
+      streakTold = false
+    }
+    lastWorkAt = now
+    if (!streakTold && now - streakFrom >= STREAK_MS)
+      streakTold = say(Voice.streakLine(now - streakFrom, fmtReset))
+  }
+
+  const record = Voice.recordLine(d.days30, fmtTokens)
+  if (record && !toldToday('clauddy.record') && say(record, { mood })) markToday('clauddy.record')
+}
+
+// `./pet say <kind>` previews one remark — real numbers where there are some,
+// plausible ones where the moment hasn't happened
+function sampleLine(kind) {
+  const days = lastData?.days30?.length ? [...lastData.days30] : new Array(30).fill(0)
+  const pct = realUsage?.session?.pct
+  const reset = realUsage?.session?.resetMs ?? 72 * 60000
+  if (kind === 'fire') return Voice.fireLine(Math.max(pct ?? 0, 91), 40 * 60000, reset, fmtReset)
+  if (kind === 'reset') {
+    const t = tally.peak ? tally : { peak: 34e6, activeMs: 4 * 3600000 + 12 * 60000, acts: {} }
+    const top = Object.entries(t.acts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'editing'
+    return Voice.recapLine(
+      { was: 92, tokens: t.peak, activeMs: t.activeMs, top },
+      fmtTokens,
+      fmtReset,
+    )
+  }
+  if (kind === 'codex')
+    return Voice.codexFireLine(91, codexData?.session?.resetMs ?? reset, fmtReset)
+  if (kind === 'maxed') return Voice.maxedLine(fmtResetClock(reset))
+  if (kind === 'welcome') return Voice.welcomeLine(3 * 3600000 + 12 * 60000, pct ?? null, fmtReset)
+  if (kind === 'streak') return Voice.streakLine(95 * 60000, fmtReset)
+  if (kind === 'record') {
+    days[days.length - 1] = Math.max(2e6, Math.max(...days.slice(0, -1)) * 1.15)
+    return Voice.recordLine(days, fmtTokens)
+  }
+  if (!days[days.length - 2]) days[days.length - 2] = 12e6 // no yesterday yet: pretend one
+  return Voice.greetingLine(days, new Date().getHours(), fmtTokens)
+}
+function sayDebug(kind) {
+  const st = [...document.body.classList].find((c) => c.startsWith('state-'))?.slice(6)
+  const mood =
+    kind === 'fire' || kind === 'codex' ? 'fire' : kind === 'maxed' ? 'sleepy' : moodOf(st)
+  return say(sampleLine(kind), { force: true, mood })
+}
+
+// mute sits in the title bar while the voice is on: one click before a call
+let unmuteTimer = null
+function paintMute() {
+  const btn = el('mute')
+  // menu-bar mode is always silent, so there is nothing there to mute
+  btn.hidden = !(currentConfig.sound && talkOn()) || currentConfig.mode === 'menubar'
+  document.body.classList.toggle('has-mute', !btn.hidden) // the chip makes room for it
+  const muted = mutedNow()
+  btn.classList.toggle('muted', muted)
+  btn.title = muted
+    ? `Muted until ${new Date(currentConfig.soundMutedUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} — click to unmute`
+    : 'Mute the voice for 1 hour'
+  clearTimeout(unmuteTimer)
+  if (muted) unmuteTimer = setTimeout(paintMute, currentConfig.soundMutedUntil - Date.now() + 50)
+}
+el('mute').addEventListener('click', (e) => {
+  e.stopPropagation()
+  const until = mutedNow() ? 0 : Date.now() + MUTE_MS
+  currentConfig = { ...currentConfig, soundMutedUntil: until } // repaint now, main confirms
+  paintMute()
+  window.api.saveConfig({ soundMutedUntil: until })
+})
+
 // ---- services ---------------------------------------------------------------
 // Claude and Codex are monitored side by side, but the panel shows one at a
 // time: the tabs under the pet pick which one owns the chip, the pet, the
@@ -635,6 +905,7 @@ const prevPct = {} // per service: a switch must not read as a reset
 let lastData = null
 function render(d) {
   lastData = d
+  noteSession(d)
   // the burn trail is Claude's, fed on every Claude tick whatever is on screen
   const cl = realUsage
   burn.note(d.session.tokens, !!cl && cl.session.resetMs != null)
@@ -697,6 +968,7 @@ function paint() {
   for (const a of acts) {
     document.body.classList.toggle(`act-${a}`, st === 'working' && curActivity === a)
   }
+  const before = prevState
   if (prevState && prevState !== st) {
     if (st === 'sleeping') oneShot('drowse', 700)
     else if (prevState === 'sleeping') oneShot('wake', 700)
@@ -721,7 +993,11 @@ function paint() {
       : `${fmtTokens(d.today.tokens)} tokens today`
 
   const was = prevPct[view]
-  if (liveOn && was != null && sessActive && sessPct != null && was - sessPct > 25) celebrate()
+  if (liveOn && was != null && sessActive && sessPct != null && was - sessPct > 25) {
+    celebrate()
+    // Codex's own reset is called out by listenCodex, on screen or not
+    if (!isCodex) say(Voice.recapLine(takeRecap(was), fmtTokens, fmtReset), { headline: true })
+  }
   prevPct[view] = sessPct
   el('session-pct').textContent = pctText(liveOn ? sessPct : 0)
   setLevel(el('session-pct'), liveOn ? sp : 0)
@@ -786,6 +1062,7 @@ function paint() {
     stopEating()
   }
 
+  listen(before, st, { isCodex, liveOn, sp, sessReset, proj })
   fitSize()
 }
 
@@ -824,6 +1101,7 @@ window.api.onDebugState((o) => {
   const s = o?.state
   if (s === 'poke') return pokePet()
   if (s === 'celebrate') return celebrate()
+  if (s === 'say') return sayDebug(o.kind)
   debugState = s === 'auto' || s === 'clear' || !s ? null : s
   if (lastData) render(lastData)
 })
@@ -837,6 +1115,8 @@ window.api.onConfig((cfg) => {
   document.body.classList.toggle('is-menubar', currentConfig.mode === 'menubar')
   document.body.classList.toggle('codex-on', !!currentConfig.codex)
   if (!currentConfig.codex) codexData = null
+  heardConfig = true
+  paintMute()
   paint()
   applyZoom(currentConfig.zoom)
   fitSize()
@@ -1307,6 +1587,8 @@ function snapshotSettings() {
     t2: el('set-t2').value,
     fire: el('set-fire').value,
     zoom: el('set-zoom').value,
+    talk: el('set-talk').checked,
+    sound: el('set-sound').checked,
   })
 }
 function refreshSaveDirty() {
@@ -1324,6 +1606,9 @@ function clearSaveDirty() {
 }
 function reflectAlertsOn() {
   el('set-rows').classList.toggle('alerts-off', !el('set-alerts').checked)
+}
+function reflectTalkOn() {
+  el('set-rows').classList.toggle('talk-off', !el('set-talk').checked)
 }
 // zoom applies as you step it, so the widget shows the size right away;
 // Cancel puts the saved value back
@@ -1344,9 +1629,13 @@ function populateSettings() {
   el('set-t2').value = th[1] != null ? th[1] : 95
   el('set-fire').value = c.fireThreshold != null ? c.fireThreshold : 90
   el('set-zoom').value = c.zoom != null ? c.zoom : 100
+  el('set-talk').checked = c.talk !== false
+  el('set-sound').checked = !!c.sound
+  reflectTalkOn()
   clearSaveDirty() // fields now match the saved config
 }
 function openSettings() {
+  hideBubble()
   document.body.classList.remove('collapsed')
   populateSettings()
   document.body.classList.add('settings-open')
@@ -1388,11 +1677,24 @@ for (const b of document.querySelectorAll('.num-btn')) {
   })
 }
 // light up Save whenever an editable field changes
-for (const id of ['set-alerts', 'set-t1', 'set-t2', 'set-fire', 'set-zoom']) {
+for (const id of [
+  'set-alerts',
+  'set-t1',
+  'set-t2',
+  'set-fire',
+  'set-zoom',
+  'set-talk',
+  'set-sound',
+]) {
   el(id).addEventListener('input', refreshSaveDirty)
   el(id).addEventListener('change', refreshSaveDirty)
 }
 el('set-alerts').addEventListener('change', reflectAlertsOn)
+el('set-talk').addEventListener('change', reflectTalkOn)
+// turning the voice on plays a sample, so you hear what you just agreed to
+el('set-sound').addEventListener('change', () => {
+  if (el('set-sound').checked) blipper.play('Hello there!')
+})
 el('set-zoom').addEventListener('input', previewZoom)
 // display-mode segmented control (floating pet | menu bar)
 for (const b of document.querySelectorAll('#set-mode .seg-btn')) {
@@ -1417,17 +1719,21 @@ el('set-save').addEventListener('click', () => {
       .sort((a, b) => a - b),
     fireThreshold: fire >= 1 && fire <= 99 ? fire : 90,
     zoom,
+    talk: el('set-talk').checked,
+    sound: el('set-sound').checked,
   })
   clearSaveDirty()
   document.body.classList.remove('settings-open')
   fitSize()
 })
 el('min').addEventListener('click', () => {
+  hideBubble()
   document.body.classList.toggle('collapsed')
   fitSize()
 })
 // double-click the pet to collapse / expand
 el('pet').addEventListener('dblclick', () => {
+  hideBubble()
   document.body.classList.toggle('collapsed')
   fitSize()
 })
@@ -1476,5 +1782,9 @@ if (typeof module === 'object' && module.exports) {
     paint,
     pickProvider,
     burn,
+    say,
+    hideBubble,
+    soundOn,
+    blipper,
   }
 }
