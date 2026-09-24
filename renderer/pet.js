@@ -780,6 +780,20 @@ const CODEX_SLEEP_MS = 5 * 60000 // main's default sleepThresholdMs
 const codexStale = (c) =>
   !!c && (c.session?.expired || (c.limitsAt != null && Date.now() - c.limitsAt > STALE_MS))
 
+// the highest session % across connected services, and which ones are at or
+// past `from`; an expired Codex reading is null, so it never counts
+function sessionHeat(from) {
+  const pcts = {
+    claude: claudeOn() ? realUsage?.session?.pct : null,
+    codex: codexOn() ? codexData?.session?.pct : null,
+  }
+  const known = Object.entries(pcts).filter(([, p]) => p != null)
+  return {
+    pct: Math.max(0, ...known.map(([, p]) => p)),
+    providers: known.filter(([, p]) => p >= from).map(([k]) => k),
+  }
+}
+
 // Codex's numbers in the shape the panel draws; its logs have no activity or tok/min
 function codexView(c) {
   const idleFor = c.lastSeen ? Date.now() - c.lastSeen : null
@@ -1070,19 +1084,23 @@ function paintActivity() {
     claudeOn() ? claudeActivityData : null,
     codexOn() ? codexData : null,
   )
-  const names = activity.providers.map((p) => (p === 'claude' ? 'Claude' : 'Codex')).join(' + ')
-  const label = names ? `${names} · ${activity.activity}` : ''
+  paintLogos(activity.providers, activity.activity)
+  return activity
+}
+
+// the logos under the pet name who it's about: the workers, or the service on fire
+function paintLogos(providers, caption) {
+  const names = providers.map((p) => (p === 'claude' ? 'Claude' : 'Codex')).join(' + ')
+  const label = names ? `${names} · ${caption}` : ''
   for (const id of ['pet-activity', 'mini-workers']) {
     const badge = el(id)
     badge.hidden = !names
     badge.setAttribute('aria-label', label)
     for (const logo of badge.querySelectorAll('[data-provider]')) {
-      logo.hidden = !activity.providers.includes(logo.dataset.provider)
+      logo.hidden = !providers.includes(logo.dataset.provider)
     }
   }
-  el('mini-dot').hidden =
-    activity.providers.length > 0 && document.body.classList.contains('collapsed')
-  return activity
+  el('mini-dot').hidden = providers.length > 0 && document.body.classList.contains('collapsed')
 }
 
 // main render
@@ -1140,7 +1158,20 @@ function paint() {
   const activity = paintActivity()
   const collapsedNow = document.body.classList.contains('collapsed')
   if (collapsedNow) {
-    st = activity.providers.length ? 'working' : activity.sleeping ? 'sleeping' : 'idle'
+    // work wins; at rest, the hottest connected session still sets the mood,
+    // and its logo takes the status dot's place
+    const heat = sessionHeat(fireAt)
+    st = activity.providers.length
+      ? 'working'
+      : heat.pct >= 100
+        ? 'tired'
+        : heat.pct >= fireAt
+          ? 'stressed'
+          : activity.sleeping
+            ? 'sleeping'
+            : 'idle'
+    if (st === 'tired') paintLogos(sessionHeat(100).providers, 'maxed out')
+    else if (st === 'stressed') paintLogos(heat.providers, 'on fire')
     curActivity = activity.providers.length ? activity.activity : null
   }
   // dev override from `./pet <state>` (base states or an activity name)

@@ -215,7 +215,7 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 
 - **Drag** the widget anywhere on screen
 - **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with Claude and Codex both connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
-- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, or both. Usage selection stays manual; when neither is active the pet rests.
+- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, or both. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page of the service on screen
 - **×** quits
