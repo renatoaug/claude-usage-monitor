@@ -28,6 +28,7 @@ const ipc = new Map() // channel → handler registered by main.js
 const notifications = []
 const opened = [] // shell.openExternal
 const screenHandlers = new Map()
+let cursorPoint = { x: 0, y: 0 }
 let loadedFile = null
 let winOptions = null
 let quitCount = 0
@@ -39,6 +40,9 @@ const winMock = {
   visible: false,
   destroyed: false,
   handlers: new Map(),
+  getContentBounds() {
+    return { ...this.bounds }
+  },
   getBounds() {
     return { ...this.bounds }
   },
@@ -133,6 +137,7 @@ const electronMock = {
     on: (channel, handler) => ipc.set(channel, handler),
   },
   screen: {
+    getCursorScreenPoint: () => cursorPoint,
     getPrimaryDisplay: () => ({ workAreaSize: { width: 1920, height: 1080 } }),
     getAllDisplays: () => displays,
     on: (ev, cb) => screenHandlers.set(ev, cb),
@@ -1182,5 +1187,119 @@ describe('shutdown', () => {
     const before = quitCount
     fire('quit')
     expect(quitCount).toBe(before + 1)
+  })
+})
+
+describe('explicit reset reminders', () => {
+  test('schedules from trusted data, persists, rejects bad inputs, cancels on disconnect', async () => {
+    authState.usageError = null
+    authState.completeError = null
+    authState.usage = { session: { pct: 94, resetMs: 3600000 }, week: { pct: 1 } }
+    await fire('auth-code', 'code#state')
+    fire('set-reminder', 'claude', true)
+    const watch = lastOf('reminders').claude
+    expect(watch.provider).toBe('claude')
+    expect(watch.at).toBeGreaterThan(Date.now())
+    expect(
+      JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'reset-reminders.json'))).pending,
+    ).toContainEqual(watch)
+    const count = sent.length
+    fire('set-reminder', '__proto__', true)
+    fire('set-reminder', 'claude', 'yes')
+    expect(sent).toHaveLength(count)
+    fire('auth-logout')
+    expect(lastOf('reminders').claude).toBeNull()
+  })
+  test('stale Codex cannot be armed; an expired deadline is a reminder, not a claim of fresh budget', () => {
+    const originalNow = Date.now
+    let now = originalNow()
+    Date.now = () => now
+    try {
+      fire('save-config', { alerts: false })
+      fire('codex-enable', true)
+      codexResult = { session: { pct: 98, resetMs: 1000 }, limitsAt: now - 3600000 }
+      tick()
+      fire('set-reminder', 'codex', true)
+      expect(lastOf('reminders').error).toContain('fresh')
+      codexResult.limitsAt = now
+      tick()
+      fire('set-reminder', 'codex', true)
+      expect(lastOf('reminders').codex).not.toBeNull()
+      now += 2000
+      tick()
+      expect(lastOf('reminder-due').confirmed).toBe(false)
+      expect(notifications.at(-1).body).toContain('scheduled')
+      const count = notifications.length
+      tick()
+      expect(notifications).toHaveLength(count)
+      expect(lastOf('reminders').codex).toBeNull()
+      fire('set-reminder', 'codex', true)
+      fire('codex-enable', false)
+      expect(lastOf('reminders').codex).toBeNull()
+    } finally {
+      Date.now = originalNow
+    }
+  })
+  test('fresh lower usage confirms a reset, without duplicate automatic alerts', async () => {
+    const originalNow = Date.now
+    let now = originalNow()
+    Date.now = () => now
+    try {
+      fire('save-config', { alerts: true })
+      authState.usage = { session: { pct: 96, resetMs: 1000 }, week: { pct: 1 } }
+      await fire('auth-code', 'code#state')
+      tick()
+      fire('set-reminder', 'claude', true)
+      notifications.length = 0
+      now += 2000
+      authState.usage = { session: { pct: 2, resetMs: 18000000 }, week: { pct: 1 } }
+      await fire('auth-code', 'code#state')
+      tick()
+      expect(lastOf('reminder-due').confirmed).toBe(true)
+      expect(notifications.map((n) => n.title)).toEqual(['Your session budget is back'])
+      tick()
+      expect(notifications).toHaveLength(1)
+    } finally {
+      Date.now = originalNow
+    }
+  })
+})
+
+describe('native pet hover bridge', () => {
+  test('reports cursor relative to the moved window and clears on hide/exit', () => {
+    const savedBounds = winMock.bounds
+    const savedVisible = winMock.visible
+    const savedDestroyed = winMock.destroyed
+    try {
+      const before = timers.intervals.length
+      ipc.get('pet-pointer-watch')({}, 'yes')
+      expect(timers.intervals.length).toBe(before)
+      ipc.get('pet-pointer-watch')({}, true)
+      const poll = timers.intervals.at(-1)
+      expect(poll.ms).toBe(100)
+      winMock.bounds = { x: -500, y: 200, width: 336, height: 380 }
+      winMock.visible = true
+      cursorPoint = { x: -380, y: 300 }
+      poll.fn()
+      expect(sent.at(-1)).toEqual({ channel: 'pet-pointer', payload: { x: 120, y: 100 } })
+      const quiet = sent.length
+      poll.fn() // the cursor hasn't moved: nothing crosses IPC
+      expect(sent.length).toBe(quiet)
+      cursorPoint = { x: 1000, y: 200 }
+      poll.fn()
+      expect(sent.at(-1).payload).toBeNull()
+      winMock.visible = false
+      poll.fn()
+      expect(sent.at(-1).payload).toBeNull()
+      winMock.destroyed = true
+      const count = sent.length
+      poll.fn()
+      expect(sent.length).toBe(count)
+    } finally {
+      ipc.get('pet-pointer-watch')({}, false)
+      winMock.bounds = savedBounds
+      winMock.visible = savedVisible
+      winMock.destroyed = savedDestroyed
+    }
   })
 })

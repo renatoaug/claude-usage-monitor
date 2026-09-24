@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('api', {
+  watchPetPointer: (enabled) => ipcRenderer.send('pet-pointer-watch', enabled),
+  onPetPointer: (cb) => ipcRenderer.on('pet-pointer', (_e, point) => cb(point)),
+  setReminder: (provider, enabled) => ipcRenderer.send('set-reminder', provider, enabled),
+  onReminders: (cb) => ipcRenderer.on('reminders', (_e, state) => cb(state)),
+  onReminderDue: (cb) => ipcRenderer.on('reminder-due', (_e, event) => cb(event)),
   onUsage: (cb) => ipcRenderer.on('usage', (_e, data) => cb(data)),
   onError: (cb) => ipcRenderer.on('usage-error', (_e, msg) => cb(msg)),
   onConfig: (cb) => ipcRenderer.on('config', (_e, cfg) => cb(cfg)),

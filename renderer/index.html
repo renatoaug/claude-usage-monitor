@@ -46,6 +46,9 @@
             <path d="M7 7h10v10M7 17 17 7" />
           </svg>
         </button>
+        <button id="pet-only-toggle" title="Just the pet" aria-label="Just the pet">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v4h3v10h-3v3h-3v-3H8v3H5v-3H2V8h3Z"/><path d="M8 11v2m8-2v2"/></svg>
+        </button>
         <button id="min" title="Minimize / expand">
           <svg class="ic ic-min" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 12h14" />
@@ -202,7 +205,7 @@
           <span id="mini-acct-name"></span>
           <span id="mini-acct-plan" class="plan-badge" hidden></span>
         </div>
-        <div class="mini-line"><span id="mini-dot"></span><span id="mini-text">idle</span></div>
+        <div class="mini-line"><span id="mini-dot"></span><span id="mini-workers" class="activity-logos" role="img" hidden><span data-provider="claude"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span><span data-provider="codex"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg></span></span><span id="mini-text">idle</span></div>
         <div id="mini-pct-row"><span id="mini-pct">0%</span> <span class="lbl">session</span></div>
         <!-- Dual-service dock: two glanceable readings, one shared pet. -->
         <div id="mini-dual">
@@ -214,8 +217,17 @@
           </button>
         </div>
         <div id="mini-reset" hidden></div>
+        <button type="button" id="mini-reminder" class="reminder-toggle" hidden></button>
       </div>
 
+      <div id="pet-activity" class="activity-logos" role="img" hidden><span data-provider="claude"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span><span data-provider="codex"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg></span></div>
+      <section id="pet-glance" aria-label="Session usage">
+        <button type="button" data-provider="claude" id="glance-claude"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><span>Claude</span><b id="glance-claude-value">—</b></button>
+        <button type="button" data-provider="codex" id="glance-codex"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><span>Codex</span><b id="glance-codex-value">—</b></button>
+        <span id="glance-empty" hidden>Connect an account in Settings.</span>
+        <button type="button" id="pet-restore" aria-label="Open compact monitor" title="Open compact monitor"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" /></svg></button>
+      </section>
+      <div id="companion-notice" role="status" hidden></div>
       <!-- collapsible content -->
       <div id="content">
         <!-- status -->
@@ -241,6 +253,7 @@
                 <div class="meter-top"><span>current session</span><span id="session-pct">0%</span></div>
                 <div class="track"><div class="fill" id="session-fill"></div></div>
                 <div class="sub" id="session-sub">no active session</div>
+            <button type="button" id="reminder-toggle" class="reminder-toggle" hidden></button>
                 <div class="sub proj" id="session-proj" hidden></div>
               </div>
               <div class="meter">
@@ -418,6 +431,7 @@
     </div>
     <script src="burn.js"></script>
 <script src="voice.js"></script>
+<script src="companion.js"></script>
 <script src="pet.js"></script>
   </body>
 </html>

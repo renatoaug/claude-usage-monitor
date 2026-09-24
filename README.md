@@ -215,6 +215,7 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 
 - **Drag** the widget anywhere on screen
 - **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with Claude and Codex both connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
+- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, or both. Usage selection stays manual; when neither is active the pet rests.
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page of the service on screen
 - **×** quits
@@ -227,6 +228,10 @@ Under **⚙ Settings → Preferences** you can pick where Clauddy lives:
 - **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex too it reads `C 64% · X 28%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
 
 Switching is instant — no restart. (On Windows/Linux the icon lives in the system tray; the live % shows in its tooltip.)
+
+### Provider reactions
+
+When a provider's activity changes, the pet briefly glances toward it, with no caption. Both can be working at once. A glance never changes your selected provider, and glances share a 30-second cooldown. Inactivity is treated as a pause, not a completed task.
 
 ## Alerts
 
@@ -246,6 +251,12 @@ The last threshold you set is the only one that makes a sound; the earlier ones 
 Percentages come from your account when you're logged in, and fall back to the local token estimate when you're not.
 
 The first alert asks macOS for permission; after that the app shows up in **System Settings > Notifications** like any other.
+
+### Remind me at the session reset
+
+When the selected session crosses your first alert threshold, **Notify at reset** appears beneath the session details and in the compact monitor. Click to arm it; click **Reminder on** to cancel. This is a one-shot request, independent of the automatic threshold-alert toggle.
+
+Reminders survive restarts, belong to the Claude account or Codex connection that created them, and are canceled when you disconnect that source. Clauddy must be running to notify; an overdue reminder is delivered on reopening or waking up. A fresh, lower reading confirms that session budget returned and the pet celebrates. If usage hasn't refreshed — common with idle Codex logs — the reminder only says the scheduled reset time arrived and asks you to check usage.
 
 ## Configure (`config.json`)
 
