@@ -224,8 +224,10 @@ mock.module('../../auth.js', () => ({
   },
   fetchUsage: async () => {
     authState.usageCalls++
+    const u = authState.usage // captured before the wait, like the real fetch
+    if (authState.usageDelay) await new Promise((r) => realSetTimeout(r, authState.usageDelay))
     if (authState.usageError) throw authState.usageError
-    return authState.usage
+    return u
   },
   fetchProfile: async () => {
     const p = authState.profile // captured before the wait, like the real fetch
@@ -966,6 +968,31 @@ describe('accounts', () => {
     fire('accounts-switch', id)
     await new Promise((r) => realSetTimeout(r, 80))
     expect(listed().accounts.find((a) => a.id === id).label).toBe('a@b.com')
+  })
+
+  test('usage arriving after a switch is not shown as the new account', async () => {
+    fire('accounts-add')
+    const id = listed().active
+    await fire('auth-code', 'code#state')
+    await new Promise((r) => realSetTimeout(r, 5))
+    const saved = authState.usage
+    try {
+      // leave for `default` with its usage fetch still in flight…
+      authState.usage = { session: { pct: 11, resetMs: 1000 }, week: { pct: 1, resetMs: null } }
+      authState.usageDelay = 40
+      fire('accounts-switch', 'default')
+      await new Promise((r) => realSetTimeout(r, 5))
+      // …and come back before it lands: those numbers are `default`'s, not ours
+      authState.usage = { session: { pct: 22, resetMs: 1000 }, week: { pct: 2, resetMs: null } }
+      authState.usageDelay = 0
+      fire('accounts-switch', id)
+      await new Promise((r) => realSetTimeout(r, 80))
+      expect(lastOf('real-usage').session.pct).toBe(22)
+    } finally {
+      authState.usage = saved
+      authState.usageDelay = 0
+      fire('accounts-switch', 'default')
+    }
   })
 
   test('removing an account takes its data dir with it', async () => {

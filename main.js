@@ -742,9 +742,11 @@ function scheduleUsagePoll() {
   if (auth.isConnected()) usageTimer = setTimeout(pollUsage, usageBackoff)
 }
 async function pollUsage() {
+  const accountId = accounts.activeId()
   lastPollAt = Date.now()
   try {
     const u = await auth.fetchUsage()
+    if (accountId !== accounts.activeId()) return
     usageBackoff = 5 * 60 * 1000
     authFails = 0
     pushRealUsage(u)
@@ -756,6 +758,7 @@ async function pollUsage() {
       sendProfile()
     }
   } catch (e) {
+    if (accountId !== accounts.activeId()) return
     if (e && e.status === 429) {
       usageBackoff = Math.min(usageBackoff * 2, 30 * 60 * 1000)
     } else if (e && e.status === 401) {
