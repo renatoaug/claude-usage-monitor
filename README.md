@@ -1,6 +1,6 @@
 # 🟫 Clauddy
 
-A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations. Use Codex too? It can track that alongside (see [Codex](#codex)).
+A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations. Use Codex or Cursor too? It can track those alongside (see [Codex](#codex) and [Cursor](#cursor)).
 
 <p align="center">
 
@@ -52,6 +52,21 @@ A few things differ from Claude:
 - **No burn-rate projection and no activity scenes** — the logs don't carry enough to draw them honestly.
 
 Disconnecting (the **×** on the Codex card) only stops monitoring in Clauddy; your Codex login and logs are untouched.
+
+## Cursor
+
+Clauddy can follow [Cursor](https://cursor.com) too. Open **⚙ Settings → Connections → Cursor → Connect**: it needs the Cursor app signed in on this computer, and starts monitoring once it finds that login. Clauddy reads the app's session token from its local storage and asks Cursor's own dashboard endpoints for your usage, the same numbers as the Usage page on cursor.com.
+
+With three services connected, the tabs under the pet show each logo and %, and the minimized dock gets a third line.
+
+Cursor works differently from the other two:
+
+- **Its budget is monthly.** The Cursor tab shows **this month · included** (the whole plan) and **API models** (the pool for named third-party models), both resetting on your billing date. There is no 5-hour session or weekly window.
+- **Activity scenes work.** Cursor's agent writes a transcript of every tool call under `~/.cursor/projects`, so the pet reads, edits, runs commands and researches along with it, as it does for Claude.
+- **No token counts.** Neither source reports tokens, so the Cursor tab has no breakdowns or 30-day map, and its status line says when the agent last ran instead.
+- **The endpoints are unofficial.** They're the ones the cursor.com dashboard uses, checked every 5 minutes. If Cursor changes them, the tab shows the last reading with its age until Clauddy is updated.
+
+Disconnecting (the **×** on the Cursor card) only stops monitoring in Clauddy; the Cursor app and its login are untouched.
 
 ## Burn rate
 
@@ -123,6 +138,7 @@ Now and then the pet says something in a speech bubble. It only speaks when some
 | 90 minutes of unbroken work | _You've been at it for 1h 35m straight. Stretch break?_ | _Stretch break?_ | |
 | A new record day (30-day best) | _New record! 45M tokens today, your biggest day in a month._ | _New record: 45M!_ | |
 | Codex crosses fire, hits 100%, or resets | _Codex is at 91% now. It resets in 1h 12m._ | _Codex at 91%!_ | ✓ (fire, reset) |
+| Cursor crosses fire, hits 100%, or starts a new month | _Cursor is at 91% now. It resets in 6d 4h._ | _Cursor at 91%!_ | ✓ (fire, reset) |
 
 The greeting follows your clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and appears once a day, and so does the record. The reset recap covers only what the pet actually saw, so if you launch it mid-session it says less. Click the bubble to dismiss it.
 
@@ -214,8 +230,8 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 ## Controls
 
 - **Drag** the widget anywhere on screen
-- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with Claude and Codex both connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
-- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, or both. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
+- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with more than one service connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
+- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, Cursor, or several at once. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page of the service on screen
 - **×** quits
@@ -225,7 +241,7 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 Under **⚙ Settings → Preferences** you can pick where Clauddy lives:
 
 - **Floating pet** — the always-on widget in the corner (default).
-- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex too it reads `C 64% · X 28%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
+- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex or Cursor too it reads `C 64% · X 28% · Cu 5%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
 
 Switching is instant — no restart. (On Windows/Linux the icon lives in the system tray; the live % shows in its tooltip.)
 
@@ -243,6 +259,7 @@ Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Setti
 | _Weekly usage at 84%_ — `resets Fri 7:00 AM` | Same, for the weekly limit |
 | _Fable weekly at 84%_ — `resets Fri 7:00 AM` | Same, for a per-model weekly limit |
 | _Codex session at 82%_ / _Codex weekly at 84%_ | Same, for Codex, when it's connected |
+| _Cursor usage at 82%_ / _Cursor API models at 84%_ — `resets Oct 11` | Same, for Cursor's month, when it's connected |
 | _Session window reset_ — `full budget again` | A session you had pushed past 80% rolls over |
 | _Clauddy lost access to your usage_ | The OAuth token expired or was revoked, so the % went back to being an estimate |
 
@@ -256,7 +273,7 @@ The first alert asks macOS for permission; after that the app shows up in **Syst
 
 When the selected session crosses your first alert threshold, **Notify at reset** appears beneath the session details and in the compact monitor. Click to arm it; click **Reminder on** to cancel. This is a one-shot request, independent of the automatic threshold-alert toggle.
 
-Reminders survive restarts, belong to the Claude account or Codex connection that created them, and are canceled when you disconnect that source. Clauddy must be running to notify; an overdue reminder is delivered on reopening or waking up. A fresh, lower reading confirms that session budget returned and the pet celebrates. If usage hasn't refreshed — common with idle Codex logs — the reminder only says the scheduled reset time arrived and asks you to check usage.
+Reminders survive restarts, belong to the Claude account, Codex or Cursor connection that created them, and are canceled when you disconnect that source. Clauddy must be running to notify; an overdue reminder is delivered on reopening or waking up. A fresh, lower reading confirms that session budget returned and the pet celebrates. If usage hasn't refreshed — common with idle Codex logs — the reminder only says the scheduled reset time arrived and asks you to check usage.
 
 ## Configure (`config.json`)
 
@@ -272,6 +289,7 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
   "activeThresholdMs": 20000, // "active" if Claude wrote to its logs within this window
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
   "codex": { "enabled": false }, // set by Settings → Codex → Connect
+  "cursor": { "enabled": false }, // set by Settings → Cursor → Connect
   "talk": true, // speech bubbles on transitions
   "sound": false, // chiptune blips, opt-in
   "soundMutedUntil": 0, // set by the 🔊 button: muted until this epoch ms
@@ -292,7 +310,7 @@ bunx clauddy tired       # 🥵 maxed out
 bunx clauddy idle        # 🙂 calm
 bunx clauddy auto        # ↩️ back to your real usage
 bunx clauddy say         # 💬 a remark in the speech bubble
-bunx clauddy say fire    #    or a specific one: greeting, fire, reset, maxed, welcome, streak, record, codex
+bunx clauddy say fire    #    or a specific one: greeting, fire, reset, maxed, welcome, streak, record, codex, cursor
 ```
 
 Each state is written to the data dir the running widget watches, so it reacts
@@ -316,11 +334,11 @@ Everything lives on your machine, in `~/.claude-usage-monitor/`:
 - `alerts.json` — which notifications are already armed, so a restart doesn't repeat them
 - `accounts.json` — your list of accounts and which one is active
 
-With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions`.
+With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions`. With Cursor connected, it reads the Cursor app's login from its local storage and the agent transcripts in `~/.cursor/projects`, also without writing.
 - `debug.json` — scratch file for the `./pet` simulator
 - `accounts/<id>/` — the same `auth.json` + `alerts.json`, for each extra account
 
-Nothing leaves your machine except the OAuth calls to Anthropic's own login and usage endpoints.
+Nothing leaves your machine except the OAuth calls to Anthropic's own login and usage endpoints, and, with Cursor connected, the usage calls to Cursor's own API with the Cursor app's token.
 
 ## Contributing
 

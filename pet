@@ -8,7 +8,7 @@
 #   ./pet poke        -> one-shot squish + hearts
 #   ./pet celebrate   -> one-shot jump + sparkles
 #   ./pet say [kind]  -> one-shot remark in the speech bubble (blips if the voice is on)
-#                        kinds: greeting (default) fire reset maxed welcome streak record codex
+#                        kinds: greeting (default) fire reset maxed welcome streak record codex cursor
 #   ./pet reading     -> reading a book (also: editing planning running researching delegating waiting)
 #   ./pet auto        -> back to real data
 DIR="$HOME/.claude-usage-monitor"
@@ -30,10 +30,10 @@ kind=""
 if [ "$state" = "say" ]; then
   kind="${2:-greeting}"
   case "$kind" in
-    greeting|fire|reset|maxed|welcome|streak|record|codex) ;;
+    greeting|fire|reset|maxed|welcome|streak|record|codex|cursor) ;;
     *)
       echo "unknown remark: $kind"
-      echo "use: ./pet say [greeting | fire | reset | maxed | welcome | streak | record | codex]"
+      echo "use: ./pet say [greeting | fire | reset | maxed | welcome | streak | record | codex | cursor]"
       exit 1
       ;;
   esac

@@ -63,9 +63,11 @@ describe('one-shot reset reminders', () => {
   test('rejects invalid deadlines and corrupted records', () => {
     const s = setup({ pending: [null, { at: 'tomorrow' }], delivered: { bad: 'oops' } })
     expect(s.store.list()).toEqual([])
-    for (const at of [NaN, Infinity, s.now(), s.now() + 8 * 86400000]) {
+    for (const at of [NaN, Infinity, s.now(), s.now() + 33 * 86400000]) {
       expect(s.store.arm(reminder('codex', at))).toBe(false)
     }
+    // a monthly Cursor reset is within reach
+    expect(s.store.arm(reminder('cursor', s.now() + 20 * 86400000))).toBe(true)
     const broken = createReminders({
       load: () => {
         throw new Error('bad JSON')
@@ -128,21 +130,43 @@ describe('current workers', () => {
     const now = 1_000_000
     const claude = { active: true, ts: now, activity: 'editing' }
     const codex = { active: true, lastSeen: now, limitsAt: 1 }
-    expect(currentActivity(claude, null, now).activity).toBe('editing')
-    expect(currentActivity(claude, codex, now)).toMatchObject({
+    expect(currentActivity({ claude }, now).activity).toBe('editing')
+    expect(currentActivity({ claude, codex }, now)).toMatchObject({
       providers: ['claude', 'codex'],
       activity: 'working',
     })
-    expect(currentActivity(claude, codex, now + 60001).providers).toEqual([])
-    expect(currentActivity({ active: true }, { active: true }, now).providers).toEqual([])
-    expect(currentActivity(null, codex, now).providers).toEqual(['codex'])
-    expect(currentActivity({ active: true, ts: now }, null, now).activity).toBe('working')
+    expect(currentActivity({ claude, codex }, now + 60001).providers).toEqual([])
+    expect(
+      currentActivity({ claude: { active: true }, codex: { active: true } }, now).providers,
+    ).toEqual([])
+    expect(currentActivity({ codex }, now).providers).toEqual(['codex'])
+    expect(currentActivity({ claude: { active: true, ts: now } }, now).activity).toBe('working')
   })
   test('sleeps only when connected sources have evidence of rest', () => {
     const now = 1_000_000
-    expect(currentActivity(null, null, now).sleeping).toBe(false)
-    expect(currentActivity({ sleeping: true }, { lastSeen: null }, now).sleeping).toBe(false)
-    expect(currentActivity({ sleeping: true }, { lastSeen: 1 }, now).sleeping).toBe(true)
-    expect(currentActivity({ sleeping: false }, null, now).sleeping).toBe(false)
+    expect(currentActivity({}, now).sleeping).toBe(false)
+    const claude = { sleeping: true }
+    expect(currentActivity({ claude, codex: { lastSeen: null } }, now).sleeping).toBe(false)
+    expect(currentActivity({ claude, codex: { lastSeen: 1 } }, now).sleeping).toBe(true)
+    expect(currentActivity({ claude: { sleeping: false } }, now).sleeping).toBe(false)
+    // Cursor rests like Codex: only on an old transcript
+    expect(currentActivity({ claude, cursor: { lastSeen: now } }, now).sleeping).toBe(false)
+    expect(currentActivity({ claude, cursor: { lastSeen: 1 } }, now).sleeping).toBe(true)
+  })
+  test('Cursor works like Claude: alone it names its scene, with others it shares one', () => {
+    const now = 1_000_000
+    const cursor = { active: true, lastSeen: now, activity: 'running' }
+    expect(currentActivity({ cursor }, now)).toMatchObject({
+      providers: ['cursor'],
+      activity: 'running',
+    })
+    const claude = { active: true, ts: now, activity: 'editing' }
+    expect(currentActivity({ claude, cursor }, now)).toMatchObject({
+      providers: ['claude', 'cursor'],
+      activity: 'working',
+    })
+    expect(
+      currentActivity({ cursor: { ...cursor, lastSeen: now - 60001 } }, now).providers,
+    ).toEqual([])
   })
 })

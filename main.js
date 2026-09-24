@@ -19,12 +19,14 @@ const { getUsage } = usage
 const auth = require('./auth')
 const accounts = require('./accounts')
 const codex = require('./codex')
+const cursor = require('./cursor')
 const { createReminders } = require('./reminders')
 
 const REPO = 'renatoaug/claude-usage-monitor'
 const USAGE_URLS = {
   claude: 'https://claude.ai/settings/usage',
   codex: 'https://chatgpt.com/usage#settings/Usage',
+  cursor: 'https://cursor.com/dashboard?tab=usage',
 }
 
 // data dir: kept outside the project folder so moving the repo doesn't break it.
@@ -65,6 +67,8 @@ let sessionPct = null // authoritative session % shown in the tray title
 let codexUsage = null // last Codex payload, null while it isn't enabled
 let realUsageAt = 0
 let codexReadAt = 0
+let cursorUsage = null // last Cursor payload, null while it isn't enabled
+let cursorReadAt = 0
 let realUsage = null // last OAuth usage payload — the % alerts trust when logged in
 let lastProgrammaticMove = 0 // ignore the 'moved' event our own setPosition triggers
 let displayChanging = 0 // ignore OS window-shuffles while a display (dis)connects
@@ -81,6 +85,7 @@ function publicConfig(c) {
     fireThreshold: c.fireThreshold,
     zoom: c.zoom,
     codex: !!c.codex?.enabled,
+    cursor: !!c.cursor?.enabled,
     talk: c.talk,
     sound: c.sound,
     soundMutedUntil: c.soundMutedUntil,
@@ -99,6 +104,7 @@ function loadConfig() {
     fireThreshold: 90, // session % at which the pet catches fire (tired still fixed at 100)
     zoom: 100, // widget scale %, 100-200
     codex: { enabled: false }, // opt-in from Settings, never on by finding ~/.codex
+    cursor: { enabled: false }, // opt-in too: it reads the Cursor app's own login
     talk: true, // speech bubbles on transitions
     sound: false, // chiptune blips: opt-in, audio must never surprise anyone
     soundMutedUntil: 0, // the one-click "mute for 1 hour", as an epoch ms
@@ -147,6 +153,8 @@ function fmtDuration(ms) {
 function fmtClock(ms) {
   const at = new Date(Date.now() + ms)
   const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  // a week or more out (Cursor's monthly cycle), a weekday would be ambiguous
+  if (ms >= 6 * 86400000) return at.toLocaleDateString([], { month: 'short', day: 'numeric' })
   return ms >= 86400000 ? `${at.toLocaleDateString([], { weekday: 'short' })} ${time}` : time
 }
 
@@ -169,12 +177,35 @@ const resetReminders = createReminders({
     fs.renameSync(tmp, REMINDERS_FILE)
   },
 })
-const reminderKey = (provider) => (provider === 'codex' ? 'codex' : `claude:${accounts.activeId()}`)
+// Codex and Cursor have one connection each; Claude's reminders are per account
+const reminderKey = (provider) =>
+  provider === 'claude' ? `claude:${accounts.activeId()}` : provider
+const NAMES = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor' }
+// each service's reset window, when it was read, and whether it's still on
+function serviceState(provider) {
+  if (provider === 'codex')
+    return {
+      session: codexUsage?.session,
+      readAt: codexReadAt,
+      freshAt: codexUsage?.limitsAt,
+      on: !!config.codex?.enabled,
+    }
+  if (provider === 'cursor')
+    return {
+      session: cursorUsage?.session,
+      readAt: cursorReadAt,
+      freshAt: cursorUsage?.limitsAt,
+      on: !!config.cursor?.enabled,
+    }
+  return { session: realUsage?.session, readAt: realUsageAt, freshAt: realUsageAt, on: null }
+}
 function sendReminders(error = null) {
   if (!win || win.isDestroyed()) return
+  const find = (p) => resetReminders.list().find((r) => r.key === reminderKey(p)) || null
   win.webContents.send('reminders', {
-    claude: resetReminders.list().find((r) => r.key === reminderKey('claude')) || null,
-    codex: resetReminders.list().find((r) => r.key === 'codex') || null,
+    claude: find('claude'),
+    codex: find('codex'),
+    cursor: find('cursor'),
     error,
   })
 }
@@ -193,16 +224,15 @@ function checkResetReminders() {
   try {
     for (const r of resetReminders.list()) {
       const connected =
-        r.provider === 'codex'
-          ? config.codex?.enabled
-          : accounts.list().some((a) => r.key === `claude:${a.id}` && hasToken(a.id))
+        r.provider === 'claude'
+          ? accounts.list().some((a) => r.key === `claude:${a.id}` && hasToken(a.id))
+          : serviceState(r.provider).on
       if (!connected && !cancelReminder(r.key)) return
     }
     const due = resetReminders.takeDue()
     for (const r of due) {
-      const isCurrent = r.provider === 'codex' || r.key === reminderKey('claude')
-      const session = r.provider === 'codex' ? codexUsage?.session : realUsage?.session
-      const readAt = r.provider === 'codex' ? codexUsage?.limitsAt : realUsageAt
+      const isCurrent = r.provider !== 'claude' || r.key === reminderKey('claude')
+      const { session, freshAt: readAt } = serviceState(r.provider)
       const confirmed = isCurrent && readAt >= r.at && session?.pct != null && session.pct < r.pct
       const message = confirmed
         ? `${r.label}: session budget is available again.`
@@ -220,14 +250,12 @@ function checkResetReminders() {
   }
 }
 ipcMain.on('set-reminder', (_e, provider, enabled) => {
-  if (!['claude', 'codex'].includes(provider) || typeof enabled !== 'boolean') return
+  if (!Object.hasOwn(NAMES, provider) || typeof enabled !== 'boolean') return
   const key = reminderKey(provider)
   if (!enabled) return cancelReminder(key)
-  const cx = provider === 'codex'
-  const session = cx ? codexUsage?.session : realUsage?.session
-  const at = (cx ? codexReadAt : realUsageAt) + (session?.resetMs || 0)
-  const freshAt = cx ? codexUsage?.limitsAt : realUsageAt
-  const connected = cx ? config.codex?.enabled : auth.isConnected()
+  const { session, readAt, freshAt, on } = serviceState(provider)
+  const at = readAt + (session?.resetMs || 0)
+  const connected = provider === 'claude' ? auth.isConnected() : on
   if (
     !connected ||
     !freshAt ||
@@ -237,7 +265,10 @@ ipcMain.on('set-reminder', (_e, provider, enabled) => {
     return sendReminders('Wait for a fresh usage reading before setting a reminder.')
   }
   try {
-    const label = cx ? 'Codex' : `Claude · ${accounts.active().label || 'your account'}`
+    const label =
+      provider === 'claude'
+        ? `Claude · ${accounts.active().label || 'your account'}`
+        : NAMES[provider]
     if (!resetReminders.arm({ key, provider, label, at, pct: session.pct })) {
       return sendReminders('This reset time has passed. Wait for a fresh reading.')
     }
@@ -303,6 +334,14 @@ function checkCodexAlerts(config, c) {
   alertScopes(config, [
     { label: 'Codex session', pct: c.session?.pct, resetMs: c.session?.resetMs, session: true },
     { label: 'Codex weekly', pct: c.weekly?.pct, resetMs: c.weekly?.resetMs },
+  ])
+}
+// Cursor's budget is the billing cycle; its API-model pool fills on its own
+function checkCursorAlerts(config, c) {
+  if (!c) return
+  alertScopes(config, [
+    { label: 'Cursor usage', pct: c.session?.pct, resetMs: c.session?.resetMs },
+    { label: 'Cursor API models', pct: c.api?.pct, resetMs: c.api?.resetMs },
   ])
 }
 // per-model weekly limits only exist on the account side, so they're checked
@@ -550,6 +589,17 @@ function createWindow() {
     } catch (err) {
       console.error('codex:', err)
     }
+    // Cursor too: limits come from a throttled background fetch
+    try {
+      const c = config.cursor?.enabled ? cursor.getCursorUsage() : null
+      cursorUsage = c
+      cursorReadAt = Date.now()
+      win.webContents.send('cursor', c)
+      checkCursorAlerts(config, c)
+      updateTray()
+    } catch (err) {
+      console.error('cursor:', err)
+    }
     checkResetReminders()
   }
   doTick = tick
@@ -641,11 +691,13 @@ function trayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Open Clauddy', click: () => showPopover() },
     ...accountsMenuItems(),
-    ...(config.codex?.enabled
-      ? [
-          { label: 'Open Claude usage', click: () => shell.openExternal(USAGE_URLS.claude) },
-          { label: 'Open Codex usage', click: () => shell.openExternal(USAGE_URLS.codex) },
-        ]
+    ...(config.codex?.enabled || config.cursor?.enabled
+      ? ['claude', 'codex', 'cursor']
+          .filter((p) => p === 'claude' || config[p]?.enabled)
+          .map((p) => ({
+            label: `Open ${NAMES[p]} usage`,
+            click: () => shell.openExternal(USAGE_URLS[p]),
+          }))
       : [{ label: 'Open Usage page', click: () => shell.openExternal(USAGE_URLS.claude) }]),
     { type: 'separator' },
     { label: 'Quit Clauddy', click: () => app.quit() },
@@ -742,15 +794,19 @@ function positionFloating() {
 function updateTray() {
   if (!tray) return
   const cx = codexUsage
-  const cxPct = cx?.session?.pct
-  // both services: one icon, both numbers, each labelled — never one blended %
-  if (cx) {
+  const cu = cursorUsage
+  // several services: one icon, every number labelled — never one blended %
+  if (cx || cu) {
     const fmt = (v) => (v == null ? '—' : `${Math.round(v)}%`)
-    const title = sessionPct == null ? `X ${fmt(cxPct)}` : `C ${fmt(sessionPct)} · X ${fmt(cxPct)}`
+    const age = (u) => (u.limitsAt ? ` (as of ${new Date(u.limitsAt).toLocaleTimeString()})` : '')
+    const parts = [
+      sessionPct != null && ['C', `Claude session ${fmt(sessionPct)}`, sessionPct],
+      cx && ['X', `Codex session ${fmt(cx.session?.pct)}${age(cx)}`, cx.session?.pct],
+      cu && ['Cu', `Cursor usage ${fmt(cu.session?.pct)}${age(cu)}`, cu.session?.pct],
+    ].filter(Boolean)
+    const title = parts.map(([k, , v]) => `${k} ${fmt(v)}`).join(' · ')
     if (process.platform === 'darwin') tray.setTitle(` ${title}`)
-    const age = cx.limitsAt ? ` (as of ${new Date(cx.limitsAt).toLocaleTimeString()})` : ''
-    const claude = sessionPct == null ? '' : `Claude session ${fmt(sessionPct)} · `
-    tray.setToolTip(`Clauddy — ${claude}Codex session ${fmt(cxPct)}${age}`)
+    tray.setToolTip(`Clauddy — ${parts.map(([, t]) => t).join(' · ')}`)
     return
   }
   if (sessionPct == null) {
@@ -835,6 +891,16 @@ ipcMain.on('codex-detect', () => {
   if (win && !win.isDestroyed()) win.webContents.send('codex-detected', r)
 })
 ipcMain.on('codex-enable', (_e, on) => setCodexEnabled(!!on))
+
+// Settings → Connect Cursor: it needs the Cursor app signed in on this machine
+ipcMain.on('cursor-detect', () => {
+  let r = { found: false, plan: null }
+  try {
+    r = cursor.detectCursor()
+  } catch {}
+  if (win && !win.isDestroyed()) win.webContents.send('cursor-detected', r)
+})
+ipcMain.on('cursor-enable', (_e, on) => setCursorEnabled(!!on))
 
 // watch the debug file; forward forced states to the renderer
 function watchDebug() {
@@ -1026,6 +1092,19 @@ function setCodexEnabled(on) {
   if (!on) {
     codexUsage = null
     cancelReminder('codex')
+  }
+  if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
+  if (doTick) doTick()
+  updateTray()
+}
+
+// off only stops monitoring here; the Cursor app and its login are untouched
+function setCursorEnabled(on) {
+  writeConfigPatch({ cursor: { ...(config.cursor || {}), enabled: on } })
+  config = loadConfig()
+  if (!on) {
+    cursorUsage = null
+    cancelReminder('cursor')
   }
   if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
   if (doTick) doTick()

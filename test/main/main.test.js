@@ -214,6 +214,20 @@ mock.module('../../codex.js', () => ({
   },
 }))
 
+let cursorResult = null
+let cursorThrows = false
+let cursorDetected = { found: true, plan: 'pro' }
+mock.module('../../cursor.js', () => ({
+  getCursorUsage: () => {
+    if (cursorThrows) throw new Error('cursor boom')
+    return cursorResult
+  },
+  detectCursor: () => {
+    if (cursorDetected instanceof Error) throw cursorDetected
+    return cursorDetected
+  },
+}))
+
 mock.module('../../auth.js', () => ({
   setDataDir: (dir) => {
     authDir = dir
@@ -1179,6 +1193,90 @@ describe('codex', () => {
     expect(lastOf('config').codex).toBe(false)
     expect(lastOf('codex')).toBeNull()
     codexResult = null
+  })
+})
+
+describe('cursor', () => {
+  const cu = (over = {}) => ({
+    active: false,
+    limitsAt: Date.now(),
+    session: { pct: 20, resetMs: 10 * 86400000 },
+    api: { pct: 5, resetMs: 10 * 86400000 },
+    ...over,
+  })
+
+  test('stays off until enabled; detecting reports without enabling', () => {
+    cursorResult = cu()
+    tick()
+    expect(lastOf('cursor')).toBeNull()
+    fire('cursor-detect')
+    expect(lastOf('cursor-detected')).toEqual({ found: true, plan: 'pro' })
+    cursorDetected = new Error('locked')
+    fire('cursor-detect')
+    expect(lastOf('cursor-detected')).toEqual({ found: false, plan: null })
+    cursorDetected = { found: true, plan: 'pro' }
+    expect(startupOf('config').cursor).toBe(false)
+  })
+
+  test('enabling persists the choice and starts pushing Cursor usage', () => {
+    fire('cursor-enable', true)
+    expect(JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')).cursor.enabled).toBe(true)
+    expect(lastOf('config').cursor).toBe(true)
+    expect(lastOf('cursor').session.pct).toBe(20)
+  })
+
+  test('a Cursor failure leaves Claude alone', () => {
+    const before = sent.filter((m) => m.channel === 'usage-error').length
+    const err = console.error
+    console.error = () => {}
+    cursorThrows = true
+    tick()
+    cursorThrows = false
+    console.error = err
+    expect(sent.filter((m) => m.channel === 'usage-error').length).toBe(before)
+  })
+
+  test('alerts under its own names, with the reset as a date', () => {
+    notifications.length = 0
+    cursorResult = cu({ session: { pct: 96, resetMs: 10 * 86400000 } })
+    tick()
+    const alert = notifications.find((n) => n.title.startsWith('Cursor usage at 96%'))
+    expect(alert.body).toMatch(/^resets [A-Z][a-z]{2} \d+$/)
+    notifications.length = 0
+    tick()
+    expect(notifications.length).toBe(0)
+  })
+
+  test('the tray lists every service; the menu opens each usage page', () => {
+    fire('save-config', { mode: 'menubar' })
+    const real = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+    try {
+      tick()
+    } finally {
+      Object.defineProperty(process, 'platform', { value: real, configurable: true })
+    }
+    expect(trayState.title).toContain('Cu 96%')
+    expect(trayState.tooltip).toContain('Cursor usage 96%')
+    trayState.handlers.get('right-click')()
+    opened.length = 0
+    trayState.menu.find((i) => i.label === 'Open Cursor usage').click()
+    expect(opened).toEqual(['https://cursor.com/dashboard?tab=usage'])
+    fire('save-config', { mode: 'floating' })
+  })
+
+  test('a reset reminder arms from a fresh reading and cancels on disconnect', () => {
+    cursorResult = cu({ session: { pct: 97, resetMs: 10 * 86400000 } })
+    tick()
+    fire('set-reminder', 'cursor', true)
+    const r = lastOf('reminders').cursor
+    expect(r.label).toBe('Cursor')
+    expect(r.at).toBeGreaterThan(Date.now() + 9 * 86400000)
+    fire('cursor-enable', false)
+    expect(lastOf('reminders').cursor).toBeNull()
+    expect(lastOf('config').cursor).toBe(false)
+    expect(lastOf('cursor')).toBeNull()
+    cursorResult = null
   })
 })
 
