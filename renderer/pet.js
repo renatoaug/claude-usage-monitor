@@ -503,7 +503,7 @@ function moodOf(st) {
 // mini face has room for a glance, not a sentence, so it gets the short one.
 // `force` is the simulator's: it skips the gates but still respects the mute
 function say(line, { headline = false, mood = 'normal', force = false } = {}) {
-  if (!line) return false
+  if (!line || document.body.classList.contains('pet-only')) return false
   const collapsed = document.body.classList.contains('collapsed')
   const text = typeof line === 'string' ? line : collapsed ? line.short : line.text
   if (!force) {
@@ -743,8 +743,8 @@ el('mute').addEventListener('click', (e) => {
 
 // ---- services ---------------------------------------------------------------
 // Claude and Codex are monitored side by side, but the panel shows one at a
-// time: the tabs under the pet pick which one owns the chip, the pet, the
-// meters, the breakdowns and the Usage arrow.
+// time: tabs own the chip, meters, breakdowns and Usage arrow. The expanded
+// scene follows that view; compact pets follow activity across both services.
 const PROVIDER_KEY = 'clauddy.provider'
 let codexData = null // last Codex payload; null while Codex isn't enabled
 let pickedProvider = (() => {
@@ -899,12 +899,203 @@ el('harness-tabs').addEventListener('keydown', (e) => {
   el(`tab-${providers[next]}`).focus()
 })
 
+// ---- companion: pet-only size, reset reminders, and provider reactions -------
+const SIZE_KEY = 'clauddy.size'
+let sizeLoaded = false
+let peekTimer = null
+let nativePetInside = null
+let noticeTimer = null
+let reminders = { claude: null, codex: null }
+const activityTracker = Companion.createActivityTracker()
+
+function setPetPeek(on) {
+  if (!document.body.classList.contains('pet-only')) return
+  clearTimeout(peekTimer)
+  document.body.classList.toggle('pet-peek', on)
+}
+function setDisplaySize(size, remember = true) {
+  if (!['expanded', 'compact', 'pet'].includes(size)) size = 'expanded'
+  if (currentConfig.mode === 'menubar' && size === 'pet') size = 'compact'
+  hideBubble()
+  clearTimeout(peekTimer)
+  document.body.classList.remove('pet-peek')
+  document.body.classList.toggle('collapsed', size !== 'expanded')
+  document.body.classList.toggle('pet-only', size === 'pet')
+  nativePetInside = null
+  window.api.watchPetPointer(size === 'pet')
+  el('pet').tabIndex = size === 'pet' ? 0 : -1
+  if (size === 'pet') {
+    el('pet').setAttribute('role', 'button')
+    el('pet').setAttribute('aria-label', 'Drag to move; press Enter to open compact monitor')
+  } else {
+    el('pet').removeAttribute('role')
+    el('pet').removeAttribute('aria-label')
+  }
+  if (remember) {
+    try {
+      localStorage.setItem(SIZE_KEY, size)
+    } catch {}
+  }
+  paint()
+  fitSize()
+}
+el('pet-only-toggle').addEventListener('click', () => setDisplaySize('pet'))
+el('pet-restore').addEventListener('click', () => setDisplaySize('compact'))
+window.api.onPetPointer((point) => {
+  if (!document.body.classList.contains('pet-only')) return
+  const contains = (rect) =>
+    point &&
+    point.x >= rect.left &&
+    point.x <= rect.right &&
+    point.y >= rect.top &&
+    point.y <= rect.bottom
+  // Keep the preview open across the small gap to its controls. It opens from
+  // the sprite, not from the otherwise empty space below it.
+  const inside = !!(
+    contains(el('pet').getBoundingClientRect()) ||
+    (document.body.classList.contains('pet-peek') && contains(el('card').getBoundingClientRect()))
+  )
+  if (inside === nativePetInside) return
+  nativePetInside = inside
+  clearTimeout(peekTimer)
+  if (inside) setPetPeek(true)
+  else peekTimer = setTimeout(() => setPetPeek(false), 180)
+})
+window.addEventListener('blur', () => setPetPeek(false))
+el('card').addEventListener('focusin', () => setPetPeek(true))
+el('card').addEventListener('focusout', (e) => {
+  if (!el('card').contains(e.relatedTarget)) setPetPeek(false)
+})
+el('pet').addEventListener('keydown', (e) => {
+  if (!document.body.classList.contains('pet-only')) return
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    setDisplaySize('compact')
+  } else if (e.key === 'Escape') {
+    el('pet').blur()
+    setPetPeek(false)
+  }
+})
+for (const button of document.querySelectorAll('#pet-glance button[data-provider]')) {
+  button.addEventListener('click', () => pickProvider(button.dataset.provider))
+}
+function paintCompanion(view) {
+  for (const provider of ['claude', 'codex']) {
+    const connected = provider === 'claude' ? claudeOn() : codexOn()
+    const session = provider === 'claude' ? realUsage?.session : codexData?.session
+    const button = el(`glance-${provider}`)
+    button.hidden = !connected
+    button.setAttribute('aria-pressed', String(provider === view))
+    button.classList.toggle('urgent', session?.pct >= warnAt())
+    el(`glance-${provider}-value`).textContent = pctText(session?.pct)
+    const stale = provider === 'codex' && codexStale(codexData)
+    button.title = stale
+      ? 'Last recorded usage · waiting for a fresh reading'
+      : `Show ${provider} usage`
+    button.classList.toggle('stale-reading', !!stale)
+  }
+  el('glance-empty').hidden = claudeOn() || codexOn()
+  const session = view === 'claude' ? realUsage?.session : codexData?.session
+  const reminder = reminders[view]
+  const stale =
+    view === 'codex'
+      ? !codexData?.limitsAt || codexStale(codexData)
+      : !realUsageReadAt || Date.now() - realUsageReadAt > STALE_MS
+  const available = session?.pct != null && session.resetMs > 0 && !stale
+  const name = view === 'codex' ? 'Codex' : 'Claude'
+  for (const id of ['reminder-toggle', 'mini-reminder']) {
+    const button = el(id)
+    button.hidden = !reminder && (!available || session.pct < warnAt())
+    button.setAttribute('aria-pressed', String(!!reminder))
+    button.textContent = reminder ? '✓ Reminder on' : 'Notify at reset'
+    button.title = reminder
+      ? `Cancel ${name} reminder for ${new Date(reminder.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+      : `Remind me when ${name}'s session reset is due`
+  }
+}
+function companionNotice(text, provider = null) {
+  clearTimeout(noticeTimer)
+  const notice = el('companion-notice')
+  notice.textContent = text
+  notice.title = text
+  notice.dataset.provider = provider || ''
+  notice.hidden = false
+  fitSize()
+  noticeTimer = setTimeout(() => {
+    notice.hidden = true
+    fitSize()
+  }, 5000)
+}
+for (const id of ['reminder-toggle', 'mini-reminder']) {
+  el(id).addEventListener('click', () => {
+    const provider = viewProvider()
+    window.api.setReminder(provider, !reminders[provider])
+  })
+}
+window.api.onReminders((state) => {
+  reminders = state || { claude: null, codex: null }
+  if (state?.error) companionNotice(state.error)
+  paintCompanion(viewProvider())
+  fitSize()
+})
+window.api.onReminderDue((event) => {
+  if (!event.isCurrent) return
+  const name = event.provider === 'codex' ? 'Codex' : 'Claude'
+  companionNotice(
+    event.confirmed ? `${name} · budget is back!` : `${name} · reset time reached`,
+    event.provider,
+  )
+  if (event.confirmed) celebrate()
+})
+function reactToProvider(provider, data) {
+  // no caption: the eyes glance toward whichever service changed
+  const cue = activityTracker.observe(provider, data)
+  if (!cue || document.body.classList.contains('settings-open')) return
+  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    const x = provider === 'codex' ? 3 : -3
+    el('eyes').animate(
+      [
+        { transform: 'translateX(0)' },
+        { transform: `translateX(${x}px)`, offset: 0.3 },
+        { transform: `translateX(${x}px)`, offset: 0.7 },
+        { transform: 'translateX(0)' },
+      ],
+      { duration: 1100, easing: 'ease-in-out' },
+    )
+  }
+}
+
+function paintActivity() {
+  const activity = Companion.currentActivity(
+    claudeOn() ? claudeActivityData : null,
+    codexOn() ? codexData : null,
+  )
+  const names = activity.providers.map((p) => (p === 'claude' ? 'Claude' : 'Codex')).join(' + ')
+  const label = names ? `${names} · ${activity.activity}` : ''
+  for (const id of ['pet-activity', 'mini-workers']) {
+    const badge = el(id)
+    badge.hidden = !names
+    badge.setAttribute('aria-label', label)
+    for (const logo of badge.querySelectorAll('[data-provider]')) {
+      logo.hidden = !activity.providers.includes(logo.dataset.provider)
+    }
+  }
+  el('mini-dot').hidden =
+    activity.providers.length > 0 && document.body.classList.contains('collapsed')
+  return activity
+}
+
 // main render
 let prevState = null
 const prevPct = {} // per service: a switch must not read as a reset
 let lastData = null
+// Claude's activity, kept apart from lastData: an account switch or a logout
+// must drop the old account's worker at once, not a tick later
+let claudeActivityData = null
 function render(d) {
+  if (claudeOn()) reactToProvider('claude', d)
   lastData = d
+  claudeActivityData = claudeOn() ? d : null
   noteSession(d)
   // the burn trail is Claude's, fed on every Claude tick whatever is on screen
   const cl = realUsage
@@ -918,6 +1109,7 @@ function paint() {
   if (!d0) return
   const view = viewProvider()
   paintServices(view)
+  paintCompanion(view)
   const isCodex = view === 'codex' && !!codexData
   const cv = isCodex ? codexView(codexData) : null
   const d = isCodex ? cv.d : d0
@@ -945,6 +1137,12 @@ function paint() {
             : 'idle'
   const acts = ['editing', 'reading', 'planning', 'running', 'researching', 'delegating', 'waiting']
   let curActivity = d.activity
+  const activity = paintActivity()
+  const collapsedNow = document.body.classList.contains('collapsed')
+  if (collapsedNow) {
+    st = activity.providers.length ? 'working' : activity.sleeping ? 'sleeping' : 'idle'
+    curActivity = activity.providers.length ? activity.activity : null
+  }
   // dev override from `./pet <state>` (base states or an activity name)
   if (debugState) {
     const map = {
@@ -1051,7 +1249,9 @@ function paint() {
   el('month-total').textContent = d.monthTokens == null ? '—' : `${fmtTokens(d.monthTokens)} tokens`
   paintChip()
 
-  currentRate = d.tokensPerMin || 0
+  // compact eats at Claude's pace only while Claude is one of the workers
+  const claudeRate = !collapsedNow || activity.providers.includes('claude')
+  currentRate = claudeRate ? (collapsedNow ? d0 : d).tokensPerMin || 0 : 0
   if (st === 'working') {
     if (!eating) {
       eating = true
@@ -1075,7 +1275,8 @@ function fitSize() {
     const zoom = Number.parseFloat(document.body.style.zoom) || 1
     // The dual-service dock trades height for a little horizontal room.
     const dual = document.body.classList.contains('dual')
-    const w = (collapsed ? (dual ? 240 : 168) : 304) * zoom
+    const petOnly = document.body.classList.contains('pet-only')
+    const w = (petOnly ? 168 : collapsed ? (dual ? 240 : 192) : 304) * zoom
     // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
     // empirically against this Electron build) — so measure the unzoomed content
     // height, then scale the whole thing (content + margin) ourselves
@@ -1096,6 +1297,7 @@ function applyZoom(z) {
 
 let currentConfig = {}
 let realUsage = null
+let realUsageReadAt = 0
 let debugState = null
 window.api.onDebugState((o) => {
   const s = o?.state
@@ -1115,6 +1317,17 @@ window.api.onConfig((cfg) => {
   document.body.classList.toggle('is-menubar', currentConfig.mode === 'menubar')
   document.body.classList.toggle('codex-on', !!currentConfig.codex)
   if (!currentConfig.codex) codexData = null
+  if (!currentConfig.codex) activityTracker.forget('codex')
+  if (!sizeLoaded) {
+    sizeLoaded = true
+    let size = 'expanded'
+    try {
+      size = localStorage.getItem(SIZE_KEY) || size
+    } catch {}
+    setDisplaySize(size, false)
+  } else if (currentConfig.mode === 'menubar' && document.body.classList.contains('pet-only')) {
+    setDisplaySize('compact', false)
+  }
   heardConfig = true
   paintMute()
   paint()
@@ -1123,16 +1336,20 @@ window.api.onConfig((cfg) => {
 })
 window.api.onCodex((c) => {
   codexData = c || null
+  reactToProvider('codex', codexOn() ? c : null)
   paint()
 })
 window.api.onRealUsage((u) => {
   realUsage = u || null
+  realUsageReadAt = u ? Date.now() : 0
   if (lastData) render(lastData)
 })
 window.api.onAuthState((s) => {
   const on = !!s?.connected
   document.body.classList.toggle('auth-on', on)
   if (!on) {
+    activityTracker.forget('claude')
+    claudeActivityData = null
     realUsage = null
     document.body.classList.remove('live')
     // main sends this before it opens the browser for a new login, so the
@@ -1342,8 +1559,13 @@ function switchAccount(id) {
 }
 
 window.api.onAccounts((a) => {
+  if (lastAccounts?.active !== a?.active) {
+    activityTracker.forget('claude')
+    claudeActivityData = null
+  }
   pendingRemove = null
   renderAccounts(a)
+  paint()
 })
 
 // closing the panel while a login is pending gives up on it: main puts us back
@@ -1636,7 +1858,7 @@ function populateSettings() {
 }
 function openSettings() {
   hideBubble()
-  document.body.classList.remove('collapsed')
+  setDisplaySize('expanded', false)
   populateSettings()
   document.body.classList.add('settings-open')
   fitSize()
@@ -1728,18 +1950,19 @@ el('set-save').addEventListener('click', () => {
 })
 el('min').addEventListener('click', () => {
   hideBubble()
-  document.body.classList.toggle('collapsed')
-  fitSize()
+  setDisplaySize(document.body.classList.contains('collapsed') ? 'expanded' : 'compact')
 })
 // double-click the pet to collapse / expand
 el('pet').addEventListener('dblclick', () => {
+  if (document.body.classList.contains('pet-only')) return
   hideBubble()
-  document.body.classList.toggle('collapsed')
-  fitSize()
+  setDisplaySize(document.body.classList.contains('collapsed') ? 'expanded' : 'compact')
 })
 
 // poke the pet -> bouncy squish + hearts
-el('pet').addEventListener('click', () => pokePet())
+el('pet').addEventListener('click', () => {
+  if (!document.body.classList.contains('pet-only')) pokePet()
+})
 
 // eyes follow the cursor
 const eyesG = el('eyes')
@@ -1785,6 +2008,10 @@ if (typeof module === 'object' && module.exports) {
     say,
     hideBubble,
     soundOn,
+    setDisplaySize,
+    setPetPeek,
+    paintCompanion,
+    activityTracker,
     blipper,
   }
 }

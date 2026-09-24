@@ -36,6 +36,9 @@ globalThis.requestAnimationFrame = (cb) => {
 // the preload bridge, recording what the renderer sends back to main
 const api = { sent: [], handlers: {} }
 for (const name of [
+  'onReminders',
+  'onReminderDue',
+  'onPetPointer',
   'onUsage',
   'onError',
   'onConfig',
@@ -57,6 +60,8 @@ for (const name of [
 }
 api.all = [] // never cleared: fitSize only reports when the size actually changes
 for (const name of [
+  'setReminder',
+  'watchPetPointer',
   'saveConfig',
   'resize',
   'openUsage',
@@ -85,6 +90,7 @@ window.api = api
 // be planted before pet.js loads.
 globalThis.Burn = await import('../../renderer/burn.js')
 globalThis.Voice = await import('../../renderer/voice.js')
+globalThis.Companion = await import('../../renderer/companion.js')
 const pet = await import('../../renderer/pet.js')
 
 afterAll(() => GlobalRegistrator.unregister())
@@ -1144,5 +1150,162 @@ describe('the voice', () => {
     const saved = api.sent.find((s) => s.name === 'saveConfig').args[0]
     expect(saved.talk).toBe(true)
     expect(saved.sound).toBe(true)
+  })
+})
+
+describe('pet-only companion and reset controls', () => {
+  const cx = (extra = {}) => ({
+    active: false,
+    lastSeen: Date.now(),
+    limitsAt: Date.now(),
+    session: { pct: 95, resetMs: 3600000 },
+    weekly: { pct: 10 },
+    ...extra,
+  })
+  beforeEach(() => {
+    document.body.classList.remove('settings-open')
+    api.handlers.onConfig({ mode: 'floating', codex: true, zoom: 100, talk: false })
+    api.handlers.onReminders({ claude: null, codex: null })
+    api.handlers.onCodex(cx())
+    pet.render(usage({ active: false }))
+    pet.pickProvider('claude')
+    pet.setDisplaySize('expanded')
+    live(90)
+  })
+  test('third size stays fixed on hover and sprite clicks; restore opens compact', () => {
+    el('min').click()
+    el('pet-only-toggle').click()
+    expect(document.body.classList.contains('pet-only')).toBe(true)
+    expect(localStorage.getItem('clauddy.size')).toBe('pet')
+    expect(api.all.filter((s) => s.name === 'resize').at(-1).args[0]).toBe(168)
+    const resizeCount = api.all.filter((s) => s.name === 'resize').length
+    pet.setPetPeek(true)
+    expect(document.body.classList.contains('pet-peek')).toBe(true)
+    expect(api.all.filter((s) => s.name === 'resize').length).toBe(resizeCount)
+    el('pet').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(document.body.classList.contains('pet-peek')).toBe(false)
+    el('pet').click()
+    el('pet').dispatchEvent(new MouseEvent('dblclick'))
+    expect(document.body.classList.contains('pet-only')).toBe(true)
+    el('pet-restore').click()
+    expect(document.body.classList.contains('pet-only')).toBe(false)
+    expect(document.body.classList.contains('collapsed')).toBe(true)
+    pet.setDisplaySize('expanded')
+  })
+  test('native drag-region hover opens on the pet and survives crossing to controls', () => {
+    const sprite = el('pet')
+    const card = el('card')
+    const oldPetRect = sprite.getBoundingClientRect
+    const oldCardRect = card.getBoundingClientRect
+    sprite.getBoundingClientRect = () => ({ left: 40, top: 20, right: 130, bottom: 110 })
+    card.getBoundingClientRect = () => ({ left: 10, top: 10, right: 155, bottom: 177 })
+    try {
+      pet.setDisplaySize('pet')
+      expect(api.sent.some((s) => s.name === 'watchPetPointer' && s.args[0] === true)).toBe(true)
+      api.handlers.onPetPointer({ x: 60, y: 150 })
+      expect(document.body.classList.contains('pet-peek')).toBe(false)
+      api.handlers.onPetPointer({ x: 60, y: 50 })
+      expect(document.body.classList.contains('pet-peek')).toBe(true)
+      api.handlers.onPetPointer({ x: 60, y: 150 })
+      expect(document.body.classList.contains('pet-peek')).toBe(true)
+      api.handlers.onPetPointer(null)
+      pet.setDisplaySize('compact')
+      expect(api.sent.some((s) => s.name === 'watchPetPointer' && s.args[0] === false)).toBe(true)
+      api.handlers.onPetPointer({ x: 60, y: 50 })
+      expect(document.body.classList.contains('pet-peek')).toBe(false)
+      expect(el('pet-activity-label')).toBeNull()
+      expect(el('pet-activity').hasAttribute('title')).toBe(false)
+    } finally {
+      sprite.getBoundingClientRect = oldPetRect
+      card.getBoundingClientRect = oldCardRect
+      pet.setDisplaySize('expanded')
+    }
+  })
+  test('glance readings support one provider and never invent missing usage', () => {
+    api.handlers.onCodex(cx({ session: null }))
+    expect(el('glance-codex-value').textContent).toBe('—')
+    api.handlers.onAuthState({ connected: false })
+    expect(el('glance-claude').hidden).toBe(true)
+    expect(el('glance-codex').hidden).toBe(false)
+    pet.setDisplaySize('pet')
+    api.handlers.onConfig({ mode: 'menubar', codex: true })
+    expect(document.body.classList.contains('pet-only')).toBe(false)
+    expect(document.body.classList.contains('collapsed')).toBe(true)
+    pet.setDisplaySize('expanded')
+  })
+  test('reminders toggle the selected provider, remain cancelable on stale data', () => {
+    expect(el('reminder-toggle').hidden).toBe(false)
+    el('reminder-toggle').click()
+    expect(api.sent.at(-1)).toEqual({ name: 'setReminder', args: ['claude', true] })
+    api.handlers.onReminders({ claude: { at: Date.now() + 1000 }, codex: null })
+    expect(el('mini-reminder').getAttribute('aria-pressed')).toBe('true')
+    el('mini-reminder').click()
+    expect(api.sent.at(-1).args).toEqual(['claude', false])
+    pet.pickProvider('codex')
+    api.handlers.onCodex(cx({ limitsAt: Date.now() - 3600000 }))
+    expect(el('reminder-toggle').hidden).toBe(true)
+    api.handlers.onReminders({ codex: { at: Date.now() + 1000 }, claude: null })
+    expect(el('reminder-toggle').hidden).toBe(false)
+    el('reminder-toggle').click()
+    expect(api.sent.at(-1).args).toEqual(['codex', false])
+  })
+  test('background activity reacts without stealing the selected provider', () => {
+    pet.activityTracker.forget('codex')
+    api.handlers.onCodex(cx({ active: false }))
+    pet.pickProvider('claude')
+    api.handlers.onCodex(cx({ active: true }))
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+    // Cooldown may suppress a cue from a previous test, but never selection.
+    expect(el('glance-codex-value').textContent).toBe('95%')
+  })
+  for (const size of ['compact', 'pet']) {
+    test(`${size}: workers drive the pet without changing the selected usage`, () => {
+      live(100)
+      pet.setDisplaySize(size)
+      api.handlers.onCodex(cx({ active: true }))
+      expect(document.body.classList.contains('state-working')).toBe(true)
+      expect(el('mini-workers').getAttribute('aria-label')).toBe('Codex · working')
+      expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+      expect(el('session-pct').textContent).toBe('100%')
+      const bounds = api.all.filter((s) => s.name === 'resize').at(-1).args
+      pet.render(usage({ active: true, activity: 'reading' }))
+      expect(el('pet-activity').getAttribute('aria-label')).toBe('Claude + Codex · working')
+      expect(document.body.classList.contains('act-reading')).toBe(false)
+      pet.pickProvider('codex')
+      expect(el('mini-text').textContent).toBe('working')
+      expect(api.all.filter((s) => s.name === 'resize').at(-1).args).toEqual(bounds)
+      api.handlers.onCodex(cx({ active: false }))
+      expect(el('mini-workers').getAttribute('aria-label')).toBe('Claude · reading')
+      expect(document.body.classList.contains('act-reading')).toBe(true)
+      pet.render(usage({ active: false }))
+      expect(el('pet-activity').hidden).toBe(true)
+      expect(el('mini-workers').hidden).toBe(true)
+      expect(document.body.classList.contains('state-idle')).toBe(true)
+      expect(el('tab-codex').getAttribute('aria-selected')).toBe('true')
+      pet.setDisplaySize('expanded')
+      expect(document.body.classList.contains('state-stressed')).toBe(true)
+    })
+  }
+  test('compact workers clear on disconnect, account switch and stale snapshots', () => {
+    pet.setDisplaySize('compact')
+    pet.render(usage({ active: true, activity: 'editing' }))
+    api.handlers.onCodex(cx({ active: true, lastSeen: Date.now() - 120000 }))
+    expect(el('mini-workers').getAttribute('aria-label')).toBe('Claude · editing')
+    api.handlers.onAccounts({ active: 'different', accounts: [] })
+    expect(el('mini-workers').hidden).toBe(true)
+    api.handlers.onCodex(cx({ active: true }))
+    expect(el('mini-workers').hidden).toBe(false)
+    api.handlers.onConfig({ mode: 'floating', codex: false, talk: false })
+    expect(el('mini-workers').hidden).toBe(true)
+    pet.render(usage({ active: true }))
+    api.handlers.onAuthState({ connected: false })
+    expect(el('mini-workers').hidden).toBe(true)
+    pet.setDisplaySize('expanded')
+  })
+  test('scheduled and verified resets use distinct messages', () => {
+    api.handlers.onReminderDue({ provider: 'codex', confirmed: false, isCurrent: true })
+    expect(el('companion-notice').textContent).toBe('Codex · reset time reached')
+    api.handlers.onReminderDue({ provider: 'claude', confirmed: true, isCurrent: true })
+    expect(el('companion-notice').textContent).toBe('Claude · budget is back!')
   })
 })

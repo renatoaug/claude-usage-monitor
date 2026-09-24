@@ -19,6 +19,7 @@ const { getUsage } = usage
 const auth = require('./auth')
 const accounts = require('./accounts')
 const codex = require('./codex')
+const { createReminders } = require('./reminders')
 
 const REPO = 'renatoaug/claude-usage-monitor'
 const USAGE_URLS = {
@@ -50,6 +51,7 @@ const WINDOW_STATE = path.join(DATA_DIR, 'window.json')
 
 let win
 let pollTimer
+let petPointerTimer
 let config
 let doTick = null
 const W = 304
@@ -61,6 +63,8 @@ let trayBounds = null // last known tray icon rect, to anchor the popover
 let lastBlurHide = 0 // debounce: ignore the tray click that dismissed the popover
 let sessionPct = null // authoritative session % shown in the tray title
 let codexUsage = null // last Codex payload, null while it isn't enabled
+let realUsageAt = 0
+let codexReadAt = 0
 let realUsage = null // last OAuth usage payload — the % alerts trust when logged in
 let lastProgrammaticMove = 0 // ignore the 'moved' event our own setPosition triggers
 let displayChanging = 0 // ignore OS window-shuffles while a display (dis)connects
@@ -153,6 +157,96 @@ function notify(title, body, { silent = true } = {}) {
   n.show()
 }
 
+// Explicit reminders survive restarts and belong to the account that armed them.
+const REMINDERS_FILE = path.join(DATA_DIR, 'reset-reminders.json')
+const resetReminders = createReminders({
+  now: () => Date.now(),
+  load: () => JSON.parse(fs.readFileSync(REMINDERS_FILE, 'utf8')),
+  save: (data) => {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+    const tmp = `${REMINDERS_FILE}.tmp`
+    fs.writeFileSync(tmp, JSON.stringify(data))
+    fs.renameSync(tmp, REMINDERS_FILE)
+  },
+})
+const reminderKey = (provider) => (provider === 'codex' ? 'codex' : `claude:${accounts.activeId()}`)
+function sendReminders(error = null) {
+  if (!win || win.isDestroyed()) return
+  win.webContents.send('reminders', {
+    claude: resetReminders.list().find((r) => r.key === reminderKey('claude')) || null,
+    codex: resetReminders.list().find((r) => r.key === 'codex') || null,
+    error,
+  })
+}
+function cancelReminder(key) {
+  try {
+    resetReminders.cancel(key)
+    sendReminders()
+    return true
+  } catch (err) {
+    console.error('reset reminder:', err)
+    sendReminders('Could not cancel the reminder. Please try again.')
+    return false
+  }
+}
+function checkResetReminders() {
+  try {
+    for (const r of resetReminders.list()) {
+      const connected =
+        r.provider === 'codex'
+          ? config.codex?.enabled
+          : accounts.list().some((a) => r.key === `claude:${a.id}` && hasToken(a.id))
+      if (!connected && !cancelReminder(r.key)) return
+    }
+    const due = resetReminders.takeDue()
+    for (const r of due) {
+      const isCurrent = r.provider === 'codex' || r.key === reminderKey('claude')
+      const session = r.provider === 'codex' ? codexUsage?.session : realUsage?.session
+      const readAt = r.provider === 'codex' ? codexUsage?.limitsAt : realUsageAt
+      const confirmed = isCurrent && readAt >= r.at && session?.pct != null && session.pct < r.pct
+      const message = confirmed
+        ? `${r.label}: session budget is available again.`
+        : `${r.label}: the scheduled session reset time has arrived. Open usage to confirm the new budget.`
+      notify(
+        confirmed ? 'Your session budget is back' : 'Time to check your session budget',
+        message,
+      )
+      if (win && !win.isDestroyed())
+        win.webContents.send('reminder-due', { ...r, confirmed, isCurrent })
+    }
+    if (due.length) sendReminders()
+  } catch (err) {
+    console.error('reset reminder:', err)
+  }
+}
+ipcMain.on('set-reminder', (_e, provider, enabled) => {
+  if (!['claude', 'codex'].includes(provider) || typeof enabled !== 'boolean') return
+  const key = reminderKey(provider)
+  if (!enabled) return cancelReminder(key)
+  const cx = provider === 'codex'
+  const session = cx ? codexUsage?.session : realUsage?.session
+  const at = (cx ? codexReadAt : realUsageAt) + (session?.resetMs || 0)
+  const freshAt = cx ? codexUsage?.limitsAt : realUsageAt
+  const connected = cx ? config.codex?.enabled : auth.isConnected()
+  if (
+    !connected ||
+    !freshAt ||
+    Date.now() - freshAt > 15 * 60000 ||
+    !Number.isFinite(session?.pct)
+  ) {
+    return sendReminders('Wait for a fresh usage reading before setting a reminder.')
+  }
+  try {
+    const label = cx ? 'Codex' : `Claude · ${accounts.active().label || 'your account'}`
+    if (!resetReminders.arm({ key, provider, label, at, pct: session.pct })) {
+      return sendReminders('This reset time has passed. Wait for a fresh reading.')
+    }
+    sendReminders()
+  } catch {
+    sendReminders('Could not save the reminder. Please try again.')
+  }
+})
+
 // the alert lines carry the reset, since "what do I do about it" is a question
 // about time left, not about the threshold that happened to fire
 function resetLine(resetMs, withRemaining) {
@@ -232,7 +326,14 @@ function checkWindowReset(config, pct) {
   if (pct == null) return
   const was = lastSessionPct
   lastSessionPct = pct
-  if (config.alerts && was != null && was >= RESET_FROM && pct <= RESET_TO) {
+  if (
+    config.alerts &&
+    was != null &&
+    was >= RESET_FROM &&
+    pct <= RESET_TO &&
+    !resetReminders.list().some((r) => r.key === reminderKey('claude')) &&
+    !resetReminders.recentlyDelivered(reminderKey('claude'))
+  ) {
     notify('Session window reset', 'full budget again')
   }
   if (was == null || Math.round(was) !== Math.round(pct)) saveAlertState()
@@ -259,6 +360,7 @@ function applyAccount(acc) {
   lastSessionPct = null
   lastSeenTokens = null // the new account's first read is a baseline, not a spend
   loadAlertState()
+  sendReminders()
 }
 
 // `connected` is read off disk rather than through auth, which only ever knows
@@ -346,7 +448,10 @@ ipcMain.on('accounts-cancel-add', () => {
   switchAccount(from) // the empty slot is pruned on the way out
 })
 ipcMain.on('accounts-remove', (_e, id) => {
-  if (accounts.remove(String(id))) sendAccounts()
+  if (accounts.remove(String(id))) {
+    cancelReminder(`claude:${id}`)
+    sendAccounts()
+  }
 })
 
 function createWindow() {
@@ -438,12 +543,14 @@ function createWindow() {
     try {
       const c = config.codex?.enabled ? codex.getCodexUsage() : null
       codexUsage = c
+      codexReadAt = Date.now()
       win.webContents.send('codex', c)
       checkCodexAlerts(config, c)
       updateTray()
     } catch (err) {
       console.error('codex:', err)
     }
+    checkResetReminders()
   }
   doTick = tick
 
@@ -451,6 +558,7 @@ function createWindow() {
     tick()
     win.webContents.send('config', publicConfig(config))
     win.webContents.send('version', app.getVersion())
+    sendReminders()
     win.webContents.send('auth-state', { connected: auth.isConnected() })
     sendAccounts()
     pollTimer = setInterval(tick, config.pollIntervalMs)
@@ -659,11 +767,37 @@ function updateTray() {
 // send real usage to the renderer and refresh the tray title in one place
 function pushRealUsage(u) {
   realUsage = u
+  realUsageAt = u ? Date.now() : 0
   sessionPct = u?.session ? u.session.pct : null
   updateTray()
   checkScopedAlerts(config, u)
   if (win && !win.isDestroyed()) win.webContents.send('real-usage', u)
 }
+
+// Native drag regions swallow renderer pointer events. Poll only in pet-only
+// mode so its hover still works while the sprite remains a native drag handle.
+ipcMain.on('pet-pointer-watch', (_e, enabled) => {
+  if (typeof enabled !== 'boolean') return
+  clearInterval(petPointerTimer)
+  petPointerTimer = null
+  if (!enabled) return
+  let last // only a moved cursor crosses IPC, not ten idle messages a second
+  petPointerTimer = setInterval(() => {
+    if (!win || win.isDestroyed()) return
+    let point = null
+    if (win.isVisible()) {
+      const cursor = screen.getCursorScreenPoint()
+      const bounds = win.getContentBounds()
+      const x = cursor.x - bounds.x
+      const y = cursor.y - bounds.y
+      if (x >= 0 && y >= 0 && x < bounds.width && y < bounds.height) point = { x, y }
+    }
+    const key = point ? `${point.x},${point.y}` : ''
+    if (key === last) return
+    last = key
+    win.webContents.send('pet-pointer', point)
+  }, 100)
+})
 
 // resize the window to fit the content
 ipcMain.on('resize', (_e, w, h) => {
@@ -742,9 +876,11 @@ function scheduleUsagePoll() {
   if (auth.isConnected()) usageTimer = setTimeout(pollUsage, usageBackoff)
 }
 async function pollUsage() {
+  const accountId = accounts.activeId()
   lastPollAt = Date.now()
   try {
     const u = await auth.fetchUsage()
+    if (accountId !== accounts.activeId()) return
     usageBackoff = 5 * 60 * 1000
     authFails = 0
     pushRealUsage(u)
@@ -756,6 +892,7 @@ async function pollUsage() {
       sendProfile()
     }
   } catch (e) {
+    if (accountId !== accounts.activeId()) return
     if (e && e.status === 429) {
       usageBackoff = Math.min(usageBackoff * 2, 30 * 60 * 1000)
     } else if (e && e.status === 401) {
@@ -870,6 +1007,7 @@ ipcMain.on('auth-code', async (_e, code) => {
   }
 })
 ipcMain.on('auth-logout', () => {
+  cancelReminder(reminderKey('claude'))
   auth.clear()
   clearTimeout(usageTimer)
   pushRealUsage(null)
@@ -885,7 +1023,10 @@ ipcMain.on('auth-logout', () => {
 function setCodexEnabled(on) {
   writeConfigPatch({ codex: { ...(config.codex || {}), enabled: on } })
   config = loadConfig()
-  if (!on) codexUsage = null
+  if (!on) {
+    codexUsage = null
+    cancelReminder('codex')
+  }
   if (win && !win.isDestroyed()) win.webContents.send('config', publicConfig(config))
   if (doTick) doTick()
   updateTray()
@@ -1029,6 +1170,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (pollTimer) clearInterval(pollTimer)
+  clearInterval(petPointerTimer)
   fs.unwatchFile(DEBUG_FILE)
   destroyTray()
   app.quit()

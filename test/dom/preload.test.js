@@ -30,6 +30,8 @@ describe('the preload bridge', () => {
   })
 
   test.each([
+    ['watchPetPointer', 'pet-pointer-watch', [true]],
+    ['setReminder', 'set-reminder', ['codex', true]],
     ['saveConfig', 'save-config', [{ alerts: false }]],
     ['resize', 'resize', [300, 400]],
     ['openUsage', 'open-usage', []],
@@ -50,6 +52,9 @@ describe('the preload bridge', () => {
   })
 
   test.each([
+    ['onPetPointer', 'pet-pointer'],
+    ['onReminders', 'reminders'],
+    ['onReminderDue', 'reminder-due'],
     ['onUsage', 'usage'],
     ['onError', 'usage-error'],
     ['onConfig', 'config'],
@@ -85,6 +90,11 @@ describe('the preload bridge', () => {
     // a stray export here would widen the renderer's reach into Electron
     expect(Object.keys(api).sort()).toEqual(
       [
+        'watchPetPointer',
+        'onPetPointer',
+        'setReminder',
+        'onReminders',
+        'onReminderDue',
         'accountAdd',
         'accountCancelAdd',
         'accountRemove',

@@ -316,6 +316,11 @@ body.collapsed #account-chip {
   display: none;
 }
 /* collapsed: the account rides up on the button line, like the chip does */
+/* collapsed, the buttons share the account's line: centre them on it
+   (top 6px + half its 19px), not on the expanded 38px title band */
+body.collapsed #controls {
+  height: 31px;
+}
 body.collapsed #mini-acct {
   position: absolute;
   top: 6px;
@@ -1237,6 +1242,18 @@ body.collapsed #mini {
 body.collapsed #card {
   width: 144px;
   padding: 12px 12px 13px;
+}
+/* one service: three buttons plus the account need a title band of their
+   own, like the dual dock has, or they sit on the ring's arc */
+body.collapsed:not(.dual):not(.pet-only) #card {
+  width: 168px;
+  padding-top: 32px;
+}
+body.collapsed:not(.dual):not(.pet-only) #stage {
+  margin-top: 0;
+}
+body.collapsed:not(.dual):not(.pet-only) #mini-acct-name {
+  max-width: 46px;
 }
 body.collapsed #stage {
   margin-top: 9px;
@@ -3019,4 +3036,259 @@ body.collapsed #mute {
   #bubble.leaving {
     animation: none;
   }
+}
+
+/* Companion controls stay quiet until they are useful. */
+#controls #pet-only-toggle,
+#pet-glance {
+  display: none;
+}
+body.collapsed:not(.pet-only):not(.is-menubar) #controls #pet-only-toggle {
+  display: grid;
+}
+.reminder-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--hair);
+  border-radius: 5px;
+  background: #ffffff04;
+  color: #cfc0ac;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.reminder-toggle[hidden] {
+  display: none;
+}
+.reminder-toggle[aria-pressed="true"] {
+  color: #bed4aa;
+  border-color: #bed4aa33;
+}
+.reminder-toggle:hover {
+  background: #ffffff0c;
+}
+#mini-reminder {
+  font-size: 8px;
+  min-height: 20px;
+}
+body.collapsed.dual #mini-reminder {
+  float: right;
+}
+#companion-notice {
+  grid-column: 1 / -1;
+  padding: 6px 8px;
+  margin-top: 6px;
+  border-radius: 6px;
+  background: #ffffff07;
+  color: #d5c6b6;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+  -webkit-app-region: no-drag;
+}
+#companion-notice[data-provider="codex"] {
+  color: #c1d1b8;
+}
+#companion-notice[hidden],
+body.settings-open #companion-notice {
+  display: none;
+}
+/* Hover only fades the glance in; neither the window nor the pet moves. */
+body.collapsed.pet-only #card {
+  width: 144px;
+  height: 166px;
+  padding: 0;
+  display: block;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+  -webkit-app-region: no-drag;
+}
+body.collapsed.pet-only #stage {
+  position: absolute;
+  width: 100px;
+  height: 102px;
+  right: 21px;
+  bottom: 38px;
+  margin: 0;
+  background: none;
+}
+body.collapsed.pet-only #pet {
+  zoom: 1.05;
+  transform: none;
+  transition: none;
+  cursor: grab;
+  -webkit-app-region: drag;
+}
+body.collapsed.pet-only #pet:active {
+  cursor: grabbing;
+}
+body.collapsed.pet-only :is(#mini, #controls, #ring, #ring-pct, #companion-notice, #bubble) {
+  display: none;
+}
+body.collapsed.pet-only #pet-glance {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 2px);
+  transform: translateX(-50%);
+  bottom: 2px;
+  min-height: 32px;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 160ms ease,
+    visibility 160ms,
+    background 160ms ease,
+    border-color 160ms ease;
+  -webkit-app-region: no-drag;
+}
+body.collapsed.pet-only.pet-peek #pet-glance {
+  background: #221e1bec;
+  border-color: #ffffff0d;
+  opacity: 1;
+  visibility: visible;
+}
+#pet-glance #pet-restore {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  justify-content: center;
+  border-radius: 6px;
+  color: #c8bcaf;
+  opacity: 0.65;
+}
+#pet-glance #pet-restore:hover,
+#pet-glance #pet-restore:focus-visible {
+  background: #ffffff12;
+  color: #f1e5d8;
+  opacity: 1;
+}
+#pet-glance button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a99e91;
+  font: inherit;
+  cursor: pointer;
+}
+/* Keep provider names available to assistive technology. */
+#pet-glance button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+#pet-glance button[hidden] {
+  display: none;
+}
+#pet-glance button[aria-pressed="true"],
+#pet-glance button:hover {
+  color: #f1e5d8;
+}
+#pet-glance button:focus-visible {
+  outline: 1px solid #e6a07f;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+#pet-glance b {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+#pet-glance .urgent b {
+  color: #f3a38b;
+}
+#pet-glance .stale-reading b::after {
+  content: "*";
+  font-size: 9px;
+  vertical-align: super;
+}
+body.collapsed.pet-only #pet:focus-visible {
+  outline: 1px solid #e6a07f;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.collapsed.pet-only #pet-glance,
+  body.collapsed.pet-only #pet-glance > * {
+    transition: none;
+  }
+}
+/* A short reaction temporarily occupies the account label, so the compact
+   widget stays still instead of growing for every activity transition. */
+body.collapsed.dual:not(.pet-only) #companion-notice {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 78px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  font-size: 8px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.collapsed.dual:has(#companion-notice:not([hidden])) #mini-acct {
+  visibility: hidden;
+}
+
+/* Activity belongs to the pet, independently of the selected usage tab. */
+.activity-logos {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.activity-logos [data-provider="claude"] {
+  color: #df9777;
+}
+.activity-logos [data-provider="codex"] {
+  color: #b9c8b0;
+}
+.activity-logos svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+}
+.activity-logos[hidden],
+.activity-logos [hidden],
+#mini-dot[hidden],
+#pet-activity {
+  display: none;
+}
+body.collapsed.pet-only #pet-activity:not([hidden]) {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #221e1be6;
+  border: 1px solid #ffffff0d;
+  pointer-events: none;
 }

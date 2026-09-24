@@ -1,6 +1,6 @@
 // Run the whole suite and enforce coverage.
 //
-// The suite runs as three separate bun processes (see CLAUDE.md), so no single
+// The suite runs as three separate bun processes (see AGENTS.md), so no single
 // `bun test` invocation knows the real total — this merges their lcov reports
 // and checks the result.
 //

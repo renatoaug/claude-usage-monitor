@@ -79,5 +79,5 @@ anything visual:
 
 ## Architecture
 
-`CLAUDE.md` has the layout, the data flow, and the reasoning behind the less
+`AGENTS.md` has the layout, the data flow, and the reasoning behind the less
 obvious decisions. Worth a skim before a first change.
