@@ -2311,6 +2311,29 @@ body.dual #harness-tabs {
   border-color: #a7baa14d;
   background: #a7baa11c;
 }
+#harness-tabs #tab-cursor[aria-selected="true"] {
+  border-color: #a9b8d64d;
+  background: #a9b8d61c;
+}
+#harness-tabs button[hidden] {
+  display: none;
+}
+/* three services: logo and % only; the name stays for screen readers */
+body.trio #harness-tabs button {
+  justify-content: center;
+  gap: 6px;
+}
+body.trio #harness-tabs button > span:not(.tab-value):not(.tab-alert) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+body.trio #harness-tabs .tab-value {
+  margin-left: 0;
+}
 #harness-tabs button:hover {
   border-color: #ffffff2b;
   color: var(--text);
@@ -2331,6 +2354,9 @@ body.dual #harness-tabs {
 }
 #tab-codex .tab-logo {
   color: #b9c8b0;
+}
+#tab-cursor .tab-logo {
+  color: #b8c4dc;
 }
 #harness-tabs button.active .tab-logo {
   opacity: 1;
@@ -2408,6 +2434,26 @@ body.view-codex .sq.lv3 {
 }
 body.view-codex .sq.lv4 {
   background: #c2c994;
+}
+
+/* the Cursor view: a monthly budget, read from its dashboard — steel blue */
+body.view-cursor #live-tag,
+body.view-cursor #session-proj,
+body.view-cursor #details-toggle,
+body.view-cursor #usage-details {
+  display: none;
+}
+body.view-cursor #session-fill,
+body.view-cursor #week-fill {
+  background: #9fb2d6;
+}
+body.view-cursor #session-fill.mid,
+body.view-cursor #week-fill.mid {
+  background: #e5b55d;
+}
+body.view-cursor #session-fill.hot,
+body.view-cursor #week-fill.hot {
+  background: #ee705e;
 }
 
 /* collapsed with both: one line per service instead of the ring, never an average */
@@ -2499,6 +2545,12 @@ body.collapsed.dual #mini-dual {
 .mini-source[data-provider="codex"] {
   --src: #b9c8b0;
 }
+.mini-source[data-provider="cursor"] {
+  --src: #b8c4dc;
+}
+.mini-source[hidden] {
+  display: none;
+}
 .mini-logo {
   grid-column: 1;
   grid-row: 1;
@@ -2571,9 +2623,100 @@ body.collapsed.dual #mini-reset {
 #mini-codex-bar {
   background: #a7baa1;
 }
+#mini-cursor-bar {
+  background: #9fb2d6;
+}
 .mini-track i.hot,
-#mini-codex-bar.hot {
+#mini-codex-bar.hot,
+#mini-cursor-bar.hot {
   background: #ee705e;
+}
+
+/* Settings → Connections: a row of service tiles; the open one shows its card */
+#conn-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 7px 0 18px;
+}
+body:has(#connections > .open) #conn-tiles {
+  margin-bottom: 8px;
+}
+.conn-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 4px 9px;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: #ffffff03;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.conn-tile:hover {
+  border-color: #ffffff24;
+  background: #ffffff07;
+}
+.conn-tile[aria-expanded="true"] {
+  border-color: #ffffff38;
+  background: #ffffff0a;
+}
+.conn-tile .connection-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+/* not connected yet: the logo waits in grey */
+.conn-tile:not(.on) .connection-avatar {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.conn-check {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8fc58a;
+  color: #17201a;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--card-bg, #1e1a17);
+}
+.conn-check[hidden] {
+  display: none;
+}
+.conn-name {
+  font-size: 11px;
+  color: var(--text);
+}
+.conn-state {
+  font-size: 10px;
+  line-height: 1.3;
+}
+.conn-tile.on .conn-state:not(.plan-badge) {
+  color: #a9c7a2;
+}
+#connections > .conn-panel:not(.open) {
+  display: none;
+}
+#connections > .open {
+  margin: 0 0 18px;
 }
 
 /* Settings → Connections: Claude and Codex share one card shape */
@@ -2586,7 +2729,7 @@ body.collapsed.dual #mini-reset {
 }
 #codex-settings {
   display: flex;
-  margin: 0 0 18px;
+  margin: 0 0 8px;
 }
 .codex-actions {
   display: flex;
@@ -2629,6 +2772,27 @@ body.codex-setup #codex-connect {
 body.codex-on #codex-disconnect {
   display: grid;
 }
+#cursor-settings {
+  display: flex;
+  margin: 0 0 18px;
+}
+#cursor-disconnect,
+body.cursor-on #cursor-hint,
+body.cursor-on #cursor-connect,
+body.cursor-setup #cursor-connect {
+  display: none;
+}
+body.cursor-on #cursor-disconnect {
+  display: grid;
+}
+#cursor-setup:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+body.view-cursor .ac-caret {
+  display: none;
+}
 body.view-codex .mrow .mname::before {
   background: #a7baa1;
 }
@@ -2669,6 +2833,13 @@ body.view-codex {
   --panel-border: #b4c6ac20;
   --settings-bg: linear-gradient(150deg, #283028, #1b211c);
 }
+body.view-cursor {
+  --panel-bg:
+    radial-gradient(130% 110% at 20% 0%, #5f6d8a30, transparent 60%),
+    linear-gradient(158deg, #23262d, #1a1d23 55%, #14161b);
+  --panel-border: #b6c2dc20;
+  --settings-bg: linear-gradient(150deg, #272b33, #1a1d23);
+}
 #details-toggle {
   display: flex;
   align-items: center;
@@ -2703,7 +2874,8 @@ body.view-codex {
 
 #acc-connected.connection-card,
 #acc-intro.connection-card,
-#codex-settings.connection-card {
+#codex-settings.connection-card,
+#cursor-settings.connection-card {
   align-items: center;
   gap: 10px;
   min-height: 64px;
@@ -2713,7 +2885,8 @@ body.view-codex {
   background: #ffffff03;
 }
 #acc-connected.connection-card,
-body.codex-on #codex-settings.connection-card {
+body.codex-on #codex-settings.connection-card,
+body.cursor-on #cursor-settings.connection-card {
   height: 64px;
 }
 .connection-card .connection-avatar {
@@ -2732,8 +2905,13 @@ body.codex-on #codex-settings.connection-card {
   background: #9eaf9614;
   color: #b9c8b0;
 }
+.cursor-avatar {
+  background: #a9b8d614;
+  color: #b8c4dc;
+}
 .connection-logo,
-.codex-logo {
+.codex-logo,
+.cursor-logo {
   fill: currentColor;
 }
 .connection-avatar svg {
@@ -2788,6 +2966,12 @@ body.codex-on #codex-settings.connection-card {
   display: none;
 }
 body.codex-on #codex-connected-caption {
+  display: block;
+}
+#cursor-connected-caption {
+  display: none;
+}
+body.cursor-on #cursor-connected-caption {
   display: block;
 }
 .connection-card .connection-remove {
@@ -3093,6 +3277,9 @@ body.collapsed.dual #mini-reminder {
 #companion-notice[data-provider="codex"] {
   color: #c1d1b8;
 }
+#companion-notice[data-provider="cursor"] {
+  color: #c3cde2;
+}
 #companion-notice[hidden],
 body.settings-open #companion-notice {
   display: none;
@@ -3117,6 +3304,16 @@ body.collapsed.pet-only #stage {
   bottom: 38px;
   margin: 0;
   background: none;
+}
+/* three readings need a wider glance: the card grows, the pet stays centred */
+body.collapsed.pet-only.trio #card {
+  width: 188px;
+}
+body.collapsed.pet-only.trio #stage {
+  right: 43px;
+}
+body.collapsed.pet-only.trio #pet-activity:not([hidden]) {
+  right: 22px;
 }
 body.collapsed.pet-only #pet {
   zoom: 1.05;
@@ -3143,7 +3340,7 @@ body.collapsed.pet-only #pet-glance {
   transform: translateX(-50%);
   bottom: 2px;
   min-height: 32px;
-  padding: 2px 5px;
+  padding: 2px 5px 2px 10px;
   border: 1px solid transparent;
   border-radius: 10px;
   font-size: 10px;
@@ -3266,6 +3463,9 @@ body.collapsed.dual:has(#companion-notice:not([hidden])) #mini-acct {
 }
 .activity-logos [data-provider="codex"] {
   color: #b9c8b0;
+}
+.activity-logos [data-provider="cursor"] {
+  color: #b8c4dc;
 }
 .activity-logos svg {
   display: block;

@@ -4,7 +4,7 @@ function createReminders({ load, save, now = Date.now }) {
   let delivered = {}
   const valid = (r) =>
     r &&
-    ['claude', 'codex'].includes(r.provider) &&
+    ['claude', 'codex', 'cursor'].includes(r.provider) &&
     typeof r.key === 'string' &&
     typeof r.label === 'string' &&
     Number.isFinite(r.at) &&
@@ -25,7 +25,8 @@ function createReminders({ load, save, now = Date.now }) {
   return {
     list: () => pending.map((r) => ({ ...r })),
     arm(reminder) {
-      if (!valid(reminder) || reminder.at <= now() || reminder.at > now() + 7 * 86400000)
+      // Cursor's budget is a billing cycle, so a reset can be a month out
+      if (!valid(reminder) || reminder.at <= now() || reminder.at > now() + 32 * 86400000)
         return false
       persist([...pending.filter((r) => r.key !== reminder.key), { ...reminder }])
       return true

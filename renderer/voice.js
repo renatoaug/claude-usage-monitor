@@ -162,25 +162,26 @@
     return line(`${text}.`, `Fresh window! ${fmt(tokens)} last time.`)
   }
 
-  // Codex speaks through the same pet, so its lines always say whose they are
-  function codexFireLine(pct, resetMs, fmtDur) {
+  // Codex and Cursor speak through the same pet, so their lines always say whose they are
+  function codexFireLine(pct, resetMs, fmtDur, name = 'Codex') {
     const p = Math.round(pct)
     const text =
       resetMs != null
-        ? `Codex is at ${p}% now. It resets in ${fmtDur(resetMs)}.`
-        : `Codex is at ${p}% now.`
-    return line(text, `Codex at ${p}%!`)
+        ? `${name} is at ${p}% now. It resets in ${fmtDur(resetMs)}.`
+        : `${name} is at ${p}% now.`
+    return line(text, `${name} at ${p}%!`)
   }
-  function codexMaxedLine(resetAt) {
+  function codexMaxedLine(resetAt, name = 'Codex') {
     return line(
-      resetAt ? `Codex is maxed out. It's back at ${resetAt}.` : 'Codex is maxed out.',
-      'Codex is maxed out.',
+      resetAt ? `${name} is maxed out. It's back at ${resetAt}.` : `${name} is maxed out.`,
+      `${name} is maxed out.`,
     )
   }
-  function codexResetLine(was) {
+  // Cursor's window is its billing month
+  function codexResetLine(was, name = 'Codex', span = 'window') {
     return line(
-      `Codex has a fresh window! The last one closed at ${Math.round(was)}%.`,
-      'Codex: fresh window!',
+      `${name} has a fresh ${span}! The last one closed at ${Math.round(was)}%.`,
+      `${name}: fresh ${span}!`,
     )
   }
 

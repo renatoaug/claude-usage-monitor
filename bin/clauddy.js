@@ -33,7 +33,17 @@ const STATES = [
   'waiting',
 ]
 // `clauddy say <kind>` previews one of the pet's remarks
-const REMARKS = ['greeting', 'fire', 'reset', 'maxed', 'welcome', 'streak', 'record', 'codex']
+const REMARKS = [
+  'greeting',
+  'fire',
+  'reset',
+  'maxed',
+  'welcome',
+  'streak',
+  'record',
+  'codex',
+  'cursor',
+]
 const arg = process.argv[2]
 const kind = arg === 'say' ? process.argv[3] || 'greeting' : undefined
 

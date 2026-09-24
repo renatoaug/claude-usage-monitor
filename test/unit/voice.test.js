@@ -236,5 +236,11 @@ describe('remarks', () => {
       text: 'Codex has a fresh window! The last one closed at 88%.',
       short: 'Codex: fresh window!',
     })
+    // Cursor borrows them, with its name and its month
+    expect(codexFireLine(95, null, dur, 'Cursor').text).toBe('Cursor is at 95% now.')
+    expect(codexMaxedLine(null, 'Cursor').text).toBe('Cursor is maxed out.')
+    expect(codexResetLine(90, 'Cursor', 'month').text).toBe(
+      'Cursor has a fresh month! The last one closed at 90%.',
+    )
   })
 })

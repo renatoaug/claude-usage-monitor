@@ -45,6 +45,8 @@ for (const name of [
   'onRealUsage',
   'onCodex',
   'onCodexDetected',
+  'onCursor',
+  'onCursorDetected',
   'onAuthState',
   'onProfile',
   'onAuthResult',
@@ -67,6 +69,8 @@ for (const name of [
   'openUsage',
   'codexDetect',
   'codexEnable',
+  'cursorDetect',
+  'cursorEnable',
   'authStart',
   'authCode',
   'authLogout',
@@ -922,6 +926,209 @@ describe('codex', () => {
   })
 })
 
+describe('cursor', () => {
+  const DAY = 86400000
+  const cursor = (over = {}) => ({
+    active: false,
+    activity: null,
+    lastSeen: Date.now() - 3 * 60_000,
+    limitsAt: Date.now(),
+    plan: 'free',
+    session: { pct: 12, resetMs: 17 * DAY },
+    api: { pct: 4, resetMs: 17 * DAY },
+    signedOut: false,
+    ...over,
+  })
+  const all = (over = {}) =>
+    api.handlers.onConfig({ alertThresholds: [80, 95], codex: true, cursor: true, ...over })
+  beforeEach(() => {
+    api.handlers.onAuthState({ connected: true })
+    api.handlers.onRealUsage({
+      session: { pct: 40, resetMs: 3600000 },
+      week: { pct: 20, resetMs: DAY },
+      scoped: [],
+    })
+    pet.render(usage())
+    all()
+    api.handlers.onCodex({
+      lastSeen: Date.now() - 60_000,
+      limitsAt: Date.now(),
+      session: { pct: 30 },
+    })
+    api.handlers.onCursor(cursor())
+    pet.pickProvider('claude')
+  })
+
+  test('three services: three tabs, three dock lines, three glance readings', () => {
+    expect(document.body.classList.contains('trio')).toBe(true)
+    for (const p of ['claude', 'codex', 'cursor']) {
+      expect(el(`tab-${p}`).hidden).toBe(false)
+      expect(document.querySelector(`.mini-source[data-provider="${p}"]`).hidden).toBe(false)
+      expect(el(`glance-${p}`).hidden).toBe(false)
+    }
+    expect(el('tab-cursor-value').textContent).toBe('12%')
+    expect(el('tab-cursor').title).toBe('Cursor month 12% · API 4%')
+    expect(el('mini-cursor-value').textContent).toBe('12%')
+    expect(el('glance-cursor-value').textContent).toBe('12%')
+  })
+
+  test('with Codex off, Claude and Cursor pair up; alone, Cursor has the panel', () => {
+    all({ codex: false })
+    expect(document.body.classList.contains('trio')).toBe(false)
+    expect(document.body.classList.contains('dual')).toBe(true)
+    expect(el('tab-codex').hidden).toBe(true)
+    api.handlers.onAuthState({ connected: false })
+    expect(document.body.classList.contains('dual')).toBe(false)
+    expect(document.body.classList.contains('view-cursor')).toBe(true)
+    expect(el('service-panel').getAttribute('aria-label')).toBe('Cursor usage')
+  })
+
+  test('the Cursor tab: its month, its API pool, no token breakdowns', () => {
+    el('tab-cursor').click()
+    expect(document.body.classList.contains('view-cursor')).toBe(true)
+    expect(el('session-label').textContent).toBe('this month · included')
+    expect(el('week-label').textContent).toBe('API models · this month')
+    expect(el('session-pct').textContent).toBe('12%')
+    expect(el('session-sub').textContent).toMatch(/^resets in 17d 0h \(\w+ \d+\)$/)
+    expect(el('week-pct').textContent).toBe('4%')
+    expect(el('rate').textContent).toBe('agent ran 3m ago')
+    expect(el('ac-email').textContent).toBe('Cursor')
+    expect(el('ac-plan').textContent).toBe('free')
+    expect(el('mini-reset').textContent).toMatch(/^resets \w+ \d+$/)
+    el('tab-claude').click()
+    expect(el('session-label').textContent).toBe('current session')
+  })
+
+  test('arrow keys walk all three tabs', () => {
+    const key = (id, k) =>
+      el(id).dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
+    key('tab-claude', 'ArrowRight')
+    key('tab-codex', 'ArrowRight')
+    expect(el('tab-cursor').getAttribute('aria-selected')).toBe('true')
+    key('tab-cursor', 'ArrowRight')
+    expect(el('tab-claude').getAttribute('aria-selected')).toBe('true')
+    key('tab-claude', 'End')
+    expect(el('tab-cursor').getAttribute('aria-selected')).toBe('true')
+    key('tab-cursor', 'Home')
+  })
+
+  test('signed out, stale or expired readings say so, never 0%', () => {
+    el('tab-cursor').click()
+    api.handlers.onCursor(cursor({ session: null, api: null, limitsAt: null, signedOut: true }))
+    expect(el('session-pct').textContent).toBe('—')
+    expect(el('session-sub').textContent).toBe('sign in to the Cursor app')
+    expect(el('week-sub').textContent).toBe('—')
+    api.handlers.onCursor(cursor({ session: null, api: null, limitsAt: null, lastSeen: null }))
+    expect(el('session-sub').textContent).toBe('no reading yet')
+    expect(el('rate').textContent).toBe('no agent runs yet')
+    api.handlers.onCursor(cursor({ limitsAt: Date.now() - 3600_000 }))
+    expect(el('session-sub').textContent).toMatch(/read 1h 0m ago$/)
+    expect(el('tab-cursor').title).toContain('not updated recently')
+    api.handlers.onCursor(cursor({ session: { pct: null, expired: true } }))
+    expect(el('session-sub').textContent).toBe('waiting for a fresh reading')
+    el('tab-claude').click()
+  })
+
+  test('a working Cursor names its scene, in the panel and in compact', () => {
+    api.handlers.onCursor(cursor({ active: true, activity: 'running', lastSeen: Date.now() }))
+    el('tab-cursor').click()
+    expect(el('status-text').textContent).toBe('running')
+    expect(el('rate').textContent).toBe('agent ran just now')
+    pet.setDisplaySize('compact')
+    expect(el('mini-workers').getAttribute('aria-label')).toBe('Cursor · running')
+    expect(document.body.classList.contains('act-running')).toBe(true)
+    pet.setDisplaySize('expanded')
+    el('tab-claude').click()
+  })
+
+  test('compact at rest: a hot Cursor month sets the fire, with its logo', () => {
+    pet.setDisplaySize('compact')
+    api.handlers.onCursor(cursor({ session: { pct: 93, resetMs: 17 * DAY } }))
+    expect(el('mini-text').textContent).toBe('on fire')
+    expect(el('mini-workers').getAttribute('aria-label')).toBe('Cursor · on fire')
+    pet.setDisplaySize('expanded')
+  })
+
+  test('a Cursor reminder names its month, and the chip leads to Settings', () => {
+    el('tab-cursor').click()
+    api.handlers.onCursor(cursor({ session: { pct: 90, resetMs: 17 * DAY } }))
+    expect(el('reminder-toggle').hidden).toBe(false)
+    expect(el('reminder-toggle').title).toBe("Remind me when Cursor's monthly reset is due")
+    api.handlers.onReminders({ claude: null, codex: null, cursor: { at: Date.now() + 17 * DAY } })
+    expect(el('reminder-toggle').title).toMatch(/^Cancel Cursor reminder for \w+ \d+$/)
+    api.sent.length = 0
+    el('reminder-toggle').click()
+    expect(api.sent.at(-1)).toEqual({ name: 'setReminder', args: ['cursor', false] })
+    api.handlers.onReminders(null)
+    api.handlers.onReminderDue({ provider: 'cursor', confirmed: true, isCurrent: true })
+    expect(el('companion-notice').textContent).toBe('Cursor · budget is back!')
+    el('account-chip').click()
+    expect(document.body.classList.contains('settings-open')).toBe(true)
+    el('gear').click()
+    el('tab-claude').click()
+  })
+
+  test('Settings: a tile per service; a click opens its card, one at a time', () => {
+    api.handlers.onProfile({ email: 'me@example.com', plan: 'max' })
+    all({ cursor: false })
+    el('gear').click()
+    expect(el('conn-claude-state').textContent).toBe('max')
+    expect(el('conn-claude').querySelector('.conn-check').hidden).toBe(false)
+    expect(el('conn-cursor-state').textContent).toBe('Connect')
+    expect(el('conn-cursor').querySelector('.conn-check').hidden).toBe(true)
+    expect(el('conn-cursor').getAttribute('aria-label')).toBe('Cursor · not connected')
+    expect(el('cursor-settings').classList.contains('open')).toBe(false)
+    el('conn-cursor').click()
+    expect(el('conn-cursor').getAttribute('aria-expanded')).toBe('true')
+    expect(el('cursor-settings').classList.contains('open')).toBe(true)
+    el('conn-codex').click()
+    expect(el('cursor-settings').classList.contains('open')).toBe(false)
+    expect(el('codex-settings').classList.contains('open')).toBe(true)
+    el('conn-codex').click()
+    expect(el('codex-settings').classList.contains('open')).toBe(false)
+    // connected with no plan known: it just says so
+    all()
+    api.handlers.onCursor(cursor({ plan: null }))
+    expect(el('conn-cursor-state').textContent).toBe('Connected')
+    el('conn-cursor').click()
+    el('gear').click() // closing folds every card back
+    expect(el('cursor-settings').classList.contains('open')).toBe(false)
+    // the Cursor chip opens straight on its card
+    el('tab-cursor').click()
+    el('account-chip').click()
+    expect(el('cursor-settings').classList.contains('open')).toBe(true)
+    el('gear').click()
+    el('tab-claude').click()
+    api.handlers.onProfile(null)
+  })
+
+  test('Settings: connect needs the Cursor app signed in; disconnect stops it', () => {
+    all({ cursor: false })
+    expect(document.body.classList.contains('cursor-on')).toBe(false)
+    api.sent.length = 0
+    el('cursor-connect').click()
+    expect(el('cursor-hint').textContent).toBe('Looking…')
+    expect(api.sent.map((m) => m.name)).toContain('cursorDetect')
+    api.handlers.onCursorDetected({ found: false, plan: null })
+    expect(el('cursor-hint').textContent).toContain('open the Cursor app')
+    expect(el('cursor-setup').hidden).toBe(false)
+    el('cursor-setup-cancel').click()
+    expect(el('cursor-setup').hidden).toBe(true)
+    el('cursor-connect').click()
+    el('cursor-retry').click()
+    api.handlers.onCursorDetected({ found: true, plan: 'free' })
+    expect(api.sent.find((m) => m.name === 'cursorEnable').args).toEqual([true])
+    all()
+    expect(document.body.classList.contains('cursor-on')).toBe(true)
+    api.sent.length = 0
+    el('cursor-disconnect').click()
+    expect(api.sent.find((m) => m.name === 'cursorEnable').args).toEqual([false])
+    all({ cursor: false })
+    expect(el('tab-cursor').hidden).toBe(true)
+    all()
+  })
+})
+
 describe('the voice', () => {
   // the bubble keeps a 10-minute gap between remarks, so every test starts
   // well past the last one
@@ -1133,6 +1340,25 @@ describe('the voice', () => {
     api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], codex: false })
   })
 
+  test('Cursor speaks for itself too, about its month', () => {
+    const cu = (pct) =>
+      api.handlers.onCursor({
+        session: { pct, resetMs: 3600_000 },
+        api: { pct: 1 },
+        limitsAt: clock,
+      })
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], cursor: true })
+    cu(40)
+    cu(92)
+    expect(bubble()).toBe('Cursor is at 92% now. It resets in 1h 0m.')
+    tick(11 * 60000)
+    cu(100)
+    expect(bubble()).toContain('Cursor is maxed out')
+    cu(3)
+    expect(bubble()).toBe('Cursor has a fresh month! The last one closed at 100%.')
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], cursor: false })
+  })
+
   test('the simulator can make it talk', () => {
     api.handlers.onDebugState({ state: 'say' })
     expect(bubble()).toMatch(/yesterday/i)
@@ -1147,6 +1373,7 @@ describe('the voice', () => {
     ['record', 'New record!'],
     ['greeting', 'yesterday'],
     ['codex', 'Codex is at 91%'],
+    ['cursor', 'Cursor is at 91%'],
   ])('the simulator previews the %s remark', (kind, text) => {
     api.handlers.onDebugState({ state: 'say', kind })
     expect(bubble()?.toLowerCase()).toContain(text.toLowerCase())
