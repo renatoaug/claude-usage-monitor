@@ -7,9 +7,8 @@ import path from 'node:path'
 // so the fixture root has to exist and be exported before it loads.
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'clauddy-test-'))
 process.env.CLAUDE_CONFIG_DIR = ROOT
-const { getUsage, setClaudeDir, labelFor, projectLabel, tokensOf, detectActivity } = await import(
-  '../../usage.js'
-)
+const { getUsage, setClaudeDir, labelFor, projectLabel, tokensOf, detectActivity, turnOpen } =
+  await import('../../usage.js')
 
 afterAll(() => fs.rmSync(ROOT, { recursive: true, force: true }))
 
@@ -353,6 +352,103 @@ describe('activity detection', () => {
 
   test('a missing file is not a crash', () => {
     expect(detectActivity(path.join(ROOT, 'nope.jsonl'))).toBeNull()
+  })
+})
+
+describe('open turns', () => {
+  const J = (o) => JSON.stringify(o)
+  const prompt = (text) => J({ type: 'user', message: { role: 'user', content: text } })
+  const call = (name) =>
+    J({
+      type: 'assistant',
+      message: { stop_reason: 'tool_use', content: [{ type: 'tool_use', name }] },
+    })
+  const result = J({ type: 'user', message: { content: [{ type: 'tool_result' }] } })
+  const answer = J({
+    type: 'assistant',
+    message: { stop_reason: 'end_turn', content: [{ type: 'text', text: 'done' }] },
+  })
+  const duration = J({ type: 'system', subtype: 'turn_duration' })
+
+  test('a tool call, its result or a prompt leave the turn open', () => {
+    expect(turnOpen([prompt('fix it')])).toBe(true)
+    expect(turnOpen([prompt('fix it'), call('Bash')])).toBe(true)
+    expect(turnOpen([prompt('fix it'), call('Bash'), result])).toBe(true)
+  })
+
+  test('a final answer, its turn_duration or an interruption close it', () => {
+    expect(turnOpen([call('Bash'), result, answer])).toBe(false)
+    expect(turnOpen([answer, duration, J({ type: 'ai-title', title: 'x' })])).toBe(false)
+    expect(turnOpen([call('Bash'), prompt('[Request interrupted by user for tool use]')])).toBe(
+      false,
+    )
+    const refusal = J({ type: 'assistant', message: { stop_reason: 'refusal', content: [] } })
+    expect(turnOpen([prompt('hi'), refusal])).toBe(false)
+  })
+
+  test('slash commands, shell input, notices and meta lines open nothing', () => {
+    for (const text of [
+      '<command-name>/model</command-name>',
+      '<local-command-stdout>Set model</local-command-stdout>',
+      '<bash-input>ls</bash-input>',
+      '<task-notification> <task-id>1</task-id>',
+      'This session is being continued from a previous conversation',
+    ]) {
+      expect(turnOpen([answer, duration, prompt(text)])).toBe(false)
+    }
+    const meta = J({ type: 'user', isMeta: true, message: { content: 'caveat' } })
+    expect(turnOpen([answer, meta])).toBe(false)
+    const side = J({ type: 'user', isSidechain: true, message: { content: 'sub' } })
+    expect(turnOpen([answer, side])).toBe(false)
+    const text = J({ type: 'user', message: { content: [{ type: 'text', text: 'go' }] } })
+    expect(turnOpen([answer, text])).toBe(true)
+  })
+
+  test('a tail with no turn in it says nothing', () => {
+    expect(turnOpen([])).toBeNull()
+    expect(turnOpen(['{broken', J({ type: 'system', subtype: 'away_summary' })])).toBeNull()
+    expect(turnOpen([J({ type: 'assistant', message: {} })])).toBeNull()
+  })
+
+  // an open turn is written once, then nothing until the command finishes
+  const aged = (file, ms) => {
+    const t = (Date.now() - ms) / 1000
+    fs.utimesSync(file, t, t)
+    return file
+  }
+  const cfg = { ...BUDGET, activeThresholdMs: 20_000, sleepThresholdMs: 300_000 }
+
+  test('a long, quiet command still counts as working, in its own scene', () => {
+    aged(writeLog([prompt('build it'), call('Bash')]), 3 * MIN)
+    const u = getUsage(cfg)
+    expect(u).toMatchObject({ active: true, activity: 'running', sleeping: false })
+  })
+
+  test('the model thinking after a tool result still counts as working', () => {
+    aged(writeLog([prompt('go'), call('Read'), result]), 2 * MIN)
+    expect(getUsage(cfg)).toMatchObject({ active: true, activity: 'reading' })
+    aged(writeLog([prompt('go')]), 2 * MIN)
+    expect(getUsage(cfg)).toMatchObject({ active: true, activity: 'working' })
+  })
+
+  test('a finished turn rests at once, even if the log was just written', () => {
+    writeLog([prompt('go'), call('Bash'), result, answer, duration])
+    const u = getUsage(cfg)
+    expect(u.active).toBe(false)
+    expect(u.activity).toBeNull()
+  })
+
+  test('an open turn in another session wins over a finished newest one', () => {
+    aged(writeLog([prompt('long'), call('Task')]), 4 * MIN)
+    writeLog([prompt('quick'), answer, duration])
+    expect(getUsage(cfg)).toMatchObject({ active: true, activity: 'delegating' })
+  })
+
+  test('an open turn untouched for 30 minutes was abandoned', () => {
+    aged(writeLog([prompt('go'), call('Bash')]), 31 * MIN)
+    const u = getUsage(cfg)
+    expect(u.active).toBe(false)
+    expect(u.sleeping).toBe(true)
   })
 })
 

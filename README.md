@@ -286,7 +286,7 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you
   "alertThresholds": [80, 95], // notify when session/week cross these % (two levels)
   "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays 100)
   "pollIntervalMs": 4000, // how often local logs are re-read
-  "activeThresholdMs": 20000, // "active" if Claude wrote to its logs within this window
+  "activeThresholdMs": 20000, // fallback "active" window, for a log whose tail doesn't say whether a turn is open
   "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
   "codex": { "enabled": false }, // set by Settings → Codex → Connect
   "cursor": { "enabled": false }, // set by Settings → Cursor → Connect

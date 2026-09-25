@@ -224,23 +224,30 @@ const ACTIVITY_BY_TOOL = {
   AskUserQuestion: 'waiting',
 }
 
+// the last lines of a session log (the recent tail is plenty), or null
+function tailLines(file) {
+  try {
+    const fd = fs.openSync(file, 'r')
+    try {
+      const size = fs.fstatSync(fd).size
+      const len = Math.min(size, 65536)
+      const buf = Buffer.alloc(len)
+      fs.readSync(fd, buf, 0, len, size - len)
+      return buf.toString('utf8').split('\n').filter(Boolean)
+    } finally {
+      fs.closeSync(fd)
+    }
+  } catch {
+    return null
+  }
+}
+
 // Classify what Claude Code is doing right now by reading the tail of the most
 // recently touched session log: the latest tool_use → an activity, plan mode
 // (permission-mode) wins over everything. Returns null when there's no signal.
 function detectActivity(file) {
-  let raw
-  try {
-    const fd = fs.openSync(file, 'r')
-    const size = fs.fstatSync(fd).size
-    const len = Math.min(size, 65536) // last 64KB is plenty for the recent tail
-    const buf = Buffer.alloc(len)
-    fs.readSync(fd, buf, 0, len, size - len)
-    fs.closeSync(fd)
-    raw = buf.toString('utf8')
-  } catch {
-    return null
-  }
-  const lines = raw.split('\n').filter(Boolean)
+  const lines = tailLines(file)
+  if (!lines) return null
   let activity = null
   let permMode = null
   for (let i = lines.length - 1; i >= 0 && i >= lines.length - 80; i--) {
@@ -264,6 +271,60 @@ function detectActivity(file) {
   if (permMode === 'plan') return 'planning'
   return activity
 }
+
+// User lines that open no turn: slash commands and their output, `!` shell
+// input, background-task notices, the compaction summary, meta attachments
+const NO_TURN =
+  /^\s*(<command-name>|<command-message>|<local-command-|<bash-|<task-notification>|This session is being continued)/
+const DONE_STOPS = new Set(['end_turn', 'stop_sequence', 'refusal'])
+const textOf = (content) =>
+  typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? content.map((b) => (b && b.type === 'text' ? b.text : '')).join(' ')
+      : ''
+
+// Is a turn still open? Claude Code writes nothing while a command runs or the
+// model thinks, so a quiet log proves nothing; how it ends does. A final answer
+// (and the turn_duration line after it) or an interruption closes the turn; a
+// tool call, a tool result or a prompt leaves it open. Returns true, false, or
+// null when the tail doesn't say.
+function turnOpen(lines) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let o
+    try {
+      o = JSON.parse(lines[i])
+    } catch {
+      continue
+    }
+    if (o.isSidechain) continue
+    if (o.type === 'system') {
+      if (o.subtype === 'turn_duration') return false
+      continue
+    }
+    if (o.type === 'assistant') {
+      const stop = o.message?.stop_reason
+      if (!stop) continue
+      return !DONE_STOPS.has(stop)
+    }
+    if (o.type === 'user') {
+      const content = o.message?.content
+      if (Array.isArray(content) && content.some((b) => b?.type === 'tool_result')) return true
+      if (o.isMeta || o.isCompactSummary) continue
+      const text = textOf(content)
+      if (text.includes('[Request interrupted by user')) return false
+      if (NO_TURN.test(text)) continue
+      return true
+    }
+  }
+  return null
+}
+
+// a turn left open this long without a write was abandoned (a closed
+// terminal, a crash) — or a permission prompt nobody answered
+const OPEN_TURN_MS = 30 * 60000
+// parallel sessions and subagents each keep a log; a handful covers them
+const RECENT_LOGS = 8
 
 // Plan presets (token budgets ~= 100%). Calibrated for Max 5x from the official
 // panel (5h ~24% at 152M tokens, weekly ~62% at 2.14B); Pro/Max20x scaled by the
@@ -371,11 +432,31 @@ function getUsage(config) {
   const weekPct = weeklyBudget ? Math.min(100, (weekTokens / weeklyBudget) * 100) : 0
 
   const lastActivityMs = lastMtime ? now - lastMtime : Infinity
-  const active = lastActivityMs <= (config.activeThresholdMs || 20000)
-  const sleeping = lastActivityMs >= (config.sleepThresholdMs || 300000)
+  // Working means a turn is open in one of the recent logs, even when a long
+  // command or a slow answer has kept it quiet for minutes. A log with nothing
+  // to say falls back to the old rule: written in the last few seconds.
+  let openFile = null
+  const recentLogs = files
+    .filter((f) => now - f.st.mtimeMs <= OPEN_TURN_MS)
+    .sort((a, b) => b.st.mtimeMs - a.st.mtimeMs)
+    .slice(0, RECENT_LOGS)
+  let newestSays = null
+  for (const [i, f] of recentLogs.entries()) {
+    const lines = tailLines(f.full)
+    const open = lines ? turnOpen(lines) : null
+    if (i === 0) newestSays = open
+    if (open) {
+      openFile = f.full
+      break
+    }
+  }
+  const quietRule = newestSays === null && lastActivityMs <= (config.activeThresholdMs || 20000)
+  const active = !!openFile || quietRule
+  const sleeping = !active && lastActivityMs >= (config.sleepThresholdMs || 300000)
 
   // what Claude is doing right now (only meaningful while active)
-  const activity = active && newestFile ? detectActivity(newestFile) : null
+  const activeFile = openFile || (quietRule ? newestFile : null)
+  const activity = activeFile ? detectActivity(activeFile) || (openFile ? 'working' : null) : null
 
   const byModelArr = [...byModel.entries()]
     .map(([label, tokens]) => ({ label, tokens }))
@@ -422,5 +503,6 @@ module.exports = {
   projectLabel,
   tokensOf,
   detectActivity,
+  turnOpen,
   PLAN_BUDGETS,
 }

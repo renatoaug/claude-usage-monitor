@@ -223,14 +223,27 @@ describe('activity', () => {
     expect(cursor.getCursorUsage(NOW).activity).toBe('working')
   })
 
-  test('a finished turn rests, and an old file is not activity', () => {
+  test('a finished turn rests; an open one works through a long, quiet command', () => {
     transcript('proj', 'd', [user, tool('Shell'), ended])
     expect(cursor.getCursorUsage(NOW)).toMatchObject({ active: false, activity: null })
+    // no write for two minutes, but the turn hasn't ended: still running
     transcript('proj', 'e', [user, tool('Shell')], NOW - 120000)
     transcript('proj', 'd', [user, tool('Shell'), ended], NOW - 130000)
     const u = cursor.getCursorUsage(NOW)
-    expect(u.active).toBe(false)
+    expect(u).toMatchObject({ active: true, activity: 'running' })
     expect(u.lastSeen).toBe(NOW - 120000)
+  })
+
+  test('an open turn untouched for 30 minutes was abandoned', () => {
+    transcript('proj', 'g', [user, tool('Shell')], NOW - 31 * 60000)
+    expect(cursor.getCursorUsage(NOW)).toMatchObject({ active: false, activity: null })
+  })
+
+  test('a transcript with nothing to say counts only while fresh', () => {
+    transcript('proj', 'h', [{ note: 'x' }])
+    expect(cursor.getCursorUsage(NOW).activity).toBe('working')
+    transcript('proj', 'h', [{ note: 'x' }], NOW - 120000)
+    expect(cursor.getCursorUsage(NOW).active).toBe(false)
   })
 
   test('only the tail of a long transcript is read', () => {
@@ -245,7 +258,7 @@ describe('activity', () => {
   test('activityOf: user turns think, broken lines are skipped', () => {
     expect(cursor.activityOf([JSON.stringify(user)])).toBe('working')
     expect(cursor.activityOf(['{broken', JSON.stringify(tool('Grep'))])).toBe('reading')
-    expect(cursor.activityOf(['{broken'])).toBe('working')
+    expect(cursor.activityOf(['{broken'])).toBeUndefined()
     expect(cursor.activityOf([JSON.stringify({ role: 'assistant', message: {} })])).toBe('working')
   })
 })

@@ -8,7 +8,10 @@ const os = require('node:os')
 // comes from the agent transcripts under ~/.cursor/projects, which log each
 // tool call much like Claude Code's own logs.
 const API = 'https://api2.cursor.sh/aiserver.v1.DashboardService/'
-const ACTIVE_MS = 60000 // a transcript touched within the last minute = Cursor working
+const ACTIVE_MS = 60000 // a transcript that says nothing counts only while it's this fresh
+// an unfinished turn this long without a write was abandoned (Cursor closed mid-run)
+const OPEN_TURN_MS = 30 * 60000
+const RECENT_TRANSCRIPTS = 8
 const FETCH_MS = 5 * 60000 // a monthly budget moves slowly; don't hammer the API
 const RETRY_MS = 60000
 const TAIL_BYTES = 64 * 1024
@@ -169,7 +172,8 @@ const ACTIVITY = {
   AskQuestion: 'waiting',
 }
 
-// what the newest transcript lines say: a finished turn means nothing is running
+// what the newest transcript lines say: a finished turn means nothing is
+// running (null), an open one names its scene, and undefined means no telling
 function activityOf(lines) {
   for (let i = lines.length - 1; i >= 0; i--) {
     let o
@@ -186,7 +190,7 @@ function activityOf(lines) {
     }
     if (o.role === 'user') return 'working' // just asked: the agent is thinking
   }
-  return 'working'
+  return undefined
 }
 
 const dirs = (dir) => {
@@ -232,22 +236,29 @@ function tailLines(file, size) {
   return lines.filter(Boolean)
 }
 
+// A turn stays open while a long command runs or the model thinks, without a
+// write, so an open turn in any recent transcript is Cursor at work. A
+// transcript with nothing to say counts only while it's fresh.
 function readActivity(now) {
-  let latest = null
+  const recent = []
+  let lastSeen = null
   for (const file of transcripts()) {
     try {
       const st = fs.statSync(file)
-      if (!latest || st.mtimeMs > latest.st.mtimeMs) latest = { file, st }
+      if (lastSeen == null || st.mtimeMs > lastSeen) lastSeen = st.mtimeMs
+      if (now - st.mtimeMs < OPEN_TURN_MS) recent.push({ file, st })
     } catch {}
   }
-  if (!latest) return { active: false, activity: null, lastSeen: null }
-  const lastSeen = latest.st.mtimeMs
-  if (now - lastSeen >= ACTIVE_MS) return { active: false, activity: null, lastSeen }
-  let activity = 'working'
-  try {
-    activity = activityOf(tailLines(latest.file, latest.st.size))
-  } catch {}
-  return { active: activity != null, activity, lastSeen }
+  recent.sort((a, b) => b.st.mtimeMs - a.st.mtimeMs)
+  for (const { file, st } of recent.slice(0, RECENT_TRANSCRIPTS)) {
+    let said
+    try {
+      said = activityOf(tailLines(file, st.size))
+    } catch {}
+    const activity = said === undefined ? (now - st.mtimeMs < ACTIVE_MS ? 'working' : null) : said
+    if (activity) return { active: true, activity, lastSeen }
+  }
+  return { active: false, activity: null, lastSeen }
 }
 
 // The poll's view of Cursor: activity from disk every tick, limits from the
