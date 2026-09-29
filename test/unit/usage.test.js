@@ -427,7 +427,7 @@ describe('open turns', () => {
   test('the model thinking after a tool result still counts as working', () => {
     aged(writeLog([prompt('go'), call('Read'), result]), 2 * MIN)
     expect(getUsage(cfg)).toMatchObject({ active: true, activity: 'reading' })
-    aged(writeLog([prompt('go')]), 2 * MIN)
+    aged(writeLog([prompt('go')]), MIN)
     expect(getUsage(cfg)).toMatchObject({ active: true, activity: 'working' })
   })
 
