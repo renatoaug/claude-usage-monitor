@@ -17,6 +17,7 @@ const DAY = 86400000
 const DAYS = 30
 const WEEK = 7 * DAY
 const ACTIVE_MS = 60000 // a rollout touched within the last minute = Codex working
+const DAY_MIN = 24 * 60
 const TOP_PROJECTS = 5 // same fold as Claude's panel
 
 // per file: how far we've read, plus what we got out of it. Rollouts only ever
@@ -36,7 +37,18 @@ function limitsOf(rl, ts) {
     w && typeof w.used_percent === 'number'
       ? { pct: w.used_percent, resetsAt: w.resets_at ? w.resets_at * 1000 : null }
       : null
-  return { ts, plan: rl.plan_type || null, primary: win(rl.primary), secondary: win(rl.secondary) }
+  // Plus reports a 5-hour window and a weekly one; some plans (Pro Lite, say)
+  // only the weekly one, in the `primary` slot. Sort by length, not by slot.
+  let session = null
+  let weekly = null
+  for (const w of [rl.primary, rl.secondary]) {
+    const v = win(w)
+    if (!v) continue
+    const long = w.window_minutes != null ? w.window_minutes >= DAY_MIN : w === rl.secondary
+    if (long) weekly = v
+    else session = v
+  }
+  return { ts, plan: rl.plan_type || null, session, weekly }
 }
 
 function ingestLine(sum, line) {
@@ -200,12 +212,16 @@ function getCodexUsage(now = Date.now()) {
     })
   }
 
+  const weeklyOnly = !!limits?.weekly && !limits.session
   return {
     active: !!latest && now - latest.mtime < ACTIVE_MS,
     lastSeen: latest ? latest.mtime : null,
     plan: limits?.plan || null,
-    session: limits ? windowNow(limits.primary, now) : null,
-    weekly: limits ? windowNow(limits.secondary, now) : null,
+    // with no 5-hour window, the week is the budget that binds: it takes the
+    // session's place, the way Cursor's month does
+    session: limits ? windowNow(weeklyOnly ? limits.weekly : limits.session, now) : null,
+    weekly: limits && !weeklyOnly ? windowNow(limits.weekly, now) : null,
+    weeklyOnly,
     limitsAt: limits?.ts || null,
     tokensToday,
     tokens5h,

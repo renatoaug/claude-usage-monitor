@@ -836,6 +836,8 @@ function extView(p, c) {
     },
     sess: c.session,
     week: p === 'cursor' ? c.api : c.weekly,
+    // a Codex plan with no 5-hour window: its week sits in the session's place
+    weeklyOnly: !!c.weeklyOnly,
     stale: c.limitsAt != null && Date.now() - c.limitsAt > STALE_MS ? c.limitsAt : null,
   }
 }
@@ -1288,7 +1290,13 @@ function paint() {
   sf.style.width = `${sp}%`
   sf.classList.toggle('high', sp >= 80)
   setLevel(sf, sp)
-  el('session-label').textContent = isCursor ? 'this month · included' : 'current session'
+  const weeklyOnly = !!cv?.weeklyOnly
+  el('session-label').textContent = isCursor
+    ? 'this month · included'
+    : weeklyOnly
+      ? 'weekly · all models'
+      : 'current session'
+  el('week-meter').hidden = weeklyOnly
   el('week-label').textContent = isCursor ? 'API models · this month' : 'weekly · all models'
   el('session-sub').textContent = isExt
     ? isCursor
@@ -1298,7 +1306,7 @@ function paint() {
           cv.stale,
           ext.signedOut ? 'sign in to the Cursor app' : 'no reading yet',
         )
-      : extSub(cv.sess, d.session.tokens, cv.stale)
+      : extSub(cv.sess, weeklyOnly ? d.week.tokens : d.session.tokens, cv.stale)
     : sessActive
       ? `resets in ${fmtResetIn(sessReset)} · ${fmtTokens(d.session.tokens)} tokens`
       : 'no active session'
