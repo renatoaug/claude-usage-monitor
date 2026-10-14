@@ -332,7 +332,13 @@ function checkAlerts(config, d) {
 function checkCodexAlerts(config, c) {
   if (!c) return
   alertScopes(config, [
-    { label: 'Codex session', pct: c.session?.pct, resetMs: c.session?.resetMs, session: true },
+    {
+      // a weekly-only plan carries its week in `session`, so the key says weekly
+      label: c.weeklyOnly ? 'Codex weekly' : 'Codex session',
+      pct: c.session?.pct,
+      resetMs: c.session?.resetMs,
+      session: true,
+    },
     { label: 'Codex weekly', pct: c.weekly?.pct, resetMs: c.weekly?.resetMs },
   ])
 }
@@ -801,7 +807,11 @@ function updateTray() {
     const age = (u) => (u.limitsAt ? ` (as of ${new Date(u.limitsAt).toLocaleTimeString()})` : '')
     const parts = [
       sessionPct != null && ['C', `Claude session ${fmt(sessionPct)}`, sessionPct],
-      cx && ['X', `Codex session ${fmt(cx.session?.pct)}${age(cx)}`, cx.session?.pct],
+      cx && [
+        'X',
+        `Codex ${cx.weeklyOnly ? 'weekly' : 'session'} ${fmt(cx.session?.pct)}${age(cx)}`,
+        cx.session?.pct,
+      ],
       cu && ['Cu', `Cursor usage ${fmt(cu.session?.pct)}${age(cu)}`, cu.session?.pct],
     ].filter(Boolean)
     const title = parts.map(([k, , v]) => `${k} ${fmt(v)}`).join(' · ')

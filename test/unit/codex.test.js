@@ -65,6 +65,35 @@ describe('getCodexUsage', () => {
     expect(u.tokensWeek).toBe(250)
   })
 
+  test('a weekly-only plan puts its week in the session slot', () => {
+    write('rollout-w.jsonl', [
+      tokenCount('2026-09-12T19:00:00Z', 100, {
+        limit_id: 'codex',
+        plan_type: 'prolite',
+        primary: { used_percent: 52, window_minutes: 10080, resets_at: NOW / 1000 + 86400 },
+        secondary: null,
+      }),
+    ])
+    const u = codex.getCodexUsage(NOW)
+    expect(u.weeklyOnly).toBe(true)
+    expect(u.session).toEqual({ pct: 52, resetMs: 86400000, expired: false })
+    expect(u.weekly).toBeNull()
+  })
+
+  test('sorts windows by length, not by slot', () => {
+    write('rollout-s.jsonl', [
+      tokenCount('2026-09-12T19:00:00Z', 100, {
+        ...CODEX_LIMITS,
+        primary: CODEX_LIMITS.secondary,
+        secondary: CODEX_LIMITS.primary,
+      }),
+    ])
+    const u = codex.getCodexUsage(NOW)
+    expect(u.weeklyOnly).toBe(false)
+    expect(u.session.pct).toBe(40)
+    expect(u.weekly.pct).toBe(31)
+  })
+
   test('reads only what was appended, and survives a partial line', () => {
     const f = write('rollout-b.jsonl', [tokenCount('2026-09-12T19:00:00Z', 100, CODEX_LIMITS)])
     expect(codex.getCodexUsage(NOW).tokensWeek).toBe(100)
