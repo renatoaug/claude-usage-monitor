@@ -4,7 +4,7 @@ A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mi
 
 <p align="center">
 
-https://github.com/user-attachments/assets/dbe00d9a-b49c-48ea-941c-76c517dec358
+https://github.com/user-attachments/assets/be8d339c-ac69-4980-96a7-8e286f8b080f
 
 <em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
 </p>
