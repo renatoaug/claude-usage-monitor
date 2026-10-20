@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="pt-BR" data-composition-variables='[{"id":"lang","type":"string","label":"Language (pt or en)","default":"pt"}]'>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0f0b09; --s:#1a1411; --s2:#241b17; --b:#3a2b23; --acc:#d97757; --hi:#f0a173; --fg:#f6efe8; --mut:#a89a8e; --warn:#e8b64c; --hot:#ef5a3c; --ok:#7ec77d }
+  * { box-sizing:border-box; margin:0 }
+  html, body { background:var(--bg); width:1920px; height:1080px; overflow:hidden }
+  #root { position:relative; width:1920px; height:1080px; overflow:hidden; background:var(--bg); font-family:Inter,sans-serif; color:var(--fg) }
+  .clip { position:absolute; inset:0; overflow:hidden }
+  .glow { position:absolute; border-radius:50%; filter:blur(150px); background:var(--acc); opacity:.2 }
+  /* a pixel grid, the pet's own medium */
+  .grid { position:absolute; inset:0; background-image:radial-gradient(rgba(255,240,230,.07) 1.5px,transparent 1.5px); background-size:40px 40px }
+  .k { font:700 24px Inter,sans-serif; letter-spacing:.18em; text-transform:uppercase; color:var(--acc); display:flex; gap:14px; align-items:center }
+  .k i { width:12px; height:12px; background:var(--acc); box-shadow:0 0 18px var(--acc) }
+  .h { font:700 92px/1.02 "Space Grotesk",sans-serif; letter-spacing:-.035em }
+  .h em { font-style:normal; color:var(--hi) }
+  .p { font:500 32px/1.38 Inter,sans-serif; color:var(--mut) }
+  .p b { color:var(--fg) }
+  .cap { position:absolute; display:flex; flex-direction:column; gap:22px; z-index:5 }
+  .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:28px }
+  /* the renderer letterboxes a video into its box: always give both sides */
+  video { position:absolute; display:block }
+  .feat { display:inline-flex; align-items:center; gap:16px; padding:20px 28px; border-radius:22px; background:var(--s); border:2px solid var(--b); font:700 30px Inter,sans-serif; white-space:nowrap; box-shadow:0 30px 60px rgba(0,0,0,.45) }
+  .feat i { font-style:normal; width:44px; height:44px; border-radius:12px; background:rgba(217,119,87,.16); color:var(--hi); display:grid; place-items:center; font-size:24px }
+  .callout { position:absolute; z-index:10; padding:18px 26px; border-radius:18px; background:var(--acc); color:#1a0f0a; font:700 32px Inter,sans-serif; box-shadow:0 30px 70px rgba(0,0,0,.5); white-space:nowrap }
+  .callout.warn { background:var(--warn) }
+  .callout.light { background:#efe4da }
+  .lab { position:absolute; display:flex; flex-direction:column; gap:6px; text-align:center; align-items:center }
+  .lab b { font:700 38px "Space Grotesk",sans-serif; letter-spacing:-.02em }
+  .lab span { font:500 24px Inter,sans-serif; color:var(--mut) }
+  .tile { border-radius:26px; box-shadow:0 0 0 2px var(--b),0 50px 120px rgba(0,0,0,.6) }
+  .big { font:700 300px/0.85 "Space Grotesk",sans-serif; letter-spacing:-.06em; color:var(--fg) }
+  .lines path { opacity:0; fill:none; stroke:var(--hi); stroke-width:3; stroke-linecap:round; stroke-dasharray:2 10 }
+  .cmd { font:700 40px "JetBrains Mono",monospace; color:var(--hi); background:rgba(217,119,87,.1); border:2px solid rgba(217,119,87,.4); border-radius:18px; padding:20px 34px }
+  .cmd s { text-decoration:none; color:var(--mut) }
+  .cam { position:absolute; overflow:hidden; -webkit-mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent) }
+  .cam video { left:0; top:0 }
+  /* a stand-in macOS menu bar; the icon is the app's real tray template, inverted like macOS does on a dark bar */
+  .mbar { position:absolute; height:44px; border-radius:12px; background:rgba(40,32,28,.92); border:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:flex-end; gap:18px; padding:0 18px; font:500 19px -apple-system,Inter,sans-serif; color:#f0ece8 }
+  .mbar .hot { display:flex; align-items:center; gap:7px; background:rgba(255,255,255,.16); border-radius:7px; padding:4px 9px }
+  .slot { position:absolute }
+  .big-lab { opacity:0 }
+  .big-lab b { font-size:46px }
+  .big-lab span { font-size:30px; color:var(--fg) }
+  .mbar .sys { width:22px; height:22px; fill:none; stroke:#f0ece8; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round }
+  .mbar img { width:24px; height:21px; image-rendering:pixelated; filter:brightness(0) invert(1) }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="root" data-width="1920" data-height="1080">
+  <!-- biome-ignore lint/a11y/useMediaCaption: background music, nothing to caption -->
+  <audio id="music" src="assets/music.wav" data-start="0" data-duration="92" data-volume="0.9"></audio>
+
+  <!-- 0-5 the hook: the limit always arrives as a surprise -->
+  <div class="clip" id="s1" data-start="0" data-duration="5">
+    <div class="grid"></div>
+    <div class="glow" id="s1g" style="width:900px;height:700px;left:1000px;top:200px;background:var(--hot)"></div>
+    <div class="cap" style="left:130px;top:190px;width:1050px;gap:10px">
+      <div class="k" id="s1k" data-en="&lt;i&gt;&lt;/i&gt;Claude Code · current session"><i></i>Claude Code · sessão atual</div>
+      <div class="big" id="s1n">0%</div>
+      <div class="h" id="s1h" style="font-size:84px;margin-top:30px" data-en="Hit the limit &lt;em&gt;mid-task.&lt;/em&gt;">Bateu o limite <em>no meio da tarefa.</em></div>
+      <div class="p" id="s1p" style="margin-top:16px" data-en="And you &lt;b&gt;never saw it coming.&lt;/b&gt;">E você <b>nem viu chegando.</b></div>
+    </div>
+    <video id="v-maxed" src="assets/clips/maxed.webm" muted data-start="0" data-duration="5" style="left:1150px;top:220px;width:717px;height:640px"></video>
+  </div>
+
+  <!-- 5-11 meet Clauddy -->
+  <div class="clip" id="s2" data-start="5" data-duration="6">
+    <div class="grid"></div>
+    <div class="glow" id="s2g" style="width:900px;height:600px;left:510px;top:60px;opacity:.26"></div>
+    <video id="v-hello" src="assets/clips/hello.webm" muted data-start="5" data-duration="6" style="left:769px;top:70px;width:381px;height:340px"></video>
+    <div class="cap" id="s2c" style="left:0;right:0;top:440px;align-items:center;text-align:center;gap:18px">
+      <div class="h" style="font-size:150px">Clauddy</div>
+      <div class="p" style="font-size:38px" data-en="A pixel-art pet that lives in the corner of your screen&lt;br&gt;and &lt;b&gt;keeps an eye on your Claude Code usage.&lt;/b&gt;">Um bichinho pixel-art que mora no canto da tela<br>e <b>cuida do seu uso do Claude Code.</b></div>
+    </div>
+    <div id="s2f" style="position:absolute;left:0;right:0;top:820px;display:flex;justify-content:center;gap:22px">
+      <span class="feat" data-en="&lt;i&gt;%&lt;/i&gt;Real % from your account"><i>%</i>% real da sua conta</span>
+      <span class="feat" data-en="&lt;i&gt;✦&lt;/i&gt;Claude, Codex and Cursor"><i>✦</i>Claude, Codex e Cursor</span>
+      <span class="feat" data-en="&lt;i&gt;♥&lt;/i&gt;Free and open source"><i>♥</i>Grátis e open source</span>
+    </div>
+  </div>
+
+  <!-- 11-33 every size: each one lands in the spotlight, then takes its place in the row -->
+  <div class="clip" id="sm" data-start="11" data-duration="22">
+    <div class="glow" style="width:1400px;height:500px;left:260px;top:480px;opacity:.13"></div>
+    <div class="cap" id="mcap" style="left:0;right:0;top:56px;align-items:center;text-align:center;gap:14px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;Your way"><i></i>Do seu jeito</div>
+      <div class="h" style="font-size:80px" data-en="Big, small &lt;em&gt;or just the pet.&lt;/em&gt;">Grande, pequeno <em>ou só o bichinho.</em></div>
+    </div>
+    <div class="slot" id="a1" style="left:65px;top:300px;width:409px;height:560px">
+      <video id="v-a1" src="assets/clips/expanded.webm" muted data-start="12.2" data-duration="20.8" style="left:0;top:0;width:409px;height:560px"></video>
+    </div>
+    <div class="slot" id="a2" style="left:550px;top:471px;width:360px;height:389px">
+      <video id="v-a2" src="assets/clips/compact.webm" muted data-start="16.4" data-duration="16.6" style="left:0;top:0;width:360px;height:389px"></video>
+    </div>
+    <div class="slot" id="a3" style="left:1000px;top:484px;width:340px;height:376px">
+      <video id="v-a3" src="assets/clips/petonly.webm" muted data-start="20.6" data-duration="12.4" style="left:0;top:0;width:340px;height:376px"></video>
+    </div>
+    <div class="slot" id="a4" style="left:1420px;top:400px;width:430px;height:437px">
+      <div class="mbar" style="left:0;top:0;width:430px">
+        <span class="hot"><img alt="" src="assets/tray.png">63%</span>
+        <svg class="sys" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>
+        <span data-en="Fri 9:41">Sex 9:41</span>
+      </div>
+      <video id="v-a4" src="assets/clips/menubar.webm" muted data-start="24.8" data-duration="8.2" style="left:35px;top:48px;width:360px;height:389px"></video>
+    </div>
+    <div class="lab" id="al1" style="left:30px;width:480px;top:880px" data-en="&lt;b&gt;Expanded&lt;/b&gt;&lt;span&gt;everything in view&lt;/span&gt;"><b>Completo</b><span>tudo à vista</span></div>
+    <div class="lab" id="al2" style="left:490px;width:480px;top:880px" data-en="&lt;b&gt;Compact&lt;/b&gt;&lt;span&gt;the essentials, in a ring&lt;/span&gt;"><b>Compacto</b><span>o essencial, num anel</span></div>
+    <div class="lab" id="al3" style="left:930px;width:480px;top:880px" data-en="&lt;b&gt;Pet only&lt;/b&gt;&lt;span&gt;hover to see the %&lt;/span&gt;"><b>Só o pet</b><span>passe o mouse e veja a %</span></div>
+    <div class="lab" id="al4" style="left:1395px;width:480px;top:880px" data-en="&lt;b&gt;Menu bar&lt;/b&gt;&lt;span&gt;out of the way&lt;/span&gt;"><b>Barra de menus</b><span>longe do caminho</span></div>
+    <!-- what the spotlight says about each one -->
+    <div class="lab big-lab" id="c1" style="left:0;right:0;top:905px" data-en="&lt;b&gt;Expanded&lt;/b&gt;&lt;span&gt;The scene, the session, the week and the details, in one panel.&lt;/span&gt;"><b>Completo</b><span>A cena, a sessão, a semana e os detalhes, num painel só.</span></div>
+    <div class="lab big-lab" id="c2" style="left:0;right:0;top:905px" data-en="&lt;b&gt;Compact&lt;/b&gt;&lt;span&gt;The session % in a ring around the pet.&lt;/span&gt;"><b>Compacto</b><span>A % da sessão em volta do bichinho.</span></div>
+    <div class="lab big-lab" id="c3" style="left:0;right:0;top:905px" data-en="&lt;b&gt;Pet only&lt;/b&gt;&lt;span&gt;It sits in a corner of your screen. Hover and the % shows up.&lt;/span&gt;"><b>Só o pet</b><span>Ele fica no canto da tela. Passe o mouse e a % aparece.</span></div>
+    <div class="lab big-lab" id="c4" style="left:0;right:0;top:905px" data-en="&lt;b&gt;Menu bar&lt;/b&gt;&lt;span&gt;The % next to the clock, and the pet one click away.&lt;/span&gt;"><b>Barra de menus</b><span>A % ao lado do relógio, e o bichinho abre num clique.</span></div>
+  </div>
+
+  <!-- 33-40 it works alongside Claude -->
+  <div class="clip" id="s3" data-start="33" data-duration="7">
+    <div class="glow" style="width:1200px;height:500px;left:360px;top:420px;opacity:.14"></div>
+    <div class="cap" id="s3c" style="left:0;right:0;top:90px;align-items:center;text-align:center;gap:16px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;Live"><i></i>Ao vivo</div>
+      <div class="h" style="font-size:84px" data-en="It works &lt;em&gt;right alongside Claude.&lt;/em&gt;">Ele trabalha <em>junto com o Claude.</em></div>
+      <div class="p" data-en="The scene changes with what Claude is doing &lt;b&gt;right now.&lt;/b&gt;">A cena muda com o que o Claude está fazendo <b>agora.</b></div>
+    </div>
+    <video class="tile" id="v-reading" src="assets/clips/reading.webm" muted data-start="33" data-duration="7" style="left:120px;top:420px;width:540px;height:295px"></video>
+    <video class="tile" id="v-editing" src="assets/clips/editing.webm" muted data-start="33" data-duration="7" style="left:690px;top:420px;width:540px;height:295px"></video>
+    <video class="tile" id="v-running" src="assets/clips/running.webm" muted data-start="33" data-duration="7" style="left:1260px;top:420px;width:540px;height:295px"></video>
+    <div class="lab" id="s3l1" style="left:120px;width:540px;top:750px" data-en="&lt;b&gt;Reading&lt;/b&gt;&lt;span&gt;opens a book under the lamp&lt;/span&gt;"><b>Lendo</b><span>abre o livro sob a luminária</span></div>
+    <div class="lab" id="s3l2" style="left:690px;width:540px;top:750px" data-en="&lt;b&gt;Editing&lt;/b&gt;&lt;span&gt;types at the desk, coffee in reach&lt;/span&gt;"><b>Editando</b><span>digita na mesa, café do lado</span></div>
+    <div class="lab" id="s3l3" style="left:1260px;width:540px;top:750px" data-en="&lt;b&gt;Running&lt;/b&gt;&lt;span&gt;watches the build and the tests&lt;/span&gt;"><b>Rodando</b><span>acompanha o build e os testes</span></div>
+  </div>
+
+  <!-- 40-49.5 the real number and where the pace is taking you -->
+  <div class="clip" id="s4" data-start="40" data-duration="9.5">
+    <div class="glow" style="width:800px;height:800px;left:1050px;top:150px;opacity:.2"></div>
+    <div class="cap" id="s4c" style="left:130px;top:170px;width:820px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;Real usage"><i></i>Uso real</div>
+      <div class="h" style="font-size:96px" data-en="The &lt;em&gt;real&lt;/em&gt; number.">O número <em>de verdade.</em></div>
+      <div class="p" data-en="The same % as the official panel, for the session and the week, and how long it lasts &lt;b&gt;at your pace.&lt;/b&gt;">A mesma % do painel oficial, da sessão e da semana, e quanto tempo ela dura <b>no seu ritmo.</b></div>
+    </div>
+    <video id="v-num" src="assets/clips/numbers.webm" muted data-start="40" data-duration="9.5" style="left:1100px;top:90px;width:657px;height:900px"></video>
+    <!-- rows of the widget, measured: session y=622, pace line y=734, weekly y=789, all starting at x=1170 -->
+    <svg class="lines" width="1920" height="1080" style="position:absolute;left:0;top:0;z-index:9">
+      <path id="s4l1" d="M300 622 L1160 622"/>
+      <path id="s4l2" d="M300 734 L1160 734"/>
+      <path id="s4l3" d="M300 847 L1090 847 L1160 789"/>
+    </svg>
+    <div class="callout warn" id="s4k1" style="left:130px;top:585px" data-en="63% · same as the official panel">63% · igual ao painel oficial</div>
+    <div class="callout" id="s4k2" style="left:130px;top:697px" data-en="~35 min to 100% at this pace">~35 min até 100% nesse ritmo</div>
+    <div class="callout light" id="s4k3" style="left:130px;top:810px" data-en="41% · weekly limit, all models">41% · limite semanal, todos os modelos</div>
+  </div>
+
+  <!-- 49.5-56.5 moods -->
+  <div class="clip" id="s5" data-start="49.5" data-duration="7">
+    <div class="glow" style="width:1200px;height:500px;left:360px;top:420px;opacity:.14;background:var(--hot)"></div>
+    <div class="cap" id="s5c" style="left:0;right:0;top:90px;align-items:center;text-align:center;gap:16px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;Moods"><i></i>Humor</div>
+      <div class="h" style="font-size:84px" data-en="It &lt;em&gt;feels&lt;/em&gt; your limit.">Ele sente <em>o seu limite.</em></div>
+      <div class="p" data-en="One glance and you know &lt;b&gt;how the session is going.&lt;/b&gt;">Você bate o olho e já sabe <b>como está a sessão.</b></div>
+    </div>
+    <video class="tile" id="v-fire" src="assets/clips/fire.webm" muted data-start="49.5" data-duration="7" style="left:120px;top:420px;width:540px;height:295px"></video>
+    <video class="tile" id="v-sleeping" src="assets/clips/sleeping.webm" muted data-start="49.5" data-duration="7" style="left:690px;top:420px;width:540px;height:295px"></video>
+    <video class="tile" id="v-celebrate" src="assets/clips/celebrate.webm" muted data-start="49.5" data-duration="7" style="left:1260px;top:420px;width:540px;height:295px"></video>
+    <div class="lab" id="s5l1" style="left:120px;width:540px;top:750px" data-en="&lt;b style=&quot;color:var(--hot)&quot;&gt;On fire&lt;/b&gt;&lt;span&gt;the session passed 90%&lt;/span&gt;"><b style="color:var(--hot)">Pegando fogo</b><span>a sessão passou de 90%</span></div>
+    <div class="lab" id="s5l2" style="left:690px;width:540px;top:750px" data-en="&lt;b style=&quot;color:#9fb4e8&quot;&gt;Sleeping&lt;/b&gt;&lt;span&gt;you step away, it naps&lt;/span&gt;"><b style="color:#9fb4e8">Dormindo</b><span>você saiu, ele cochila</span></div>
+    <div class="lab" id="s5l3" style="left:1260px;width:540px;top:750px" data-en="&lt;b style=&quot;color:var(--ok)&quot;&gt;Party&lt;/b&gt;&lt;span&gt;a fresh window&lt;/span&gt;"><b style="color:var(--ok)">Festa</b><span>a janela renovou</span></div>
+  </div>
+
+  <!-- 56.5-69.5 the pet talks -->
+  <div class="clip" id="st" data-start="56.5" data-duration="13">
+    <div class="glow" style="width:1300px;height:600px;left:310px;top:350px;opacity:.15"></div>
+    <div class="cap" id="stc" style="left:0;right:0;top:56px;align-items:center;text-align:center;gap:14px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;It talks"><i></i>Falas</div>
+      <div class="h" style="font-size:80px" data-en="And it even &lt;em&gt;makes small talk.&lt;/em&gt;">E ele ainda <em>puxa conversa.</em></div>
+    </div>
+    <video class="tile" id="v-talk" src="assets/clips/talk.webm" muted data-start="56.5" data-duration="13" style="left:360px;top:250px;width:1200px;height:655px"></video>
+    <div class="lab big-lab" id="t1" style="left:0;right:0;top:935px" data-en="&lt;span&gt;Good morning, with yesterday in a line&lt;/span&gt;"><span>Bom dia com o resumo de ontem</span></div>
+    <div class="lab big-lab" id="t2" style="left:0;right:0;top:935px" data-en="&lt;span&gt;A heads-up when the session heats up&lt;/span&gt;"><span>Um aviso quando a sessão esquenta</span></div>
+    <div class="lab big-lab" id="t3" style="left:0;right:0;top:935px" data-en="&lt;span&gt;A recap when the window resets&lt;/span&gt;"><span>O balanço quando a janela renova</span></div>
+    <div class="lab big-lab" id="t4" style="left:0;right:0;top:935px" data-en="&lt;span&gt;And a nudge to take a break&lt;/span&gt;"><span>E um lembrete de pausa</span></div>
+  </div>
+
+  <!-- 69.5-75.5 Claude, Codex and Cursor -->
+  <div class="clip" id="s6" data-start="69.5" data-duration="6">
+    <div class="grid"></div>
+    <div class="glow" style="width:900px;height:700px;left:950px;top:200px;opacity:.2"></div>
+    <div class="cap" id="s6c" style="left:130px;top:230px;width:800px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;Multi-service"><i></i>Multi-serviço</div>
+      <div class="h" style="font-size:84px" data-en="Claude, Codex&lt;br&gt;and Cursor.&lt;br&gt;&lt;em&gt;One pet.&lt;/em&gt;">Claude, Codex<br>e Cursor.<br><em>Um bichinho só.</em></div>
+      <div class="p" data-en="Each service with its own %, and the mood follows &lt;b&gt;whoever is working.&lt;/b&gt;">Cada serviço com a sua %, e o humor segue <b>quem estiver trabalhando.</b></div>
+    </div>
+    <video id="v-trio" src="assets/clips/trio.webm" muted data-start="69.5" data-duration="6" style="left:990px;top:207px;width:860px;height:666px"></video>
+  </div>
+
+  <!-- 75.5-82.5 where the week went -->
+  <div class="clip" id="s7" data-start="75.5" data-duration="7">
+    <div class="glow" style="width:800px;height:900px;left:1050px;top:100px;opacity:.18"></div>
+    <div class="cap" id="s7c" style="left:130px;top:290px;width:820px">
+      <div class="k" data-en="&lt;i&gt;&lt;/i&gt;History"><i></i>Histórico</div>
+      <div class="h" style="font-size:96px" data-en="Where did &lt;em&gt;your week go?&lt;/em&gt;">Pra onde foi <em>a sua semana?</em></div>
+      <div class="p" data-en="Tokens by model, by project, and &lt;b&gt;30 days on a heatmap.&lt;/b&gt;">Tokens por modelo, por projeto e <b>30 dias num mapa de calor.</b></div>
+    </div>
+    <div class="cam" id="s7cam" style="left:1120px;top:40px;width:660px;height:1000px">
+      <video id="v-det" src="assets/clips/details.webm" muted data-start="75.5" data-duration="7" style="width:660px;height:1539px"></video>
+    </div>
+  </div>
+
+  <!-- 82.5-92 outro -->
+  <div class="clip" id="s8" data-start="82.5" data-duration="9.5">
+    <div class="grid"></div>
+    <div class="glow" style="width:1000px;height:600px;left:460px;top:120px;opacity:.3"></div>
+    <div class="center" id="s8c" style="gap:24px">
+      <div style="height:300px"></div>
+      <div class="h" id="s8h" style="font-size:140px">Clauddy</div>
+      <div class="p" id="s8p" style="font-size:40px" data-en="Your Claude Code limit, &lt;b&gt;no surprises.&lt;/b&gt;">Seu limite do Claude Code, <b>sem surpresa.</b></div>
+      <div id="s8cmd" style="display:flex;gap:26px;align-items:center;margin-top:14px">
+        <span class="cmd"><s>$</s> bunx clauddy</span>
+      </div>
+      <div class="k" id="s8u" style="font-size:28px;letter-spacing:.06em;text-transform:none;color:var(--mut)">macOS · Windows · Linux · github.com/renatoaug/claude-usage-monitor</div>
+    </div>
+    <video id="v-out" src="assets/clips/hello.webm" muted data-start="82.5" data-duration="9.5" style="left:791px;top:60px;width:337px;height:300px"></video>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    // the copy is written in Portuguese; --variables '{"lang":"en"}' swaps in each element's data-en
+    const { lang } = window.__hyperframes?.getVariables?.() || {}
+    if (lang === 'en') {
+      document.documentElement.lang = 'en'
+      for (const el of document.querySelectorAll('[data-en]')) el.innerHTML = el.dataset.en
+    }
+
+    const tl = gsap.timeline({ paused: true })
+    const ease = 'power3.out'
+    const enterCap = (id, at) => tl.fromTo(`${id} > *`, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease, stagger: 0.22 }, at)
+    const pop = (id, at) => tl.fromTo(id, { scale: 0.6, opacity: 0, y: 20 }, { scale: 1, opacity: 1, y: 0, duration: 0.6, ease: 'back.out(1.7)' }, at)
+    const rise = (ids, at, stagger = 0.3) => tl.fromTo(ids, { y: 80, opacity: 0, scale: 0.92 }, { y: 0, opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.3)', stagger }, at)
+    const labels = (ids, at) => tl.fromTo(ids, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease, stagger: 0.3 }, at)
+    const draw = (id, at) => {
+      const len = document.querySelector(id).getTotalLength()
+      tl.fromTo(id, { strokeDashoffset: len, opacity: 0 }, { strokeDashoffset: 0, opacity: 0.8, duration: 0.7, ease: 'power2.inOut' }, at)
+    }
+    // one tile at a time gets the light, holds it, then hands it on
+    const spot = (id, at) => {
+      tl.to(id, { scale: 1.05, boxShadow: '0 0 0 3px #d97757,0 50px 120px rgba(0,0,0,.6),0 0 60px rgba(217,119,87,.35)', duration: 0.4, ease }, at)
+      tl.to(id, { scale: 1, boxShadow: '0 0 0 2px #3a2b23,0 50px 120px rgba(0,0,0,.6),0 0 0 rgba(217,119,87,0)', duration: 0.5, ease }, at + 1.1)
+    }
+
+    // 1 the counter climbs to 100%, turns hot and shakes; the drained pet slumps beside it
+    tl.fromTo('#s1k', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease }, 0.2)
+    const n1 = { v: 0 }
+    tl.fromTo('#s1n', { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.3)
+    tl.to(n1, { v: 100, duration: 1.6, ease: 'power2.in', onUpdate: () => { document.getElementById('s1n').textContent = `${Math.round(n1.v)}%` } }, 0.4)
+    tl.to('#s1n', { color: '#ef5a3c', duration: 0.2 }, 1.95)
+    tl.fromTo('#s1n', { x: 0 }, { x: 14, duration: 0.05, yoyo: true, repeat: 7, ease: 'none' }, 2.0)
+    tl.fromTo('#s1g', { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 0.22, duration: 1.2, ease }, 1.9)
+    tl.fromTo('#v-maxed', { y: 120, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.9, ease: 'back.out(1.4)' }, 2.1)
+    tl.fromTo('#s1h', { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease }, 2.5)
+    tl.fromTo('#s1p', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease }, 3.3)
+
+    // 2 Clauddy hops in, the name and what it is, then three promises
+    tl.fromTo('#v-hello', { scale: 0.2, opacity: 0, y: 140 }, { scale: 1, opacity: 1, y: 0, duration: 1.0, ease: 'back.out(1.6)' }, 5.1)
+    tl.fromTo('#s2g', { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 0.26, duration: 1.4, ease }, 5.0)
+    enterCap('#s2c', 5.8)
+    tl.fromTo('#s2f .feat', { y: 40, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: 'back.out(1.5)', stagger: 0.45 }, 7.2)
+
+    // 3 the sizes: each pops up big in the middle while the rest blurs, then glides into its slot
+    enterCap('#mcap', 11.1)
+    const slots = [['#a1', '#c1', '#al1', 1.15], ['#a2', '#c2', '#al2', 1.6], ['#a3', '#c3', '#al3', 1.6], ['#a4', '#c4', '#al4', 1.35]]
+    const placed = ['#mcap']
+    slots.forEach(([id, cap, lab, scale], i) => {
+      const t = 12.2 + i * 4.2
+      const r = document.querySelector(id)
+      const dx = 960 - (r.offsetLeft + r.offsetWidth / 2)
+      const dy = 540 - (r.offsetTop + r.offsetHeight / 2)
+      const rest = [...placed]
+      tl.to(rest, { filter: 'blur(10px)', opacity: 0.3, duration: 0.5, ease: 'power2.out' }, t)
+      tl.fromTo(id, { x: dx, y: dy, scale: scale * 0.6, opacity: 0 }, { scale, opacity: 1, duration: 0.7, ease: 'back.out(1.6)' }, t)
+      tl.fromTo(cap, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease }, t + 0.4)
+      tl.to(cap, { opacity: 0, duration: 0.3 }, t + 2.9)
+      tl.to(id, { x: 0, y: 0, scale: 1, duration: 1.0, ease: 'power3.inOut' }, t + 3.0)
+      tl.to(rest, { filter: 'blur(0px)', opacity: 1, duration: 0.6, ease: 'power2.out' }, t + 3.1)
+      tl.fromTo(lab, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease }, t + 3.7)
+      placed.push(id, lab)
+    })
+
+    // 4 three scenes, three activities, each lit in turn
+    enterCap('#s3c', 33.2)
+    rise(['#v-reading', '#v-editing', '#v-running'], 33.8)
+    labels(['#s3l1', '#s3l2', '#s3l3'], 34.6)
+    spot('#v-reading', 35.7)
+    spot('#v-editing', 37.1)
+    spot('#v-running', 38.5)
+
+    // 5 the widget; the % ticks up to 63 at 4s into the clip, the pace line follows
+    enterCap('#s4c', 40.2)
+    tl.fromTo('#v-num', { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.9, ease }, 40.1)
+    pop('#s4k1', 44.3)
+    draw('#s4l1', 44.6)
+    pop('#s4k2', 45.6)
+    draw('#s4l2', 45.9)
+    pop('#s4k3', 46.9)
+    draw('#s4l3', 47.2)
+
+    // 6 moods, each lit in turn
+    enterCap('#s5c', 49.7)
+    rise(['#v-fire', '#v-sleeping', '#v-celebrate'], 50.3)
+    labels(['#s5l1', '#s5l2', '#s5l3'], 51.1)
+    spot('#v-fire', 52.2)
+    spot('#v-sleeping', 53.6)
+    spot('#v-celebrate', 55)
+
+    // 7 the voice: each remark gets a caption while its bubble is up
+    enterCap('#stc', 56.6)
+    tl.fromTo('#v-talk', { y: 80, opacity: 0, scale: 0.94 }, { y: 0, opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.3)' }, 56.5)
+    ;[['#t1', 57.1], ['#t2', 60.3], ['#t3', 63.5], ['#t4', 66.6]].forEach(([id, at]) => {
+      tl.fromTo(id, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease }, at)
+      tl.to(id, { opacity: 0, duration: 0.3 }, at + 2.8)
+    })
+
+    // 8 three services
+    enterCap('#s6c', 69.7)
+    tl.fromTo('#v-trio', { scale: 0.85, opacity: 0, rotation: 3 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.9, ease: 'back.out(1.4)' }, 69.9)
+    tl.to('#v-trio', { y: -14, duration: 1.4, yoyo: true, repeat: 2, ease: 'sine.inOut' }, 70.9)
+
+    // 9 the camera scrolls slowly down the open Details panel
+    enterCap('#s7c', 75.7)
+    tl.fromTo('#s7cam', { x: 200, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease }, 75.6)
+    tl.fromTo('#v-det', { y: 0 }, { y: -(1539 - 1000), duration: 4.2, ease: 'power1.inOut' }, 76.8)
+
+    // 10 outro
+    tl.fromTo('#v-out', { scale: 0.3, opacity: 0, y: 100 }, { scale: 1, opacity: 1, y: 0, duration: 1.0, ease: 'back.out(1.6)' }, 82.7)
+    tl.fromTo('#s8h', { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease }, 83.4)
+    tl.fromTo('#s8p', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease }, 84)
+    pop('#s8cmd', 84.8)
+    tl.fromTo('#s8u', { opacity: 0 }, { opacity: 1, duration: 0.7 }, 85.5)
+    tl.to(['#s8c', '#v-out'], { opacity: 0, duration: 1.2 }, 90)
+
+    // scene changes: a plain crossfade, the new scene settling up into place
+    const scenes = [['#s1', 0, 5], ['#s2', 5, 11], ['#sm', 11, 33], ['#s3', 33, 40], ['#s4', 40, 49.5], ['#s5', 49.5, 56.5], ['#st', 56.5, 69.5], ['#s6', 69.5, 75.5], ['#s7', 75.5, 82.5], ['#s8', 82.5, 92]]
+    scenes.forEach(([id, start, end], i) => {
+      if (i > 0) tl.fromTo(id, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }, start)
+      if (i < scenes.length - 1) tl.to(id, { opacity: 0, duration: 0.45, ease: 'power1.in' }, end - 0.45)
+    })
+    window.__timelines = window.__timelines || {}
+    window.__timelines.root = tl
+  </script>
+</div>
+</body>
+</html>
