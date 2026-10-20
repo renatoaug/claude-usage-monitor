@@ -1,4 +1,4 @@
-# Chiptune loop, 120 BPM, 46 bars (92 s): pulse-wave arpeggio, triangle bass,
+# Chiptune loop, 120 BPM, 47 bars (94 s): pulse-wave arpeggio, triangle bass,
 # noise drums, a soft pad underneath. Writes assets/music.wav.
 #   uv run --with numpy python music.py
 import wave
@@ -9,7 +9,7 @@ SR = 44100
 BPM = 120
 BEAT = 60 / BPM
 BAR = 4 * BEAT
-BARS = 46
+BARS = 47
 END = int(SR * BAR * BARS)
 N = END + SR * 2
 rng = np.random.default_rng(7)
@@ -72,7 +72,7 @@ for b in range(BARS):
             arp = pulse(hz(seq[k % 6] + 12), nn, 0.125) * e * 0.035
             lead[ss : ss + nn] += arp
     # the hook on top, 8ths, from bar 4 until the outro
-    if 4 <= b < 44:
+    if 4 <= b < 45:
         for k in range(8):
             m = hook[(b % 2) * 8 + k]
             ss = at(b, k / 2)
@@ -90,7 +90,7 @@ for b in range(BARS):
     # drums: hats from bar 1, kick + snare from bar 4 until the outro
     for k in range(4):
         bs = at(b, k)
-        if 4 <= b < 44:
+        if 4 <= b < 45:
             nn = int(0.25 * SR)
             tt2 = np.arange(nn) / SR
             f = 45 + 140 * np.exp(-tt2 * 40)
@@ -115,7 +115,7 @@ noise = rng.uniform(-1, 1, rn)
 drums[rs : rs + rn] += (noise - lp(noise, 2000)) * (tt / BAR) ** 2 * 0.1
 
 duck = np.ones(N)
-for i in range(16, 176):
+for i in range(16, 180):
     s = at(0, i)
     nn = int(BEAT * SR)
     duck[s : s + nn] = 1 - 0.4 * np.exp(-np.arange(nn) / SR * 9)
