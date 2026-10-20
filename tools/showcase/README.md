@@ -1,95 +1,46 @@
-# Showcase — the narrated README tour
+# Showcase — the 92-second product video
 
-Produces `docs/media/tour.mp4` (English) and `docs/media/tour-pt.mp4` (Portuguese):
-a narrated walkthrough of the widget, title card to outro.
+A short, music-only product video: an HTML composition animated with GSAP and rendered by [HyperFrames](https://hyperframes.dev). The widget on screen is the real `renderer/` UI, recorded with fake usage data, so no real account ever shows up.
 
-The widget on screen is the **real** `renderer/` UI — Playwright loads
-`renderer/index.html` with a stubbed `window.api` (the Electron preload bridge)
-and pushes fake usage into it, so no real account data is ever recorded.
-
-## Files
-
-| file | what it does |
+| File | What it is |
 | --- | --- |
-| `narration.<lang>.json` | the script — beats, kickers, spoken lines. Single source of truth. |
-| `tts.py` | one clip per beat in `clips/<lang>/`; synthesizes, then verifies by transcription |
-| `align.py` | word-level timings for each clip, so the on-screen text appears as it is spoken |
-| `record.mjs` | one continuous Playwright take, magenta marker frames at beat boundaries |
-| `markers.py` | scans the take for those frames to get exact cut points |
-| `assemble.py` | trims by markers, concats, mixes narration, writes `out/<lang>-vN.mp4` |
+| `index.html` | The composition: scenes, copy and the timeline |
+| `capture.mjs` | Records the widget clips into `assets/clips/<name>.webm` |
+| `stage.mjs` | Loads `renderer/index.html` with a stubbed `window.api` and the fake data |
+| `frames.mjs` | Frame-exact capture: fake clock, every animation paused and seeked by hand |
+| `music.py` | Synthesizes `assets/music.wav` (chiptune, 120 BPM, 92s) |
 
-Generated `clips/`, `takes/`, `tmp/`, `frames/` and `out/` are gitignored.
+## Scenes
+
+| Time | Scene |
+| --- | --- |
+| 0–5s | Hook: the session hits 100% mid-task |
+| 5–11s | Clauddy: what it is |
+| 11–33s | Every size, one at a time: each lands big in the middle while the rest blurs, then glides into its place in the row |
+| 33–40s | Activity scenes: reading, editing, running |
+| 40–49.5s | The real %: session, pace projection and weekly, each pointed out |
+| 49.5–56.5s | Moods: on fire, sleeping, celebrating |
+| 56.5–69.5s | The voice: four remarks in the speech bubble |
+| 69.5–75.5s | Claude, Codex and Cursor |
+| 75.5–82.5s | Details: by model, by project, 30 days |
+| 82.5–92s | Outro: `bunx clauddy` |
+
+## Languages
+
+The copy in `index.html` is Portuguese, and each element carries its English in a `data-en` attribute. The `lang` variable (`pt` by default) picks one at render time. A new line of copy needs both, or the English cut shows it in Portuguese. The widget itself is English in both.
 
 ## Run it
 
 ```bash
 cd tools/showcase
 bun install && npx playwright install chromium
-
-export TTS_PROVIDER=elevenlabs
-export ELEVENLABS_API_KEY=...          # never commit this
-export TTS_VOICE=<your cloned voice id>
-export TTS_MODEL=eleven_multilingual_v2
-export TTS_STABILITY=0.45 TTS_SIMILARITY=0.85 TTS_SPEED=1.0
-
-for L in en pt; do
-  LANG_=$L python3 tts.py       # clips/<lang>/ + manifest.json with durations
-  LANG_=$L python3 align.py     # clips/<lang>/<beat>.words.json — per-word timings
-  LANG_=$L node record.mjs      # takes/<lang>/main.webm + cuts.json
-  LANG_=$L python3 assemble.py v1
-done
+node capture.mjs                                 # all clips, or: node capture.mjs trio numbers
+uv run --with numpy python music.py
+npx hyperframes@0.8.164 snapshot --at 2.8,11,17.6,27 --no-end -o /tmp/snap
+npx hyperframes@0.8.164 render -f 30 -q high -o ~/Downloads/clauddy-tour-pt.mp4
+npx hyperframes@0.8.164 render -f 30 -q high --variables '{"lang":"en"}' -o ~/Downloads/clauddy-tour.mp4
 ```
 
-Beat durations come from the clips, so **TTS runs first** — the recorder holds
-each scene for exactly its narration length plus a breath. `TTS_PROVIDER=openai`
-(`OPENAI_API_KEY`, `TTS_VOICE=alloy`) and `TTS_PROVIDER=say` (macOS built-in,
-placeholder quality) also work.
+Clips are VP9 with alpha, so they float on the composition's background. Every `<video>` needs an `id`, or HyperFrames renders it frozen (`npx hyperframes@0.8.164 lint` catches that), and both a width and a height: the render letterboxes each frame into the element's box, so a missing side shifts the clip. `snapshot` doesn't show this, only `render` does.
 
-## Verification
-
-`tts.py` transcribes every clip it generates (ElevenLabs `scribe_v1`) and checks
-the transcript against the script. A clip that drops words or opens a gap wider
-than 0.75s is re-rolled up to three times; if it still fails the run exits
-non-zero and names the beat — **rephrase it rather than retrying**, expressive
-models mangle the same phrase consistently.
-
-`ALIASES` in `tts.py` absorbs the transcriber's own biases (it hears "Claude" as
-"cloud"); that is not the voice mispronouncing anything. `PHRASES` does the same
-for spans no 1:1 word alias can bridge — the transcriber writes numbers as
-digits, so "a hundred percent" comes back as "100%". Extend either one; don't
-lower the coverage threshold.
-
-Before shipping a round, tile the render and look at every frame:
-
-```bash
-ffmpeg -i out/en-v1.mp4 -vf "fps=1/6,scale=430:-1,tile=5x3" -frames:v 1 sheet.png
-ffmpeg -i out/en-v1.mp4 -af silencedetect=noise=-45dB:d=1.0 -f null -   # gaps
-```
-
-## How the text animates
-
-The line on screen is the line being narrated, so it is revealed one word at a
-time, each word delayed by **its own timestamp in the clip** — never by a guessed
-offset. `align.py` transcribes each clip with word granularity and maps the
-transcript back onto the script's own tokens (the script keeps the punctuation
-and accents, the transcript supplies the timing).
-
-`record.mjs` renders one `<span class="w" style="--d:1240ms">` per word; CSS does
-the rest — rise, unblur and a spring overshoot on entry, a fast reverse-stagger
-on exit. Words listed in a beat's `emph` array get the coral treatment and a
-scale pop. `PAD_LEAD` in `record.mjs` must match `LEAD` in `assemble.py`, or the
-words drift against the voice.
-
-Re-run `align.py` whenever a clip is re-synthesized — new audio means new timings.
-
-## Changing the script
-
-Edit `narration.<lang>.json`. Keep beat `id`s stable — clips, markers and cut
-points all key off them, and only beats whose text changed get re-synthesized.
-Adding a beat means adding a matching scene in `record.mjs`: `exitCopy()` clears
-the previous line, `prepare()` builds the word spans, `ring()` highlights an
-element, `marker()` stamps the cut, `revealCopy()` starts the reveal, and
-`push()` feeds usage data.
-
-A voice swap changes **every** duration — that is why the take is re-recorded
-rather than re-cut.
+The widget changes? Re-run `capture.mjs`. Each clip's length must cover its scene in `index.html`, and the callouts in the 40–49.5s scene point at rows measured in the widget (move them if its layout changes) and are timed to the `numbers` clip's data pushes (frames 60 and 120). Likewise the size clips run from each one's entrance to the end of their scene, the pet-only hovers land in its spotlight and in the final lineup, and the captions in the voice scene follow the `talk` clip's remarks (frames 10, 105, 200 and 295).
