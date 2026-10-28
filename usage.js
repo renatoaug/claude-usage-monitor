@@ -162,39 +162,70 @@ function walkJsonl(dir, out, cutoffMs) {
   }
 }
 
+function ingestLine(entries, line) {
+  // most lines are tool results and prompts: skip them without a parse
+  if (!line.includes('"usage"')) return
+  let obj
+  try {
+    obj = JSON.parse(line)
+  } catch {
+    return
+  }
+  if (obj.type !== 'assistant' || !obj.message || !obj.message.usage) return
+  if (obj.message.model === '<synthetic>') return // Claude Code internal messages
+  const ts = Date.parse(obj.timestamp || obj.message?.timestamp || 0)
+  if (!ts) return
+  entries.push({
+    ts,
+    model: obj.message.model,
+    tokens: tokensOf({ usage: obj.message.usage }),
+    key: `${obj.message.id || ''}:${obj.requestId || obj.uuid || ''}`,
+  })
+}
+
+const CHUNK = 8 * 1024 * 1024
+
+// Session logs only ever grow, and a long one passes 500 MB: a poll reads just
+// the bytes appended since the last one, in chunks, so the main process never
+// stalls on a full re-read. A line still being written waits in `rest`.
 function parseFile(full, st) {
-  const cached = fileCache.get(full)
-  if (cached && cached.mtimeMs === st.mtimeMs && cached.size === st.size) {
+  let cached = fileCache.get(full)
+  // shrunk or replaced: start over
+  if (!cached || st.size < cached.offset) {
+    cached = { offset: 0, rest: Buffer.alloc(0), entries: [] }
+    fileCache.set(full, cached)
+  }
+  if (st.size <= cached.offset) return cached.entries
+  let fd
+  try {
+    fd = fs.openSync(full, 'r')
+  } catch {
     return cached.entries
   }
-  const entries = []
-  let raw
   try {
-    raw = fs.readFileSync(full, 'utf8')
-  } catch {
-    return entries
-  }
-  for (const line of raw.split('\n')) {
-    if (!line) continue
-    let obj
-    try {
-      obj = JSON.parse(line)
-    } catch {
-      continue
+    while (cached.offset < st.size) {
+      const chunk = Buffer.alloc(Math.min(CHUNK, st.size - cached.offset))
+      const n = fs.readSync(fd, chunk, 0, chunk.length, cached.offset)
+      if (n <= 0) break
+      cached.offset += n
+      const buf = Buffer.concat([cached.rest, chunk.subarray(0, n)])
+      // cut at the last newline in bytes, so a split UTF-8 character survives
+      const end = buf.lastIndexOf(0x0a)
+      if (end < 0) {
+        cached.rest = buf
+        continue
+      }
+      cached.rest = Buffer.from(buf.subarray(end + 1))
+      for (const line of buf.toString('utf8', 0, end).split('\n')) {
+        if (line) ingestLine(cached.entries, line)
+      }
     }
-    if (obj.type !== 'assistant' || !obj.message || !obj.message.usage) continue
-    if (obj.message.model === '<synthetic>') continue // Claude Code internal messages
-    const ts = Date.parse(obj.timestamp || obj.message?.timestamp || 0)
-    if (!ts) continue
-    entries.push({
-      ts,
-      model: obj.message.model,
-      tokens: tokensOf({ usage: obj.message.usage }),
-      key: `${obj.message.id || ''}:${obj.requestId || obj.uuid || ''}`,
-    })
+  } catch {
+    // unreadable mid-way: keep what we have, retry from the offset next poll
+  } finally {
+    fs.closeSync(fd)
   }
-  fileCache.set(full, { mtimeMs: st.mtimeMs, size: st.size, entries })
-  return entries
+  return cached.entries
 }
 
 const DAYS = 30

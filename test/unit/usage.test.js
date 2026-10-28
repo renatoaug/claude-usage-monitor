@@ -95,6 +95,24 @@ describe('log decoding', () => {
     expect(getUsage(BUDGET).monthTokens).toBe(30)
   })
 
+  test('reads only what a growing log appends, even mid-line', () => {
+    const file = writeLog([line({ tokens: 10 })])
+    expect(getUsage(BUDGET).monthTokens).toBe(10)
+    const next = line({ tokens: 20, model: 'claude-opus-5-ção' })
+    const cut = Buffer.from(next).indexOf('ç') + 1 // inside a UTF-8 character
+    fs.appendFileSync(file, Buffer.from(next).subarray(0, cut))
+    expect(getUsage(BUDGET).monthTokens).toBe(10)
+    fs.appendFileSync(file, Buffer.concat([Buffer.from(next).subarray(cut), Buffer.from('\n')]))
+    expect(getUsage(BUDGET).monthTokens).toBe(30)
+  })
+
+  test('starts over when a log shrinks', () => {
+    const file = writeLog([line({ tokens: 10 }), line({ tokens: 20 })])
+    expect(getUsage(BUDGET).monthTokens).toBe(30)
+    fs.writeFileSync(file, `${line({ tokens: 5 })}\n`)
+    expect(getUsage(BUDGET).monthTokens).toBe(5)
+  })
+
   test('deduplicates a turn recorded in more than one file', () => {
     // resumed sessions replay earlier turns into the new log
     const dup = { tokens: 500, id: 'msg-same', requestId: 'req-same' }
