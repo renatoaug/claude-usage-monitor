@@ -1,6 +1,6 @@
-# Clauddy — project guide
+# AGENTS.md
 
-A cute pixel-art desktop pet (Electron) that tracks Claude Code usage: real session/weekly % (via OAuth login) plus token counts from local logs. macOS-first, with Windows (x64) support and Linux on the way.
+Clauddy is a pixel-art desktop pet (Electron) that tracks Claude Code usage: the real session and weekly % from the account (OAuth) and the token counts from local logs, plus Codex and Cursor when connected. macOS first, with Windows and Linux (x64) builds. How it works is in [`docs/design/`](docs/design/); why it is like this, in [`docs/decisions/`](docs/decisions/).
 
 ## Stack
 
@@ -47,7 +47,7 @@ bun run test:coverage
 
 `./pet <state>` states: `fire`, `sleeping`, `working`, `tired`, `idle`, `poke`, `celebrate`, `say`, `auto`, plus the activity scenes `reading`, `editing`, `running`, `planning`, `researching`, `delegating`, `waiting`.
 
-> Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't reliably cross-build them from macOS. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs semantic-release for real).
+> Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't reliably cross-build them from macOS. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs semantic-release for real). Details in [`docs/design/07-releases.md`](docs/design/07-releases.md) and [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md).
 
 ## Tests
 
@@ -79,7 +79,10 @@ Split because bun mocks are per-runtime and it loads every test file before runn
 
 ## Documentation
 
-Don't hard-wrap Markdown (README, AGENTS.md, CONTRIBUTING, PR and issue bodies): each paragraph or list item goes on a single line, and the editor wraps it on display. Code blocks and tables keep their normal format. Commit messages are the exception: they still wrap at ~72 characters.
+- `README.md` stays short: what Clauddy is, how to run and test it, and links. The depth lives in `docs/` ([`docs/README.md`](docs/README.md) indexes it).
+- [`docs/design/`](docs/design/) has numbered notes that describe the code as it is today. A change to how something works updates its note in the same commit or PR.
+- A decision that shapes the code (a new source of data, a storage rule, how a release is built) gets a record in [`docs/decisions/`](docs/decisions/), following the template in its README. Records are never edited; a reversal is a new record that supersedes the old one.
+- Don't hard-wrap Markdown (README, AGENTS.md, CONTRIBUTING, docs, PR and issue bodies): each paragraph or list item goes on a single line, and the editor wraps it on display. Code blocks and tables keep their normal format. Commit messages are the exception: they still wrap at ~72 characters.
 
 ## Commits — Conventional Commits
 
@@ -94,7 +97,7 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `buil
 Rules:
 
 - Subject in the imperative mood, lower-case, no trailing period, ≤ ~72 chars.
-- One logical change per commit; use the body to explain the "why" when useful.
+- One logical change per commit; use the body to explain the "why" when useful. Few commits per branch.
 
 Examples:
 
@@ -103,11 +106,32 @@ Examples:
 - `chore: bump Electron to 42.4.1`
 - `docs: document the ./pet simulator`
 
+## Pull requests and commits
+
+Never mention Claude Code (or any AI) as an author in PRs, commits or anything versioned in this repository. In particular, do **not** add:
+
+- the `🤖 Generated with [Claude Code](https://claude.com/claude-code)` footer
+- session links `https://claude.ai/code/session_...`
+- the `Claude-Session:` trailer in commit messages
+- `Co-Authored-By: Claude ...`
+
+Claude Code as the product Clauddy tracks is fine to name. PR descriptions and commit messages carry only the technical content: the problem, the change and how it was validated.
+
+## PR conventions
+
+- The title follows Conventional Commits: `type(scope): subject` (scope when it makes sense), with a lowercase subject. PRs are squash-merged, so it becomes the commit and the release note: a `feat` bumps the minor version, a `fix` or `perf` the patch ([`docs/design/07-releases.md`](docs/design/07-releases.md)).
+- The body follows `.github/PULL_REQUEST_TEMPLATE.md`: the **What?**, **Why?** and **Acceptance criteria** sections.
+- The PR base is `main`.
+- **Acceptance criteria** separate what was already validated (checked) from what only a person can confirm (unchecked). A PR that changes something visible needs visual QA items naming the size (expanded, compact, pet only, menu bar) and the state.
+- If there is an issue, the PR closes it: `Closes #NN` on the first line of **What?**. When it solves only part of it, `Part of #NN` and what is still missing.
+
 ## Before finishing a change
 
 1. `bun run check` is clean.
-2. `bun run pack` builds successfully (the app still launches).
-3. Commit follows the convention above.
+2. `bun run test:coverage` passes.
+3. `bun run pack` builds successfully (the app still launches).
+4. The design note it touches is updated, and a structural decision has its record.
+5. Commit follows the convention above.
 
 ## Companion behavior
 
