@@ -50,6 +50,12 @@ body.state-tired #skin {
 body.state-sleeping #skin {
   filter: saturate(0.7) brightness(0.82);
 }
+/* A pet's fire rises behind it, as it does next to two providers. The classic
+   sprite's single-provider crown over the head reads as a hat on a taller
+   pet, so a pet never gets it. */
+body.collapsed.state-stressed #claude.skinned ~ #compact-flames {
+  z-index: 1;
+}
 /* asleep or maxed out, the eyes close like the classic sprite's do */
 body.state-sleeping #skin .blink {
   animation: none;
@@ -822,9 +828,12 @@ body.state-working #skin .t4 {
   height: 12px;
   stroke-width: 2;
 }
+/* inside #card, over the card alone: the window's clear margin around it
+   stays clear */
 #pet-modal {
-  position: fixed;
+  position: absolute;
   inset: 0;
+  border-radius: inherit;
   z-index: 60;
   display: flex;
   align-items: center;
@@ -842,7 +851,7 @@ body.state-working #skin .t4 {
   max-height: 100%;
   overflow-y: auto;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid var(--panel-border);
   background: var(--settings-bg);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
