@@ -529,6 +529,9 @@ function createWindow() {
     resizable: false,
     show: false, // applyMode() reveals it (floating) or keeps it a hidden popover (menubar)
     alwaysOnTop: true,
+    // macOS: the widget is rarely the focused window, so without this the first
+    // click only focuses it and a button needs a second one
+    acceptFirstMouse: true,
     skipTaskbar: true,
     hasShadow: false,
     fullscreenable: false,
@@ -783,6 +786,10 @@ function positionUnderTray() {
   }
   x = Math.max(8, Math.min(x, workAreaSize.width - b.width - 8))
   moveWindow(x, y)
+  // the popover's nib points at the icon, even when the screen edge pushed the
+  // window off-centre
+  const iconX = trayBounds?.width ? trayBounds.x + trayBounds.width / 2 : x + b.width / 2
+  win.webContents.send('popover-anchor', Math.round(iconX - x))
 }
 
 function positionFloating() {
@@ -868,10 +875,38 @@ ipcMain.on('pet-pointer-watch', (_e, enabled) => {
 })
 
 // resize the window to fit the content
-ipcMain.on('resize', (_e, w, h) => {
+// Opening and closing Settings eases the window between sizes (an ease-out over
+// RESIZE_MS) instead of jumping; any other resize is immediate and cancels a
+// tween still running, so the latest size always wins.
+const RESIZE_MS = 240
+let resizeTween = null
+ipcMain.on('resize', (_e, w, h, animate) => {
   if (!win || win.isDestroyed()) return
   const width = Math.max(100, Math.round(w))
   const height = Math.max(110, Math.round(h))
+  clearInterval(resizeTween)
+  resizeTween = null
+  if (!animate) return setWindowSize(width, height)
+  const from = win.getBounds()
+  const start = Date.now()
+  const step = () => {
+    if (!win || win.isDestroyed()) return clearInterval(resizeTween)
+    const t = Math.min(1, (Date.now() - start) / RESIZE_MS)
+    const k = 1 - (1 - t) ** 3
+    setWindowSize(
+      Math.round(from.width + (width - from.width) * k),
+      Math.round(from.height + (height - from.height) * k),
+    )
+    if (t === 1) {
+      clearInterval(resizeTween)
+      resizeTween = null
+    }
+  }
+  resizeTween = setInterval(step, 16)
+  step()
+})
+
+function setWindowSize(width, height) {
   if (currentMode === 'menubar') {
     win.setContentSize(width, height)
     if (win.isVisible()) positionUnderTray() // keep it anchored under the tray
@@ -887,7 +922,7 @@ ipcMain.on('resize', (_e, w, h) => {
     const after = win.getBounds()
     moveWindow(right - after.width, bottom - after.height)
   }
-})
+}
 
 // the arrow opens the page of whichever service the panel is showing
 ipcMain.on('open-usage', (_e, provider) =>

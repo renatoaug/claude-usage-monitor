@@ -327,6 +327,7 @@ describe('startup', () => {
     expect(winOptions.frame).toBe(false)
     expect(winOptions.transparent).toBe(true)
     expect(winOptions.alwaysOnTop).toBe(true)
+    expect(winOptions.acceptFirstMouse).toBe(true) // one click acts, even unfocused
     expect(winOptions.show).toBe(false) // applyMode reveals it
     expect(winOptions.webPreferences.contextIsolation).toBe(true)
     expect(winOptions.webPreferences.nodeIntegration).toBe(false)
@@ -585,6 +586,23 @@ describe('window geometry', () => {
     fire('resize', 276, 300) // shorter content
     expect(winMock.bounds.x + winMock.bounds.width).toBe(right)
     expect(winMock.bounds.y + winMock.bounds.height).toBe(bottom)
+  })
+
+  test('an animated resize eases to the new size, still pinned by its corner', async () => {
+    winMock.bounds = { x: 1000, y: 500, width: 276, height: 300 }
+    fire('resize', 276, 600, true)
+    expect(winMock.bounds.height).toBeLessThan(600) // first frame: on its way
+    await new Promise((r) => setTimeout(r, 320))
+    expect(winMock.bounds.height).toBe(600)
+    expect(winMock.bounds.y + winMock.bounds.height).toBe(800)
+  })
+
+  test('a plain resize cancels a tween that is still running', async () => {
+    winMock.bounds = { x: 1000, y: 500, width: 276, height: 300 }
+    fire('resize', 276, 600, true)
+    fire('resize', 276, 350)
+    await new Promise((r) => setTimeout(r, 320))
+    expect(winMock.bounds.height).toBe(350)
   })
 
   test('enforces a minimum size', () => {

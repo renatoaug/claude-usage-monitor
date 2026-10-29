@@ -24,7 +24,7 @@ The **percentages are real**, pulled from your account (you log in once — see 
 
 The session/weekly **%** comes straight from your Anthropic account, so it matches the official panel exactly. You connect once via a browser login:
 
-1. Open **⚙ Settings → Connections → Claude → Connect** — your browser opens an Anthropic auth page.
+1. Open **⚙ Settings → Accounts → Claude → Connect** — your browser opens an Anthropic auth page.
 2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
 
 The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a _"Connect your account"_ prompt instead of percentages.
@@ -41,7 +41,7 @@ Removing an account (the **×** on its row) deletes its token from disk. The one
 
 ## Codex
 
-Clauddy can follow [Codex](https://openai.com/codex) (the CLI and the desktop app) next to Claude. Open **⚙ Settings → Connections → Codex → Connect**: it looks for a Codex session on this computer and starts monitoring if it finds one. There's nothing to log into — Codex writes its token counts and rate limits to `~/.codex/sessions` (or `$CODEX_HOME`), and Clauddy only reads those files.
+Clauddy can follow [Codex](https://openai.com/codex) (the CLI and the desktop app) next to Claude. Open **⚙ Settings → Accounts → Codex → Connect**: it looks for a Codex session on this computer and starts monitoring if it finds one. There's nothing to log into — Codex writes its token counts and rate limits to `~/.codex/sessions` (or `$CODEX_HOME`), and Clauddy only reads those files.
 
 With both connected, **tabs under the pet** pick which service the whole panel shows — account chip, pet mood, session and weekly %, the breakdowns, the 30-day map and the **↗** Usage link. The other tab keeps its % in view and gets a **!** when it crosses an alert threshold. Minimized, the ring becomes one reading per service; click one to switch.
 
@@ -55,7 +55,7 @@ Disconnecting (the **×** on the Codex card) only stops monitoring in Clauddy; y
 
 ## Cursor
 
-Clauddy can follow [Cursor](https://cursor.com) too. Open **⚙ Settings → Connections → Cursor → Connect**: it needs the Cursor app signed in on this computer, and starts monitoring once it finds that login. Clauddy reads the app's session token from its local storage and asks Cursor's own dashboard endpoints for your usage, the same numbers as the Usage page on cursor.com.
+Clauddy can follow [Cursor](https://cursor.com) too. Open **⚙ Settings → Accounts → Cursor → Connect**: it needs the Cursor app signed in on this computer, and starts monitoring once it finds that login. Clauddy reads the app's session token from its local storage and asks Cursor's own dashboard endpoints for your usage, the same numbers as the Usage page on cursor.com.
 
 With three services connected, the tabs under the pet show each logo and %, and the minimized dock gets a third line.
 
@@ -105,7 +105,7 @@ Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#pla
 
 ### Pick your pet
 
-Clauddy is the default, but **⚙ Settings → pet** has more: a Wizard, a Halloween pack (Pumpkin, Skull, Ghost, Bat, Black cat) and a Christmas pack (Snowman, Santa, Reindeer, Gingerbread). Click one to preview it and **Save** to keep it. Each pet stays still and blinks when nothing is running, and has its own way of moving while a provider works: the Pumpkin rocks, the Bat flaps, the Wizard levitates while an owl flies by.
+Clauddy is the default, but **⚙ Settings → Appearance → pet** has more: a Wizard, a Halloween pack (Pumpkin, Skull, Ghost, Bat, Black cat) and a Christmas pack (Snowman, Santa, Reindeer, Gingerbread). Click one to preview it and **Save** to keep it. Each pet stays still and blinks when nothing is running, and has its own way of moving while a provider works: the Pumpkin rocks, the Bat flaps, the Wizard levitates while an owl flies by.
 
 On holidays a pet from the season's pack takes over for the day, whichever pet you picked: one Halloween pet on October 31, one Christmas pet on December 24 and 25. The pick changes every year and holds all day. Your own pet comes back the next day.
 
@@ -154,7 +154,7 @@ Optionally the pet also **blips** as it talks: short chiptune notes, one per let
 
 Audio should never catch you off guard in a meeting:
 
-- **Off by default.** Turn it on under **⚙ Settings → voice → Chiptune voice** (you'll hear a sample).
+- **Off by default.** Turn it on under **⚙ Settings → Appearance → Chiptune voice** (you'll hear a sample).
 - **One-click mute.** While the voice is on, a 🔊 button sits in the title bar. Click it to mute for an hour, and again to unmute.
 - **Always silent** in menu-bar mode and while the pet is minimized.
 
@@ -237,14 +237,14 @@ update-desktop-database ~/.local/share/applications 2>/dev/null
 
 - **Drag** the widget anywhere on screen
 - **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with more than one service connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
-- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) reveals the usage glance; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, Cursor, or several at once. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
+- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) pops up the usage glance as the pet's own speech bubble, one reading and a usage bar per service; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, Cursor, or several at once. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
 - **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
 - **↗** opens the official Usage page of the service on screen
 - **×** quits
 
 ### Floating or menu bar
 
-Under **⚙ Settings → Preferences** you can pick where Clauddy lives:
+Under **⚙ Settings → Appearance** you can pick where Clauddy lives:
 
 - **Floating pet** — the always-on widget in the corner (default).
 - **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex or Cursor too it reads `C 64% · X 28% · Cu 5%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
@@ -257,7 +257,7 @@ When a provider's activity changes, the pet briefly glances toward it, with no c
 
 ## Alerts
 
-Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Settings**:
+Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Settings → Alerts**:
 
 | Notification | When |
 | --- | --- |

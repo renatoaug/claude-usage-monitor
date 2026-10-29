@@ -344,24 +344,6 @@ body.collapsed #mini-acct-name {
   background: var(--settings-bg);
   -webkit-app-region: no-drag;
 }
-/* panel heading: gives the screen a title instead of opening cold on a form */
-.settings-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 38px;
-}
-.settings-heading h3 {
-  font-size: 18px;
-  letter-spacing: -0.4px;
-  font-weight: 500;
-  color: var(--text);
-}
-.settings-heading p {
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 4px;
-}
 /* group label above a cluster of rows */
 .settings-label {
   display: block;
@@ -444,23 +426,25 @@ body.settings-open #mini {
 }
 body.settings-open #settings {
   display: block;
-  animation: set-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: set-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* the panel covers the card, so the stage keeps its normal height behind it */
 body.settings-open #stage {
   display: none;
 }
+/* the window eases to the panel's size meanwhile (main.js), so the panel only
+   fades and settles into place instead of sliding across */
 @keyframes set-in {
   from {
     opacity: 0;
-    transform: translateX(102%);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
 }
-/* leaving settings: the panel rides back out to the right. It goes absolute for
+/* leaving settings: the panel fades out over the card. It goes absolute for
    those frames so the card is already at its home height while it plays. */
 body.settings-closing #settings {
   display: block;
@@ -470,38 +454,166 @@ body.settings-closing #settings {
   z-index: 6;
   overflow: hidden;
   pointer-events: none;
-  animation: set-out 0.58s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  animation: set-out 0.2s ease-in forwards;
 }
 @keyframes set-out {
   from {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
   to {
     opacity: 0;
-    transform: translateX(102%);
+    transform: scale(0.98);
   }
 }
-/* home comes back in from the other side, so the two screens read as a pair */
+/* home settles back in as the panel goes */
 body.settings-closing #content,
 body.settings-closing #stage {
-  animation: home-in 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: home-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) 0.06s backwards;
 }
 @keyframes home-in {
   from {
     opacity: 0;
-    transform: translateX(-9%);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
 }
+
+/* tabs: Accounts · Alerts · Appearance */
+#set-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 12px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.set-tab {
+  flex: 1;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+.set-tab:hover {
+  color: var(--text);
+}
+.set-tab.on {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.set-tab:focus-visible {
+  outline: 1px solid var(--coral-soft);
+  outline-offset: 1px;
+}
+/* one pane at a time, at its own height: the window eases to fit (pet.js) */
+.set-pane {
+  display: none;
+  min-width: 0;
+}
+.set-pane.on {
+  display: block;
+  animation: pane-in 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+#pane-accounts #conn-tiles {
+  margin-top: 0;
+}
+/* the shared row pattern: a rounded group, rows of one height split by a
+   hairline, controls trimmed to one compact size so they read as a set */
+.set-pane > .settings-label {
+  margin: 14px 0 6px;
+}
+.set-pane > .settings-label:first-child {
+  margin-top: 0;
+}
+.set-group {
+  padding: 0 10px;
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.set-group > .set-row,
+.set-group > .set-row:has(.num),
+.set-group > .set-row.set-sub {
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+.set-group > .set-row + .set-row {
+  border-top: 1px solid var(--hair);
+}
+.set-group .set-row-label,
+.set-group .set-row.set-sub .set-row-label {
+  font-size: 11px;
+  color: #cdb49b;
+}
+.set-group .set-row.set-sub .set-row-label {
+  color: var(--muted);
+}
+.set-group .num {
+  height: 24px;
+  border-radius: 6px;
+}
+.set-group .num-btn {
+  height: 24px;
+}
+.set-group .seg {
+  height: 24px;
+  padding: 2px;
+  border-radius: 6px;
+}
+.set-group .seg-btn {
+  padding: 0 9px;
+  font-size: 10.5px;
+  border-radius: 4px;
+}
+.set-link {
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--coral-soft);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.set-link:hover {
+  color: var(--text);
+}
+.set-link::after {
+  content: " ›";
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.settings-open #settings,
   body.settings-closing #settings,
   body.settings-closing #content,
   body.settings-closing #stage {
+    animation: none;
+  }
+  .set-pane.on {
     animation: none;
   }
 }
@@ -561,6 +673,38 @@ input[type="number"]::-webkit-outer-spin-button {
 /* menu-bar mode: the popover auto-sizes, so the minimize control is redundant */
 body.is-menubar #min {
   display: none;
+}
+/* Menu-bar mode reads as a native popover: a nib pointing up at the tray icon
+   (--nib-x, from main), a lifted shadow, and it stays put. */
+body.is-menubar #card {
+  box-shadow:
+    inset 0 1px 0 #ffffff08,
+    0 6px 10px rgba(0, 0, 0, 0.35);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+body.is-menubar::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: calc(var(--nib-x, 50%) - 8px);
+  width: 16px;
+  height: 16px;
+  z-index: 3; /* over the card, so its top border doesn't cut the nib's base */
+  background: #392a20; /* the card's top edge colour */
+  border: 1px solid var(--panel-border);
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 3px 0 0;
+  transform: rotate(45deg);
+  clip-path: polygon(0 0, 100% 0, 0 100%); /* only the half above the card */
+}
+body.is-menubar #card {
+  z-index: 2;
+}
+body.is-menubar.collapsed #pet {
+  cursor: default;
+  -webkit-app-region: no-drag;
 }
 /* settings rows: label on the left, control on the right — one setting per
    line so the screen stays short. Alert thresholds indent under their toggle
@@ -722,13 +866,17 @@ but visibly nested: a soft coral guide bar ties the pair to the
 .set-actions {
   display: flex;
   gap: 8px;
-  margin-top: 17px;
+  margin-top: 14px;
+}
+/* Save only shows up once there is something to save */
+#settings:not(.dirty) #set-save {
+  display: none;
 }
 .set-actions button {
   flex: 1;
   border: 1px solid rgba(255, 255, 255, 0.082);
-  border-radius: 3px;
-  padding: 7px;
+  border-radius: 6px;
+  padding: 6px;
   font-size: 11px;
   font-weight: 400;
   cursor: pointer;
@@ -1244,14 +1392,14 @@ body.collapsed #card {
 /* one service: three buttons plus the account need a title band of their
    own, like the dual dock has, or they sit on the ring's arc */
 body.collapsed:not(.dual):not(.pet-only) #card {
-  width: 168px;
-  padding-top: 32px;
+  width: 146px;
+  padding: 27px 12px 9px;
 }
 body.collapsed:not(.dual):not(.pet-only) #stage {
   margin-top: 0;
 }
 body.collapsed:not(.dual):not(.pet-only) #mini-acct-name {
-  max-width: 46px;
+  max-width: 40px;
 }
 body.collapsed #stage {
   margin-top: 9px;
@@ -1416,7 +1564,10 @@ body.collapsed #shadow {
   left: 50%;
   width: 48px;
   height: 8px;
-  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+  /* closest-side keeps the ellipse inside its box: the default reaches the
+     corners and reads as a blurred bar */
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+  border-radius: 50%;
   transform: translateX(-50%);
 }
 
@@ -2634,8 +2785,8 @@ body.collapsed.dual #mini-reset {
 #conn-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 7px 0 18px;
+  gap: 6px;
+  margin: 7px 0 4px;
 }
 body:has(#connections > .open) #conn-tiles {
   margin-bottom: 8px;
@@ -2644,11 +2795,11 @@ body:has(#connections > .open) #conn-tiles {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
-  padding: 10px 4px 9px;
+  padding: 8px 4px 7px;
   border: 1px solid var(--hair);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff03;
   color: var(--muted);
   font: inherit;
@@ -2670,9 +2821,9 @@ body:has(#connections > .open) #conn-tiles {
   position: relative;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
 }
 /* not connected yet: the logo waits in grey */
 .conn-tile:not(.on) .connection-avatar {
@@ -3299,7 +3450,7 @@ body.collapsed.pet-only #stage {
   width: 100px;
   height: 102px;
   right: 21px;
-  bottom: 38px;
+  bottom: 14px; /* low in the window: the glance bubble sits above the pet */
   margin: 0;
   background: none;
 }
@@ -3332,64 +3483,177 @@ body.collapsed.pet-only #shadow {
 body.collapsed.pet-only :is(#mini, #controls, #ring, #ring-pct, #companion-notice, #bubble) {
   display: none;
 }
+/* The glance is the pet's own speech bubble, small: the same paper, pixel
+   outline and mono type as #bubble, above the pet with its tail pointing down, so the
+   pet reads as showing you the numbers. One reading per service (logo, %, a
+   green bar that fills with it), then the expand button. */
 body.collapsed.pet-only #pet-glance {
+  --ink: #221b16;
+  --paper: #f1e9dd;
   position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 1px;
   left: 50%;
   width: max-content;
-  max-width: calc(100% - 2px);
-  transform: translateX(-50%);
-  bottom: 2px;
-  min-height: 32px;
-  padding: 2px 5px 2px 10px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 10px;
-  color: var(--muted);
+  max-width: calc(100% - 6px);
+  transform: translate(-50%, -4px);
+  top: 10px;
+  min-height: 24px;
+  padding: 1px 2px 1px 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    600 10px / 1 ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  box-shadow:
+    0 -2px 0 0 var(--ink),
+    0 2px 0 0 var(--ink),
+    -2px 0 0 0 var(--ink),
+    2px 0 0 0 var(--ink),
+    2px 4px 0 0 #0006;
   opacity: 0;
   visibility: hidden;
   transition:
     opacity 160ms ease,
-    visibility 160ms,
-    background 160ms ease,
-    border-color 160ms ease;
+    transform 200ms steps(3),
+    visibility 160ms;
   -webkit-app-region: no-drag;
 }
 body.collapsed.pet-only.pet-peek #pet-glance {
-  background: #221e1bec;
-  border-color: #ffffff0d;
   opacity: 1;
   visibility: visible;
+  transform: translate(-50%, 0);
 }
-#pet-glance #pet-restore {
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  justify-content: center;
-  border-radius: 4px;
-  color: #c8bcaf;
-  opacity: 0.65;
+/* the tail, stepped like the bubble's, pointing down at the pet */
+body.collapsed.pet-only #pet-glance::before,
+body.collapsed.pet-only #pet-glance::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
 }
-#pet-glance #pet-restore:hover,
-#pet-glance #pet-restore:focus-visible {
-  background: #ffffff12;
-  color: #f1e5d8;
-  opacity: 1;
+body.collapsed.pet-only #pet-glance::before {
+  width: 14px;
+  height: 8px;
+  background: var(--ink);
+  clip-path: polygon(
+    0 0,
+    14px 0,
+    14px 2px,
+    12px 2px,
+    12px 4px,
+    10px 4px,
+    10px 6px,
+    8px 6px,
+    8px 8px,
+    6px 8px,
+    6px 6px,
+    4px 6px,
+    4px 4px,
+    2px 4px,
+    2px 2px,
+    0 2px
+  );
 }
-#pet-glance button {
+body.collapsed.pet-only #pet-glance::after {
+  width: 10px;
+  height: 6px;
+  background: var(--paper);
+  clip-path: polygon(
+    0 0,
+    10px 0,
+    10px 2px,
+    8px 2px,
+    8px 4px,
+    6px 4px,
+    6px 6px,
+    4px 6px,
+    4px 4px,
+    2px 4px,
+    2px 2px,
+    0 2px
+  );
+}
+#pet-glance button[data-provider] {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
+  height: 22px;
+  padding: 0 4px 3px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+#pet-glance button[data-provider][aria-pressed="true"],
+#pet-glance button[data-provider]:hover {
+  opacity: 1;
+}
+#pet-glance .mini-logo {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+}
+/* the session % as a pixel bar under the reading */
+#pet-glance .glance-bar {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 2px;
+  height: 2px;
+  background: #221b1622;
+  overflow: hidden;
+}
+#pet-glance .glance-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: calc(var(--pct, 0) * 1%);
+  background: #3f9f5a;
+  transition: width 0.4s steps(6);
+}
+#pet-glance .glance-sep {
+  flex: none;
+  width: 2px;
+  height: 12px;
+  margin: 0 2px;
+  background: #221b1633;
+}
+#pet-glance:has(#glance-empty:not([hidden])) .glance-sep {
+  display: none;
+}
+#pet-glance #pet-restore {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  margin-right: -2px;
+  flex-shrink: 0;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #a99e91;
-  font: inherit;
+  color: var(--ink);
   cursor: pointer;
+  opacity: 0.55;
+}
+#pet-glance #pet-restore svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.2;
+}
+#pet-glance #pet-restore:hover,
+#pet-glance #pet-restore:focus-visible {
+  opacity: 1;
 }
 /* Keep provider names available to assistive technology. */
 #pet-glance button > span {
@@ -3403,31 +3667,27 @@ body.collapsed.pet-only.pet-peek #pet-glance {
 #pet-glance button[hidden] {
   display: none;
 }
-#pet-glance button[aria-pressed="true"],
-#pet-glance button:hover {
-  color: #f1e5d8;
-}
 #pet-glance button:focus-visible {
-  outline: 1px solid #e6a07f;
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
 }
 #pet-glance b {
-  font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 #pet-glance .urgent b {
-  color: #f3a38b;
+  color: #c0392b;
 }
-#pet-glance .stale-reading b::after {
-  content: "*";
-  font-size: 9px;
-  vertical-align: super;
+/* a reading still waiting for a fresh one: its bar goes dotted */
+#pet-glance .stale-reading .glance-bar::after {
+  background: repeating-linear-gradient(90deg, #3f9f5a 0 2px, transparent 2px 4px);
+}
+#glance-empty {
+  padding: 0 4px;
+  color: var(--ink);
 }
 body.collapsed.pet-only #pet:focus-visible {
-  outline: 1px solid #e6a07f;
-  outline-offset: 4px;
+  outline: none;
 }
 @media (prefers-reduced-motion: reduce) {
   body.collapsed.pet-only #pet-glance,
@@ -3485,7 +3745,7 @@ body.collapsed.dual:has(#companion-notice:not([hidden])) #mini-acct {
 }
 body.collapsed.pet-only #pet-activity:not([hidden]) {
   position: absolute;
-  top: 30px;
+  top: 54px;
   right: 0;
   display: flex;
   flex-direction: column;

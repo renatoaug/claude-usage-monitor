@@ -35,7 +35,7 @@ describe('the preload bridge', () => {
     ['cursorDetect', 'cursor-detect', []],
     ['cursorEnable', 'cursor-enable', [true]],
     ['saveConfig', 'save-config', [{ alerts: false }]],
-    ['resize', 'resize', [300, 400]],
+    ['resize', 'resize', [300, 400, true]],
     ['openUsage', 'open-usage', []],
     ['authStart', 'auth-start', []],
     ['authCode', 'auth-code', ['abc#def']],
@@ -73,6 +73,7 @@ describe('the preload bridge', () => {
     ['onDebugState', 'debug-state'],
     ['onVersion', 'version'],
     ['onUpdateStatus', 'update-status'],
+    ['onPopoverAnchor', 'popover-anchor'],
   ])('%s() subscribes to "%s"', (method, channel) => {
     // the on* methods register lazily, when the renderer subscribes
     listeners.length = 0
@@ -126,6 +127,7 @@ describe('the preload bridge', () => {
         'onProfile',
         'onRealUsage',
         'onUpdateStatus',
+        'onPopoverAnchor',
         'onUsage',
         'onVersion',
         'openUsage',

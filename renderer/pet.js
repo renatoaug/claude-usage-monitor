@@ -994,7 +994,33 @@ const activityTracker = Companion.createActivityTracker()
 function setPetPeek(on) {
   if (!document.body.classList.contains('pet-only')) return
   clearTimeout(peekTimer)
+  // placed once as it appears: re-placing on every click or focus made it jump
+  if (on && !document.body.classList.contains('pet-peek')) placeGlance()
   document.body.classList.toggle('pet-peek', on)
+}
+// The glance bubble sits just above the pet's head, and every pet's head is at
+// its own height (the bat's ears, the wizard's hat), so measure the drawing's
+// top instead of a fixed spot. Parts that only show while working (the owl,
+// sparks, snow) don't count: they come and go. The pet is mid-animation (a
+// bob, a hop, levitating), so the head is measured against #claude itself and
+// laid on #claude's resting spot, at the foot of the still #pet box.
+function placeGlance() {
+  const skin = el(SKIN_ID)
+  const parts = skin
+    ? [...skin.children].filter((c) => !c.matches('defs, .only-work'))
+    : [el('body')]
+  const tops = parts
+    .map((part) => part.getBoundingClientRect())
+    .filter((r) => r.width > 0)
+    .map((r) => r.top)
+  if (!tops.length) return
+  const zoom = Number.parseFloat(document.body.style.zoom) || 1
+  const sprite = el('claude').getBoundingClientRect()
+  const resting = el('pet').getBoundingClientRect().bottom - sprite.height
+  const head =
+    (Math.min(...tops) - sprite.top + resting - el('card').getBoundingClientRect().top) / zoom
+  const glance = el('pet-glance')
+  glance.style.top = `${Math.max(2, Math.round(head - glance.offsetHeight - 10))}px`
 }
 function setDisplaySize(size, remember = true) {
   if (!['expanded', 'compact', 'pet'].includes(size)) size = 'expanded'
@@ -1070,6 +1096,9 @@ function paintCompanion(view) {
     button.setAttribute('aria-pressed', String(provider === view))
     button.classList.toggle('urgent', session?.pct >= warnAt())
     el(`glance-${provider}-value`).textContent = pctText(session?.pct)
+    // the bar under each reading fills with the session %; none when unknown
+    const pct = session?.pct
+    button.style.setProperty('--pct', pct == null ? '0' : String(Math.max(0, Math.min(100, pct))))
     const stale = provider !== 'claude' && readingStale(dataOf(provider))
     button.title = stale
       ? 'Last recorded usage · waiting for a fresh reading'
@@ -1410,7 +1439,9 @@ function paint() {
 // fit the window to the content (no leftover border)
 let lastH = 0
 let lastW = 0
-function fitSize() {
+// `animate` eases the window to its new size (opening and closing Settings);
+// every other resize is immediate, so the widget tracks its content exactly
+function fitSize(animate = false) {
   requestAnimationFrame(() => {
     const collapsed = document.body.classList.contains('collapsed')
     const zoom = Number.parseFloat(document.body.style.zoom) || 1
@@ -1419,7 +1450,7 @@ function fitSize() {
     const dual = document.body.classList.contains('dual')
     const trio = document.body.classList.contains('trio')
     const petOnly = document.body.classList.contains('pet-only')
-    const w = (petOnly ? (trio ? 212 : 168) : collapsed ? (dual ? 240 : 192) : 304) * zoom
+    const w = (petOnly ? (trio ? 212 : 168) : collapsed ? (dual ? 240 : 170) : 304) * zoom
     // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
     // empirically against this Electron build) — so measure the unzoomed content
     // height, then scale the whole thing (content + margin) ourselves
@@ -1427,7 +1458,7 @@ function fitSize() {
     if (Math.abs(h - lastH) > 2 || w !== lastW) {
       lastH = h
       lastW = w
-      window.api.resize(w, h)
+      window.api.resize(w, h, animate)
     }
   })
 }
@@ -1451,6 +1482,8 @@ window.api.onDebugState((o) => {
   if (lastData) render(lastData)
 })
 window.api.onUsage(render)
+// menu-bar popover: where its nib sits, so it points at the tray icon
+window.api.onPopoverAnchor((x) => document.body.style.setProperty('--nib-x', `${x}px`))
 window.api.onError((msg) => {
   el('status-text').textContent = 'error'
   console.error(msg)
@@ -2003,12 +2036,19 @@ function refreshSaveDirty() {
   const b = el('set-save')
   b.classList.toggle('dirty', dirty)
   b.disabled = !dirty // nothing to save, nothing to click
+  paintSettingsFooter(dirty)
+}
+// nothing changed: a single Done; once something has, Cancel and Save
+function paintSettingsFooter(dirty) {
+  el('settings').classList.toggle('dirty', dirty)
+  el('set-cancel').textContent = dirty ? 'Cancel' : 'Done'
 }
 function clearSaveDirty() {
   settingsBaseline = snapshotSettings()
   const b = el('set-save')
   b.classList.remove('dirty')
   b.disabled = true
+  paintSettingsFooter(false)
 }
 function reflectAlertsOn() {
   el('set-rows').classList.toggle('alerts-off', !el('set-alerts').checked)
@@ -2053,10 +2093,42 @@ function openSettings(provider = null) {
   hideBubble()
   setDisplaySize('expanded', false)
   populateSettings()
+  showSettingsTab(typeof provider === 'string' ? 'accounts' : settingsTab)
   if (typeof provider === 'string') openConnection(provider)
   document.body.classList.add('settings-open')
-  fitSize()
+  fitSize(true)
 }
+
+// Settings tabs: one pane at a time, each at its own height, and the window
+// eases between them rather than keeping the tallest one's empty space
+let settingsTab = 'accounts'
+function showSettingsTab(tab) {
+  const changed = tab !== settingsTab
+  settingsTab = tab
+  for (const b of document.querySelectorAll('.set-tab')) {
+    const on = b.dataset.tab === tab
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-selected', String(on))
+    b.tabIndex = on ? 0 : -1
+    el(`pane-${b.dataset.tab}`).classList.toggle('on', on)
+  }
+  if (changed && document.body.classList.contains('settings-open')) fitSize(true)
+}
+for (const b of document.querySelectorAll('.set-tab')) {
+  b.addEventListener('click', () => showSettingsTab(b.dataset.tab))
+}
+// arrow keys move between tabs, as a tablist should
+el('set-tabs').addEventListener('keydown', (e) => {
+  const tabs = [...document.querySelectorAll('.set-tab')]
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key]
+  if (!step) return
+  const next =
+    tabs[(tabs.findIndex((t) => t.dataset.tab === settingsTab) + step + tabs.length) % tabs.length]
+  showSettingsTab(next.dataset.tab)
+  next.focus()
+  e.preventDefault()
+})
+showSettingsTab(settingsTab)
 
 // Settings → Connections: a tile per service says whether it's on (a check and
 // its plan); a click opens its card underneath, one at a time
@@ -2106,13 +2178,13 @@ function closeSettings() {
   document.body.classList.remove('settings-open')
   document.body.classList.add('settings-closing')
   clearTimeout(closingTimer)
-  closingTimer = setTimeout(() => document.body.classList.remove('settings-closing'), 600)
+  closingTimer = setTimeout(() => document.body.classList.remove('settings-closing'), 420)
   clearSaveDirty()
   applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
   pickedPet = null
   el('pet-modal').hidden = true
   refreshPet()
-  fitSize()
+  fitSize(true)
 }
 el('gear').addEventListener('click', () => {
   if (document.body.classList.contains('settings-open')) closeSettings()

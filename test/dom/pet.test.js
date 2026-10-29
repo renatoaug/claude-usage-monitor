@@ -55,6 +55,7 @@ for (const name of [
   'onDebugState',
   'onVersion',
   'onUpdateStatus',
+  'onPopoverAnchor',
 ]) {
   api[name] = (cb) => {
     api.handlers[name] = cb
@@ -1476,8 +1477,11 @@ describe('pet-only companion and reset controls', () => {
     }
   })
   test('glance readings support one provider and never invent missing usage', () => {
+    api.handlers.onCodex(cx({ session: { pct: 140, resetMs: 3600000 } }))
+    expect(el('glance-codex').style.getPropertyValue('--pct')).toBe('100') // the bar never overflows
     api.handlers.onCodex(cx({ session: null }))
     expect(el('glance-codex-value').textContent).toBe('—')
+    expect(el('glance-codex').style.getPropertyValue('--pct')).toBe('0') // no reading, no bar
     api.handlers.onAuthState({ connected: false })
     expect(el('glance-claude').hidden).toBe(true)
     expect(el('glance-codex').hidden).toBe(false)
@@ -1685,5 +1689,35 @@ describe('pets', () => {
     window.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 0 }))
     expect(el('eyes').getAttribute('transform')).toContain('translate(')
     setSystemTime()
+  })
+})
+
+describe('settings tabs', () => {
+  const pane = (tab) => el(`pane-${tab}`).classList.contains('on')
+
+  test('open on Accounts and switch by click and arrow keys', () => {
+    el('gear').click()
+    expect(pane('accounts')).toBe(true)
+    el('tab-alerts').click()
+    expect([pane('accounts'), pane('alerts'), pane('appearance')]).toEqual([false, true, false])
+    expect(el('tab-alerts').getAttribute('aria-selected')).toBe('true')
+    el('set-tabs').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(pane('appearance')).toBe(true)
+    el('set-tabs').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(pane('accounts')).toBe(true) // wraps around
+    el('set-tabs').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(pane('appearance')).toBe(true)
+    el('set-tabs').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(pane('appearance')).toBe(true) // other keys leave it alone
+    el('set-cancel').click()
+  })
+
+  test('reopen on the last tab', () => {
+    el('gear').click()
+    el('tab-appearance').click()
+    el('set-cancel').click()
+    el('gear').click()
+    expect(pane('appearance')).toBe(true)
+    el('set-cancel').click()
   })
 })

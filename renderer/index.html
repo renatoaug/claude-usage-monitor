@@ -227,10 +227,11 @@
 
       <div id="pet-activity" class="activity-logos" role="img" hidden><span data-provider="claude"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span><span data-provider="codex"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg></span><span data-provider="cursor"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg></span></div>
       <section id="pet-glance" aria-label="Session usage">
-        <button type="button" data-provider="claude" id="glance-claude"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><span>Claude</span><b id="glance-claude-value">—</b></button>
-        <button type="button" data-provider="codex" id="glance-codex"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><span>Codex</span><b id="glance-codex-value">—</b></button>
-        <button type="button" data-provider="cursor" id="glance-cursor"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><span>Cursor</span><b id="glance-cursor-value">—</b></button>
+        <button type="button" data-provider="claude" id="glance-claude"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><span>Claude</span><b id="glance-claude-value">—</b><i class="glance-bar" aria-hidden="true"></i></button>
+        <button type="button" data-provider="codex" id="glance-codex"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><span>Codex</span><b id="glance-codex-value">—</b><i class="glance-bar" aria-hidden="true"></i></button>
+        <button type="button" data-provider="cursor" id="glance-cursor"><svg class="mini-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><span>Cursor</span><b id="glance-cursor-value">—</b><i class="glance-bar" aria-hidden="true"></i></button>
         <span id="glance-empty" hidden>Connect an account in Settings.</span>
+        <i class="glance-sep" aria-hidden="true"></i>
         <button type="button" id="pet-restore" aria-label="Open compact monitor" title="Open compact monitor"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" /></svg></button>
       </section>
       <div id="companion-notice" role="status" hidden></div>
@@ -319,159 +320,176 @@
 
       <!-- settings panel -->
       <div id="settings">
-        <div class="settings-heading">
-          <div>
-            <h3>Make yourself at home.</h3>
-            <p>Your accounts, your little companion.</p>
-          </div>
-        </div>
 
-        <div class="settings-label connections-label">Connections</div>
-        <!-- one tile per service; a click opens its card below -->
-        <div id="conn-tiles">
-          <button type="button" class="conn-tile" id="conn-claude" data-conn="claude" aria-expanded="false" aria-controls="account">
-            <span class="connection-avatar claude-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
-            <span class="conn-name">Claude</span>
-            <span class="conn-state" id="conn-claude-state">Connect</span>
-          </button>
-          <button type="button" class="conn-tile" id="conn-codex" data-conn="codex" aria-expanded="false" aria-controls="codex-settings">
-            <span class="connection-avatar codex-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
-            <span class="conn-name">Codex</span>
-            <span class="conn-state" id="conn-codex-state">Connect</span>
-          </button>
-          <button type="button" class="conn-tile" id="conn-cursor" data-conn="cursor" aria-expanded="false" aria-controls="cursor-settings">
-            <span class="connection-avatar cursor-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
-            <span class="conn-name">Cursor</span>
-            <span class="conn-state" id="conn-cursor-state">Connect</span>
-          </button>
+        <div id="set-tabs" role="tablist" aria-label="Settings">
+          <button type="button" role="tab" class="set-tab" id="tab-accounts" data-tab="accounts" aria-controls="pane-accounts">Accounts</button>
+          <button type="button" role="tab" class="set-tab" id="tab-alerts" data-tab="alerts" aria-controls="pane-alerts">Alerts</button>
+          <button type="button" role="tab" class="set-tab" id="tab-appearance" data-tab="appearance" aria-controls="pane-appearance">Appearance</button>
         </div>
-        <div id="connections">
-        <div id="account" class="conn-panel">
-          <!-- who you are comes first: the list, then the login for whichever
-               account is active — so "add" and the code field sit together -->
-          <div id="acc-connected" class="connect-block connection-card">
-            <span class="connection-avatar claude-avatar" id="acc-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span>
-            <div class="connection-copy">
-              <div class="connection-heading"><b>Claude</b><span id="acc-sub" class="plan-badge" hidden></span></div>
-              <span class="connection-caption acc-ok" id="acc-ok">Connected</span>
-            </div>
-            <button id="acc-logout" class="cb-out connection-remove" title="Disconnect Claude" aria-label="Disconnect Claude">
-              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div id="acc-disconnected">
-            <div id="acc-intro" class="connection-card">
-              <span class="connection-avatar claude-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span>
-              <div class="connection-copy">
-                <div class="connection-heading"><b>Claude</b></div>
-                <span class="connection-hint">Connect via browser to track your usage.</span>
-              </div>
-              <button id="acc-connect" class="connection-btn claude-connect-btn" aria-label="Connect Claude" title="Log in with browser"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><span>Connect</span></button>
-            </div>
-            <div id="acc-paste">
-              <div class="set-hint set-hint-left">Paste the code from the browser page:</div>
-              <input id="acc-code" type="text" placeholder="authentication code" />
-              <button id="acc-confirm" class="acc-btn">Connect</button>
-              <div id="acc-msg"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Codex: opt-in, read from its local logs — nothing to log into here -->
-        <div id="codex-settings" class="connection-card conn-panel">
-          <span class="codex-avatar connection-avatar"><svg class="codex-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg></span>
-          <div class="connection-copy">
-            <div class="connection-heading"><b>Codex</b><span id="codex-plan" class="plan-badge" hidden></span></div>
-            <span class="connection-caption" id="codex-connected-caption">Connected on this device</span>
-            <span id="codex-hint" class="connection-hint">Track Codex alongside Claude, in this pet.</span>
-          </div>
-          <div class="codex-actions">
-            <button id="codex-connect" class="connection-btn" aria-label="Connect Codex"><svg class="codex-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><span>Connect</span></button>
-            <span id="codex-setup" hidden>
-              <button id="codex-retry" class="connection-btn">Retry</button>
-              <button id="codex-setup-cancel" class="codex-x" title="Cancel" aria-label="Cancel">
-                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
-            </span>
-            <button id="codex-disconnect" class="codex-x connection-remove" title="Disconnect Codex" aria-label="Disconnect Codex">
-              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Cursor: opt-in, through the Cursor app's own login on this machine -->
-        <div id="cursor-settings" class="connection-card conn-panel">
-          <span class="cursor-avatar connection-avatar"><svg class="cursor-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg></span>
-          <div class="connection-copy">
-            <div class="connection-heading"><b>Cursor</b><span id="cursor-plan" class="plan-badge" hidden></span></div>
-            <span class="connection-caption" id="cursor-connected-caption">Connected on this device</span>
-            <span id="cursor-hint" class="connection-hint">Track Cursor alongside Claude, in this pet.</span>
-          </div>
-          <div class="codex-actions">
-            <button id="cursor-connect" class="connection-btn" aria-label="Connect Cursor"><svg class="cursor-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><span>Connect</span></button>
-            <span id="cursor-setup" hidden>
-              <button id="cursor-retry" class="connection-btn">Retry</button>
-              <button id="cursor-setup-cancel" class="codex-x" title="Cancel" aria-label="Cancel">
-                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
-            </span>
-            <button id="cursor-disconnect" class="codex-x connection-remove" title="Disconnect Cursor" aria-label="Disconnect Cursor">
-              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
-        </div>
-
-        <div class="settings-label">Preferences</div>
+        <!-- one pane at a time; the window eases to each pane's own height -->
         <div id="set-rows">
-          <span class="seg settings-segment" id="set-mode">
-            <button type="button" class="seg-btn" data-mode="floating">Floating pet</button>
-            <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
-          </span>
-          <div class="set-row">
-            <span class="set-row-label">Gentle notifications</span>
-            <input id="set-alerts" class="set-toggle" type="checkbox" aria-label="Enable alerts" />
-          </div>
-          <div class="settings-label threshold-label">alert thresholds</div>
-          <div class="set-row set-sub">
-            <span class="set-row-label">Heads-up</span>
-            <span class="num"><button type="button" class="num-btn" data-for="set-t1" data-step="-1">−</button><span class="num-val"><input id="set-t1" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t1" data-step="1">+</button></span>
-          </div>
-          <div class="set-row set-sub">
-            <span class="set-row-label">Near limit</span>
-            <span class="num"><button type="button" class="num-btn" data-for="set-t2" data-step="-1">−</button><span class="num-val"><input id="set-t2" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t2" data-step="1">+</button></span>
-          </div>
-          <div class="settings-label threshold-label">mood thresholds</div>
-          <div class="set-row">
-            <span class="set-row-label">Catch fire</span>
-            <span class="num"><button type="button" class="num-btn" data-for="set-fire" data-step="-1">−</button><span class="num-val"><input id="set-fire" type="number" min="1" max="99" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-fire" data-step="1">+</button></span>
-          </div>
-          <div class="set-row">
-            <span class="set-row-label">Zoom</span>
-            <span class="num"><button type="button" class="num-btn" data-for="set-zoom" data-step="-25">−</button><span class="num-val"><input id="set-zoom" type="number" min="100" max="200" step="25" /><i>%</i></span><button type="button" class="num-btn" data-for="set-zoom" data-step="25">+</button></span>
-          </div>
-          <div class="settings-label threshold-label">voice</div>
-          <div class="set-row">
-            <span class="set-row-label">Speech bubbles</span>
-            <input id="set-talk" class="set-toggle" type="checkbox" aria-label="Let the pet talk" />
-          </div>
-          <div class="set-row voice-sub">
-            <span class="set-row-label">Chiptune voice</span>
-            <input id="set-sound" class="set-toggle" type="checkbox" aria-label="Play blips when the pet talks" />
-          </div>
-          <div class="settings-label threshold-label">pet</div>
-          <div class="set-row">
-            <span class="pet-current">
-              <span id="pet-current-thumb" class="pet-thumb" aria-hidden="true"></span>
-              <span id="pet-current-name" class="set-row-label"></span>
-            </span>
-            <button type="button" id="pet-edit" class="pet-edit" aria-label="Change pet" aria-haspopup="dialog">
-              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="m13 7 4 4" /></svg>
+          <section class="set-pane" id="pane-accounts" role="tabpanel" aria-labelledby="tab-accounts">
+          <!-- one tile per service; a click opens its card below -->
+          <div id="conn-tiles">
+            <button type="button" class="conn-tile" id="conn-claude" data-conn="claude" aria-expanded="false" aria-controls="account">
+              <span class="connection-avatar claude-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
+              <span class="conn-name">Claude</span>
+              <span class="conn-state" id="conn-claude-state">Connect</span>
+            </button>
+            <button type="button" class="conn-tile" id="conn-codex" data-conn="codex" aria-expanded="false" aria-controls="codex-settings">
+              <span class="connection-avatar codex-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
+              <span class="conn-name">Codex</span>
+              <span class="conn-state" id="conn-codex-state">Connect</span>
+            </button>
+            <button type="button" class="conn-tile" id="conn-cursor" data-conn="cursor" aria-expanded="false" aria-controls="cursor-settings">
+              <span class="connection-avatar cursor-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><i class="conn-check" hidden aria-hidden="true">✓</i></span>
+              <span class="conn-name">Cursor</span>
+              <span class="conn-state" id="conn-cursor-state">Connect</span>
             </button>
           </div>
-          <div id="pet-season" hidden></div>
+          <div id="connections">
+          <div id="account" class="conn-panel">
+            <!-- who you are comes first: the list, then the login for whichever
+                 account is active — so "add" and the code field sit together -->
+            <div id="acc-connected" class="connect-block connection-card">
+              <span class="connection-avatar claude-avatar" id="acc-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span>
+              <div class="connection-copy">
+                <div class="connection-heading"><b>Claude</b><span id="acc-sub" class="plan-badge" hidden></span></div>
+                <span class="connection-caption acc-ok" id="acc-ok">Connected</span>
+              </div>
+              <button id="acc-logout" class="cb-out connection-remove" title="Disconnect Claude" aria-label="Disconnect Claude">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div id="acc-disconnected">
+              <div id="acc-intro" class="connection-card">
+                <span class="connection-avatar claude-avatar"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg></span>
+                <div class="connection-copy">
+                  <div class="connection-heading"><b>Claude</b></div>
+                  <span class="connection-hint">Connect via browser to track your usage.</span>
+                </div>
+                <button id="acc-connect" class="connection-btn claude-connect-btn" aria-label="Connect Claude" title="Log in with browser"><svg class="connection-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-claude" /></svg><span>Connect</span></button>
+              </div>
+              <div id="acc-paste">
+                <div class="set-hint set-hint-left">Paste the code from the browser page:</div>
+                <input id="acc-code" type="text" placeholder="authentication code" />
+                <button id="acc-confirm" class="acc-btn">Connect</button>
+                <div id="acc-msg"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Codex: opt-in, read from its local logs — nothing to log into here -->
+          <div id="codex-settings" class="connection-card conn-panel">
+            <span class="codex-avatar connection-avatar"><svg class="codex-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg></span>
+            <div class="connection-copy">
+              <div class="connection-heading"><b>Codex</b><span id="codex-plan" class="plan-badge" hidden></span></div>
+              <span class="connection-caption" id="codex-connected-caption">Connected on this device</span>
+              <span id="codex-hint" class="connection-hint">Track Codex alongside Claude, in this pet.</span>
+            </div>
+            <div class="codex-actions">
+              <button id="codex-connect" class="connection-btn" aria-label="Connect Codex"><svg class="codex-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-openai" /></svg><span>Connect</span></button>
+              <span id="codex-setup" hidden>
+                <button id="codex-retry" class="connection-btn">Retry</button>
+                <button id="codex-setup-cancel" class="codex-x" title="Cancel" aria-label="Cancel">
+                  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </span>
+              <button id="codex-disconnect" class="codex-x connection-remove" title="Disconnect Codex" aria-label="Disconnect Codex">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cursor: opt-in, through the Cursor app's own login on this machine -->
+          <div id="cursor-settings" class="connection-card conn-panel">
+            <span class="cursor-avatar connection-avatar"><svg class="cursor-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg></span>
+            <div class="connection-copy">
+              <div class="connection-heading"><b>Cursor</b><span id="cursor-plan" class="plan-badge" hidden></span></div>
+              <span class="connection-caption" id="cursor-connected-caption">Connected on this device</span>
+              <span id="cursor-hint" class="connection-hint">Track Cursor alongside Claude, in this pet.</span>
+            </div>
+            <div class="codex-actions">
+              <button id="cursor-connect" class="connection-btn" aria-label="Connect Cursor"><svg class="cursor-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#logo-cursor" /></svg><span>Connect</span></button>
+              <span id="cursor-setup" hidden>
+                <button id="cursor-retry" class="connection-btn">Retry</button>
+                <button id="cursor-setup-cancel" class="codex-x" title="Cancel" aria-label="Cancel">
+                  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </span>
+              <button id="cursor-disconnect" class="codex-x connection-remove" title="Disconnect Cursor" aria-label="Disconnect Cursor">
+                <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </div>
+          </div>
+          </section>
+          <!-- every pane is the same pattern: a muted label over a rounded group of
+               equal-height rows, label left and a compact control right -->
+          <section class="set-pane" id="pane-alerts" role="tabpanel" aria-labelledby="tab-alerts">
+            <div class="settings-label">notifications</div>
+            <div class="set-group">
+              <div class="set-row">
+                <span class="set-row-label">Gentle notifications</span>
+                <input id="set-alerts" class="set-toggle" type="checkbox" aria-label="Enable alerts" />
+              </div>
+              <div class="set-row set-sub">
+                <span class="set-row-label">Heads-up at</span>
+                <span class="num"><button type="button" class="num-btn" data-for="set-t1" data-step="-1">−</button><span class="num-val"><input id="set-t1" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t1" data-step="1">+</button></span>
+              </div>
+              <div class="set-row set-sub">
+                <span class="set-row-label">Near limit at</span>
+                <span class="num"><button type="button" class="num-btn" data-for="set-t2" data-step="-1">−</button><span class="num-val"><input id="set-t2" type="number" min="1" max="100" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-t2" data-step="1">+</button></span>
+              </div>
+            </div>
+            <div class="settings-label">mood</div>
+            <div class="set-group">
+              <div class="set-row">
+                <span class="set-row-label">Catch fire at</span>
+                <span class="num"><button type="button" class="num-btn" data-for="set-fire" data-step="-1">−</button><span class="num-val"><input id="set-fire" type="number" min="1" max="99" step="1" /><i>%</i></span><button type="button" class="num-btn" data-for="set-fire" data-step="1">+</button></span>
+              </div>
+            </div>
+          </section>
+          <section class="set-pane" id="pane-appearance" role="tabpanel" aria-labelledby="tab-appearance">
+            <div class="settings-label">pet</div>
+            <div class="set-group">
+              <div class="set-row">
+                <span class="pet-current">
+                  <span id="pet-current-thumb" class="pet-thumb" aria-hidden="true"></span>
+                  <span id="pet-current-name" class="set-row-label"></span>
+                </span>
+                <button type="button" id="pet-edit" class="set-link" aria-label="Change pet" aria-haspopup="dialog">Change</button>
+              </div>
+            </div>
+            <div id="pet-season" hidden></div>
+            <div class="settings-label">display</div>
+            <div class="set-group">
+              <div class="set-row">
+                <span class="set-row-label">Lives in</span>
+                <span class="seg settings-segment" id="set-mode">
+                  <button type="button" class="seg-btn" data-mode="floating">Floating</button>
+                  <button type="button" class="seg-btn" data-mode="menubar">Menu bar</button>
+                </span>
+              </div>
+              <div class="set-row">
+                <span class="set-row-label">Zoom</span>
+                <span class="num"><button type="button" class="num-btn" data-for="set-zoom" data-step="-25">−</button><span class="num-val"><input id="set-zoom" type="number" min="100" max="200" step="25" /><i>%</i></span><button type="button" class="num-btn" data-for="set-zoom" data-step="25">+</button></span>
+              </div>
+            </div>
+            <div class="settings-label">voice</div>
+            <div class="set-group">
+              <div class="set-row">
+                <span class="set-row-label">Speech bubbles</span>
+                <input id="set-talk" class="set-toggle" type="checkbox" aria-label="Let the pet talk" />
+              </div>
+              <div class="set-row voice-sub">
+                <span class="set-row-label">Chiptune voice</span>
+                <input id="set-sound" class="set-toggle" type="checkbox" aria-label="Play blips when the pet talks" />
+              </div>
+            </div>
+          </section>
         </div>
 
         <div class="set-actions">

@@ -786,11 +786,11 @@ body.state-working #skin .t4 {
 .pet-current {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .pet-thumb {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
 }

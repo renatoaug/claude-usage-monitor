@@ -111,7 +111,7 @@ Examples:
 
 ## Companion behavior
 
-- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage remembers the choice. Pet-only is floating-mode only; hovering over the pet (or focusing it) fades a usage glance in below it, within fixed window bounds, without resizing or moving the window.
+- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage remembers the choice. Pet-only is floating-mode only; hovering over the pet (or focusing it) shows a usage glance above it, drawn as the pet's own speech bubble and placed once per show just over the pet's head, within fixed window bounds, without resizing or moving the window.
 - In pet-only mode, the sprite is a native Electron drag region. The expand button inside the glance opens compact, and so does Enter on the focused pet. Pointer clicks on the sprite do not change size. Main sends window-relative cursor coordinates only in this mode, and only when they change: native drag regions suppress DOM hover events. Keep logo descriptions accessible, without visible activity captions or native title tooltips.
 - Session reset reminders are explicitly requested, separate from threshold notifications. They run while Clauddy is open and catch up after sleep/restart. They persist before firing, cancel on disconnect/removal, and are account-scoped.
 - A deadline alone does not prove a new budget. Only a fresh, lower reading after that deadline earns “budget is back”; otherwise say the reset time arrived. Codex logs and Cursor fetches can be stale. Never substitute an expired reading with zero.
