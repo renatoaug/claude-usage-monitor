@@ -1,12 +1,31 @@
 name: Bug report
-description: Something in the widget doesn't work
+description: Something in Clauddy does not work as it should.
+title: "fix: "
 labels: [bug]
 body:
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: What you did, what you saw, and what you expected instead.
+      description: What you saw, including any error message.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
     validations:
       required: true
 
@@ -62,7 +81,9 @@ body:
     attributes:
       label: Display mode
       options:
-        - Floating pet
+        - Floating, expanded
+        - Floating, compact
+        - Floating, pet only
         - Menu bar / system tray
     validations:
       required: true
@@ -70,7 +91,7 @@ body:
   - type: textarea
     id: extra
     attributes:
-      label: Screenshot or anything else
+      label: Screenshots or anything else
       description: >-
-        A screenshot of the widget usually says it all. Please don't paste the
-        contents of auth.json — it holds your token.
+        A screenshot of the widget usually says it all. Never paste the
+        contents of auth.json: it holds your token.

@@ -1,378 +1,78 @@
 # 🟫 Clauddy
 
-A cute pixel-art desktop pet for macOS that tracks your Claude Code usage — mirroring the official **Settings → Usage** panel (current session + weekly limits, in tokens & %), with animations. Use Codex or Cursor too? It can track those alongside (see [Codex](#codex) and [Cursor](#cursor)).
+A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real session and weekly % from your account, the tokens from your local logs, and a pet that works, sleeps and catches fire along with it. It can follow Codex and Cursor too, and you can dress it as a pumpkin, a ghost or Santa.
 
 <p align="center">
+  <a href="#running">📚 Get started</a> ·
+  <a href="docs/design/02-features.md">✨ Features</a> ·
+  <a href="docs/design/01-architecture.md">🏗️ Architecture</a> ·
+  <a href="docs/design/03-setup.md">⚙️ Setup</a> ·
+  <a href="docs/decisions/">🧭 Decisions</a>
+</p>
 
 https://github.com/user-attachments/assets/be8d339c-ac69-4980-96a7-8e286f8b080f
 
-<em>A little terracotta creature that lives in the corner of your screen, eats your tokens, and naps when you're idle.</em>
-</p>
+## Stack
 
-## What it shows
+An Electron widget in vanilla JS, with Bun for the scripts and the tests, and Biome for format and lint.
 
-- **Current session** — real % used + **"resets in Xh Ym"** + session tokens, and a projection of where that pace is taking you (see [Burn rate](#burn-rate))
-- **Weekly · all models** — real % used + tokens over the last 7 days
-- **Status line** under the pet: `● working · 1.6M tok/min` (or today's tokens when idle)
-- **By model · 7 days** — Opus / Sonnet / Haiku / Fable, in tokens
-- **By project · 7 days** — which repo actually ate the week, ranked, with the tail folded into `other`
-- **30-day map** — colored squares by daily tokens (green = light → red = heavy), with the monthly total
+More details, with every tool and version, in [`docs/design/01-architecture.md`](docs/design/01-architecture.md#stack).
 
-The **percentages are real**, pulled from your account (you log in once — see below). The token counts, the by-model and by-project breakdowns, activity status, and 30-day map come from your local logs (`~/.claude/projects/**/*.jsonl`). Everything is token-based — no dollars.
+## Requirements
 
-## Account & live usage
+- macOS on Apple Silicon (the first-class build), Windows x64 or Linux x64
+- [Claude Code](https://claude.com/claude-code), whose logs in `~/.claude/projects` give the token counts; a Claude login, done once in Settings, gives the real %
+- [Bun](https://bun.sh), or Node 24 for `npx`, only to run it without installing or to work on the code
+- Optional: [Codex](https://openai.com/codex) or the [Cursor](https://cursor.com) app on the same machine, to follow them too
 
-The session/weekly **%** comes straight from your Anthropic account, so it matches the official panel exactly. You connect once via a browser login:
+## Running
 
-1. Open **⚙ Settings → Accounts → Claude → Connect** — your browser opens an Anthropic auth page.
-2. Log in, copy the **authentication code** shown, and paste it back into the app → **Connect**.
-
-The token is saved locally (see [Data & privacy](#data--privacy)) and refreshed automatically. **Until you connect**, the limits area shows a _"Connect your account"_ prompt instead of percentages.
-
-### Several subscriptions
-
-Got more than one Claude account — say a personal Pro and a Max from work? The **account chip** in the top-left corner is the switcher: click it for the list of accounts, with the active one marked, plus **"+ Add another account"** — which opens the same browser login and drops the token it brings back into a new slot. The tray icon has the same list under its **Account** submenu. Give up halfway and the empty slot disappears on its own — the list only ever holds accounts you actually logged into.
-
-The widget follows **one account at a time**: the one you pick is the one whose % is shown, whose logs are counted, and the only one that can notify you. Each account keeps its own token and its own armed alerts, so switching never replays a notification you already dismissed elsewhere. Everything else — window position, display mode, zoom, thresholds — is shared.
-
-Removing an account (the **×** on its row) deletes its token from disk. The one you're currently on can't be removed — switch away first — and neither can the last one left. Removing the first account clears its token without touching the settings that live in the same folder.
-
-> Prefer one widget per account instead? Setting `CLAUDE_CONFIG_DIR` still isolates a whole instance — token, settings and logs — so you can run two Clauddys side by side.
-
-## Codex
-
-Clauddy can follow [Codex](https://openai.com/codex) (the CLI and the desktop app) next to Claude. Open **⚙ Settings → Accounts → Codex → Connect**: it looks for a Codex session on this computer and starts monitoring if it finds one. There's nothing to log into — Codex writes its token counts and rate limits to `~/.codex/sessions` (or `$CODEX_HOME`), and Clauddy only reads those files.
-
-With both connected, **tabs under the pet** pick which service the whole panel shows — account chip, pet mood, session and weekly %, the breakdowns, the 30-day map and the **↗** Usage link. The other tab keeps its % in view and gets a **!** when it crosses an alert threshold. Minimized, the ring becomes one reading per service; click one to switch.
-
-A few things differ from Claude:
-
-- **The % updates when Codex runs.** Its logs are only written during a session, so an idle Codex shows the last reading with its age (`read 1h 30m ago`). A window that has already reset since then shows **—** rather than a made-up 0%.
-- **It can lag the account page.** Codex limits are shared with other ChatGPT products (Work, Agents, Excel) that don't write to these logs.
-- **No burn-rate projection and no activity scenes** — the logs don't carry enough to draw them honestly.
-
-Disconnecting (the **×** on the Codex card) only stops monitoring in Clauddy; your Codex login and logs are untouched.
-
-## Cursor
-
-Clauddy can follow [Cursor](https://cursor.com) too. Open **⚙ Settings → Accounts → Cursor → Connect**: it needs the Cursor app signed in on this computer, and starts monitoring once it finds that login. Clauddy reads the app's session token from its local storage and asks Cursor's own dashboard endpoints for your usage, the same numbers as the Usage page on cursor.com.
-
-With three services connected, the tabs under the pet show each logo and %, and the minimized dock gets a third line.
-
-Cursor works differently from the other two:
-
-- **Its budget is monthly.** The Cursor tab shows **this month · included** (the whole plan) and **API models** (the pool for named third-party models), both resetting on your billing date. There is no 5-hour session or weekly window.
-- **Activity scenes work.** Cursor's agent writes a transcript of every tool call under `~/.cursor/projects`, so the pet reads, edits, runs commands and researches along with it, as it does for Claude.
-- **No token counts.** Neither source reports tokens, so the Cursor tab has no breakdowns or 30-day map, and its status line says when the agent last ran instead.
-- **The endpoints are unofficial.** They're the ones the cursor.com dashboard uses, checked every 5 minutes. If Cursor changes them, the tab shows the last reading with its age until Clauddy is updated.
-
-Disconnecting (the **×** on the Cursor card) only stops monitoring in Clauddy; the Cursor app and its login are untouched.
-
-## Burn rate
-
-Knowing you're at **82%** with **1h 12m** left on the window still leaves you doing arithmetic in your head. So Clauddy does it for you: it fits the slope of your recent usage and projects when you'd hit 100% — showing one extra line under the session bar:
-
-- **`~35m left at this pace`** (in coral) — you'd run out before the window resets. Ease off, or wrap up.
-- **`resets before you run out`** — the reset gets there first. Carry on.
-
-The slope is fitted over your **session tokens** rather than the account %. The % is the number you care about, but it arrives as a whole number every few minutes — over a short window the whole signal is a single `16 → 17` step, which throws the fitted pace off by multiples. Local-log tokens step too — one jump per assistant turn — but in increments some 10–20× finer, so the slope is far steadier; the account % then anchors it, converting tokens into % and re-calibrating on every poll.
-
-It reads your **recent** pace, not the session average: go quiet for a few minutes and the projection eases off, which is the point.
-
-It only appears once there's enough to say honestly — roughly 5 minutes into a session — and stays hidden while you're idle, when the pace is flat, or right after a reset. A projection is a projection: change your pace and it changes with you.
-
-## The pet's states
-
-<table>
-  <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/idle.gif" width="280" alt="idle" /><br /><b>idle</b><br /><sub>breathes &amp; blinks</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops &amp; eats token coins</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90% → red, shivers, flames</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/tired.gif" width="280" alt="maxed out" /><br /><b>maxed out</b><br /><sub>session at 100% → drained, slumped, sweating</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min → blue zzz &amp; moonlight</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet → squish &amp; hearts</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>session resets → jump &amp; confetti</sub></td>
-  </tr>
-</table>
-
-Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#play-with-the-pet) too.
-
-### Pick your pet
-
-Clauddy is the default, but **⚙ Settings → Appearance → pet** has more: a Wizard, a Halloween pack (Pumpkin, Skull, Ghost, Bat, Black cat) and a Christmas pack (Snowman, Santa, Reindeer, Gingerbread). Click one to preview it and **Save** to keep it. Each pet stays still and blinks when nothing is running, and has its own way of moving while a provider works: the Pumpkin rocks, the Bat flaps, the Wizard levitates while an owl flies by.
-
-On holidays a pet from the season's pack takes over for the day, whichever pet you picked: one Halloween pet on October 31, one Christmas pet on December 24 and 25. The pick changes every year and holds all day. Your own pet comes back the next day.
-
-### What Claude's up to
-
-While Claude Code is actively working, the pet sets up a little desk scene that
-mirrors **what it's doing right now** — inferred from your local logs (the last
-tool it used). The status line names the activity, and three of them get their
-own animated scene:
-
-<table>
-  <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/reading.gif" width="280" alt="reading" /><br /><b>reading</b><br /><sub>an open book under the reading lamp</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/editing.gif" width="280" alt="editing" /><br /><b>editing</b><br /><sub>types at the desk, coffee in reach</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><img src="https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/a8491cea34c4a8547965eadc3b24618ba50218e1/docs/media/running.gif" width="280" alt="running" /><br /><b>running</b><br /><sub>watches a task log tick through its checks</sub></td>
-  </tr>
-</table>
-
-Other activities — **planning**, **researching**, **delegating**, **waiting** —
-show up in the status line as they happen. When Claude goes quiet, the pet drops
-back to plain **working** / **idle**.
-
-## The pet talks
-
-Now and then the pet says something in a speech bubble. It only speaks when something changes, never on a timer, and it keeps quiet when it has nothing specific to say. Remarks are at least 10 minutes apart; the big moments can cut that line.
-
-| Moment | What it says (expanded) | Minimized | Blip |
-| --- | --- | --- | --- |
-| First launch of the day | _Good morning! Yesterday was your heaviest day this week, 12M tokens._ | _Morning! Big day yesterday._ | ✓ |
-| Session crosses your fire threshold | _Getting warm, 91% already. At this pace you'll run out in about 40m._ | _91%, getting warm!_ | ✓ |
-| The session window resets | _Fresh window! That was 34M tokens over 4h 12m, mostly editing code._ | _Fresh window! 34M last time._ | ✓ |
-| The session hits 100% | _That's the limit. I'll be back at 2:35 PM._ | _Maxed out till 2:35 PM._ | |
-| You're back after 2+ hours away | _Welcome back! You were gone 3h 12m. The session's at 12%._ | _Welcome back!_ | |
-| 90 minutes of unbroken work | _You've been at it for 1h 35m straight. Stretch break?_ | _Stretch break?_ | |
-| A new record day (30-day best) | _New record! 45M tokens today, your biggest day in a month._ | _New record: 45M!_ | |
-| Codex crosses fire, hits 100%, or resets | _Codex is at 91% now. It resets in 1h 12m._ | _Codex at 91%!_ | ✓ (fire, reset) |
-| Cursor crosses fire, hits 100%, or starts a new month | _Cursor is at 91% now. It resets in 6d 4h._ | _Cursor at 91%!_ | ✓ (fire, reset) |
-
-The greeting follows your clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and appears once a day, and so does the record. The reset recap covers only what the pet actually saw, so if you launch it mid-session it says less. Click the bubble to dismiss it.
-
-### The voice
-
-Optionally the pet also **blips** as it talks: short chiptune notes, one per letter, generated live with Web Audio (square waves, no sound files). It blips faster and higher when it's on fire, slower and lower when it's sleepy. Only the headline moments blip (the ✓ rows above), because a sound on every remark wears out fast.
-
-Audio should never catch you off guard in a meeting:
-
-- **Off by default.** Turn it on under **⚙ Settings → Appearance → Chiptune voice** (you'll hear a sample).
-- **One-click mute.** While the voice is on, a 🔊 button sits in the title bar. Click it to mute for an hour, and again to unmute.
-- **Always silent** in menu-bar mode and while the pet is minimized.
-
-**Speech bubbles** can be switched off entirely in the same place. Try any remark from the terminal with `bunx clauddy say <kind>` ([see below](#play-with-the-pet)).
-
-## Install
-
-**macOS (Apple Silicon)** is the first-class build. **Windows (x64)** and **Linux (x64)** work too. The `bunx`/`npx` route below runs on all of them today.
-
-### macOS
-
-Two ways, depending on what you want:
-
-#### 1. Install as an app — opens at login (recommended)
-
-One command — it downloads the latest release and drops it in `/Applications`:
+On macOS, as an app that opens at login:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/install.sh | bash
 ```
 
-**Clauddy is free and open source** — the command above just downloads the latest release from this repo and drops it in `/Applications`, nothing else (you can read [`install.sh`](install.sh) first if you'd like).
-
-Once installed, you can update in-app: **⚙ Settings → Check for updates → Update now** runs the same installer and relaunches the new build.
-
-Why not a normal download? macOS blocks **unsigned** apps downloaded through a browser with a scary *"damaged, move to Trash"* warning — even when they're perfectly safe. It's a false alarm: the only way to silence it is to pay Apple **$99/year** to sign + notarize, which a free hobby app skips. Files fetched with `curl` aren't flagged, so this method simply **lets your Mac open the app** without the block. It then registers in **Login Items** and starts with your Mac — set it and forget it.
-
-#### 2. Run it via `bunx` (no install)
-
-Needs [Bun](https://bun.sh) (or use `npx` with Node 24):
+Anywhere, without installing:
 
 ```bash
 bunx clauddy
 ```
 
-The first run downloads Electron, so give it a moment. Handy for a quick run, but it stays up **only while that command is open** and won't start on its own. Quit it with the **×** button.
+[`docs/design/03-setup.md`](docs/design/03-setup.md) has Windows and Linux, updating, running from the code and every setting in `config.json`.
 
-### Windows (x64)
-
-The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node 24 installed:
-
-```powershell
-bunx clauddy   # or: npx clauddy
-```
-
-Prefer a standalone app with no Node/Bun? Grab the **portable zip** (`Clauddy-<version>-win-x64.zip`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), unzip it anywhere, and run `Clauddy.exe`. Because the app is unsigned, Windows **SmartScreen** shows a "Windows protected your PC" prompt the first time — click **More info → Run anyway**. From then on it starts with Windows.
-
-### Linux (x64)
-
-The quickest path works the same as macOS — with [Bun](https://bun.sh) or Node 24 installed:
+## Test
 
 ```bash
-bunx clauddy   # or: npx clauddy
+bun run check            # Biome format and lint (autofix)
+bun run test             # the three test groups, each in its own process
+bun run test:coverage    # the same, failing under 80% overall or 60% per file
+bun run pack             # builds dist/mac-arm64/Clauddy.app
+./pet fire               # forces a pet state in the running widget (./pet auto to go back)
 ```
 
-Prefer a standalone app? Grab the **AppImage** or **tar.gz** (`Clauddy-<version>-linux-x86_64.AppImage` / `Clauddy-<version>-linux-x64.tar.gz`) from the [latest release](https://github.com/renatoaug/claude-usage-monitor/releases), then:
+Never run bare `bun test`: the groups under `test/` must each run in their own process ([ADR-002](docs/decisions/ADR-002-three-test-processes.md)). `bun install` turns on a pre-commit hook that formats the staged files and blocks on lint errors. CI runs the coverage gate on every pull request.
 
-```bash
-chmod +x Clauddy-*.AppImage
-./Clauddy-*.AppImage
-```
+## Releases
 
-Want the pet icon to show up in your app menu / taskbar too, instead of a generic icon? Running the AppImage directly doesn't register it anywhere — GNOME (and most Wayland desktops) only pick up an app's icon from an installed `.desktop` entry. One-time setup, right next to the AppImage:
+Every merge to `main` can be a release: [semantic-release](https://semantic-release.gitbook.io) reads the Conventional Commit titles since the last tag (a `feat` bumps the minor, a `fix` or `perf` the patch, `docs` and `chore` nothing), builds the app on macOS, Windows and Linux runners, publishes the GitHub release and `clauddy` on npm. The whole pipeline is in [`docs/design/07-releases.md`](docs/design/07-releases.md).
 
-```bash
-./Clauddy-*.AppImage --appimage-extract clauddy.desktop >/dev/null
-./Clauddy-*.AppImage --appimage-extract usr/share/icons/hicolor/512x512/apps/clauddy.png >/dev/null
-mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
-cp squashfs-root/usr/share/icons/hicolor/512x512/apps/clauddy.png ~/.local/share/icons/hicolor/512x512/apps/clauddy.png
-sed "s|^Exec=.*|Exec=$(readlink -f Clauddy-*.AppImage) --no-sandbox %U|" squashfs-root/clauddy.desktop > ~/.local/share/applications/clauddy.desktop
-rm -rf squashfs-root
-update-desktop-database ~/.local/share/applications 2>/dev/null
-```
+## Docs
 
-> The system tray icon needs an indicator extension on vanilla GNOME (e.g. "AppIndicator and KStatusNotifier Item Support") — it works out of the box on Cinnamon, KDE, and XFCE. Autostart-at-login is wired up via an XDG `.desktop` entry in `~/.config/autostart/`.
+Everything about how Clauddy works, runs and was decided is indexed in [`docs/`](docs/README.md). Code rules and the checks before calling a change done are in [`AGENTS.md`](AGENTS.md).
 
-> The app keeps its data in `~/.claude-usage-monitor`, regardless of platform or how you run it.
+We follow [Conventional Commits](https://www.conventionalcommits.org).
 
-## Controls
+## Privacy
 
-- **Drag** the widget anywhere on screen
-- **–** minimizes to just the pet, ringed by the live session % (the number sits inside the ring) — or, with more than one service connected, one reading per service; the **⤢** button or a double-click on the pet expands it back
-- **Pet icon** in the compact header switches to **Just the pet** (floating mode). Drag the pet itself to move it. Hovering over the pet (or focusing it) pops up the usage glance as the pet's own speech bubble, one reading and a usage bar per service; the small expand button in it returns to compact. Keyboard users can focus the pet and press Enter. The chosen size is remembered. In compact and pet-only modes, the pet follows whoever is working, with provider logos identifying Claude, Codex, Cursor, or several at once. Usage selection stays manual. When neither is active, the hottest session still sets the mood: the pet catches fire (or maxes out) with that provider's logo beside it, and otherwise rests.
-- **⚙** opens settings (log in, toggle alerts, set thresholds, pick the display mode)
-- **↗** opens the official Usage page of the service on screen
-- **×** quits
+Everything stays on your machine, in `~/.claude-usage-monitor/`. Nothing leaves it except the OAuth and usage calls to Anthropic and, with Cursor connected, the usage calls to Cursor with the Cursor app's own token. What is kept and what is read: [`docs/design/01-architecture.md`](docs/design/01-architecture.md#data-on-disk).
 
-### Floating or menu bar
+## Community
 
-Under **⚙ Settings → Appearance** you can pick where Clauddy lives:
+- 🐛 [GitHub Issues](https://github.com/renatoaug/claude-usage-monitor/issues): report a bug or propose a feature
+- 🔧 Pull requests are welcome: read [`CONTRIBUTING.md`](CONTRIBUTING.md) first for how to start and the checks
+- 🐙 [@renatoaug on GitHub](https://github.com/renatoaug): the maintainer
 
-- **Floating pet** — the always-on widget in the corner (default).
-- **Menu bar** — a small pet icon in the macOS menu bar showing your live session **%** (it turns 🔥 near your limit; with Codex or Cursor too it reads `C 64% · X 28% · Cu 5%`). Click it to pop open the full pet + usage panel; click away to dismiss. Right-click for a quick menu.
+## License
 
-Switching is instant — no restart. (On Windows/Linux the icon lives in the system tray; the live % shows in its tooltip.)
-
-### Provider reactions
-
-When a provider's activity changes, the pet briefly glances toward it, with no caption. Both can be working at once. A glance never changes your selected provider, and glances share a 30-second cooldown. Inactivity is treated as a pause, not a completed task.
-
-## Alerts
-
-Optional **macOS notifications**, toggled (with their thresholds) in **⚙ Settings → Alerts**:
-
-| Notification | When |
-| --- | --- |
-| _Session at 82%_ — `2h 39m left · resets 6:50 PM` | Your session crosses a threshold (default **80%** and **95%**) |
-| _Weekly usage at 84%_ — `resets Fri 7:00 AM` | Same, for the weekly limit |
-| _Fable weekly at 84%_ — `resets Fri 7:00 AM` | Same, for a per-model weekly limit |
-| _Codex session at 82%_ / _Codex weekly at 84%_ | Same, for Codex, when it's connected |
-| _Cursor usage at 82%_ / _Cursor API models at 84%_ — `resets Oct 11` | Same, for Cursor's month, when it's connected |
-| _Session window reset_ — `full budget again` | A session you had pushed past 80% rolls over |
-| _Clauddy lost access to your usage_ | The OAuth token expired or was revoked, so the % went back to being an estimate |
-
-The last threshold you set is the only one that makes a sound; the earlier ones arrive silently. Clicking any of them brings the widget to the front. Each fires once and re-arms when usage drops back below — remembered across restarts, so relaunching at 85% doesn't repeat an alert you already dismissed.
-
-Percentages come from your account when you're logged in, and fall back to the local token estimate when you're not.
-
-The first alert asks macOS for permission; after that the app shows up in **System Settings > Notifications** like any other.
-
-### Remind me at the session reset
-
-When the selected session crosses your first alert threshold, **Notify at reset** appears beneath the session details and in the compact monitor. Click to arm it; click **Reminder on** to cancel. This is a one-shot request, independent of the automatic threshold-alert toggle.
-
-Reminders survive restarts, belong to the Claude account, Codex or Cursor connection that created them, and are canceled when you disconnect that source. Clauddy must be running to notify; an overdue reminder is delivered on reopening or waking up. A fresh, lower reading confirms that session budget returned and the pet celebrates. If usage hasn't refreshed — common with idle Codex logs — the reminder only says the scheduled reset time arrived and asks you to check usage.
-
-## Configure (`config.json`)
-
-Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so you can tweak them without rebuilding:
-
-```jsonc
-{
-  "mode": "floating", // "floating" pet in the corner, or "menubar" popover
-  "alerts": true, // macOS notifications on/off
-  "alertThresholds": [80, 95], // notify when session/week cross these % (two levels)
-  "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays 100)
-  "pollIntervalMs": 4000, // how often local logs are re-read
-  "activeThresholdMs": 20000, // fallback "active" window, for a log whose tail doesn't say whether a turn is open
-  "sleepThresholdMs": 300000, // "sleeping" after this much idle time (5 min)
-  "codex": { "enabled": false }, // set by Settings → Codex → Connect
-  "cursor": { "enabled": false }, // set by Settings → Cursor → Connect
-  "talk": true, // speech bubbles on transitions
-  "sound": false, // chiptune blips, opt-in
-  "soundMutedUntil": 0, // set by the 🔊 button: muted until this epoch ms
-}
-```
-
-## Play with the pet
-
-With the widget running, poke it from the terminal — just for fun:
-
-```bash
-bunx clauddy poke        # 💕 squish + hearts
-bunx clauddy celebrate   # 🎉 jump + confetti
-bunx clauddy fire        # 🔥 on fire
-bunx clauddy sleeping    # 😴 blue zzz
-bunx clauddy working     # 🍴 eats token coins
-bunx clauddy tired       # 🥵 maxed out
-bunx clauddy idle        # 🙂 calm
-bunx clauddy auto        # ↩️ back to your real usage
-bunx clauddy say         # 💬 a remark in the speech bubble
-bunx clauddy say fire    #    or a specific one: greeting, fire, reset, maxed, welcome, streak, record, codex, cursor
-```
-
-Each state is written to the data dir the running widget watches, so it reacts
-live. (Installed globally? Drop the `bunx`: `clauddy poke`. Working on the repo?
-`./pet <state>` does the same.)
-
-## How it works
-
-- **`main.js`** — Electron main process: frameless, transparent, always-on-top window; polls usage; fires macOS notifications; watches `config.json` and `debug.json`.
-- **`usage.js`** — reads `~/.claude/projects/**/*.jsonl`, sums tokens per model/project/day, detects the rolling 5-hour session window, the working/sleeping status, and which activity (reading/editing/running/…) Claude is on from its latest tool use.
-- **`auth.js`** — OAuth login (PKCE, same public client as Claude Code) that fetches the authoritative usage %. Token stored locally, never committed.
-- **`renderer/`** — the pet itself: an SVG pixel sprite, CSS animations, and the Web Animations API for particles. `voice.js` writes its remarks and synthesizes the blips.
-- **`make-icon.js`** — generates the app icon from the pixel sprite (`build/icon.icns`).
-
-## Data & privacy
-
-Everything lives on your machine, in `~/.claude-usage-monitor/`:
-
-- `auth.json` — your OAuth token (file mode `600`, never committed)
-- `config.json` — your alert settings
-- `alerts.json` — which notifications are already armed, so a restart doesn't repeat them
-- `accounts.json` — your list of accounts and which one is active
-
-With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions`. With Cursor connected, it reads the Cursor app's login from its local storage and the agent transcripts in `~/.cursor/projects`, also without writing.
-- `debug.json` — scratch file for the `./pet` simulator
-- `accounts/<id>/` — the same `auth.json` + `alerts.json`, for each extra account
-
-Nothing leaves your machine except the OAuth calls to Anthropic's own login and usage endpoints, and, with Cursor connected, the usage calls to Cursor's own API with the Cursor app's token.
-
-## Contributing
-
-Bug reports and ideas are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**
-for setup and the few gotchas worth knowing before a first PR.
-
-## Dev tooling
-
-- **Bun** for install/scripts, **Node 24** pinned in `.nvmrc`
-- **Tests**: `bun run test` (never bare `bun test` — the groups under `test/`
-  must each run in their own process). `bun run test:coverage` enforces the
-  floor; every PR runs both.
-- **Biome** for format + lint (`bun run check`); a versioned **pre-commit hook** (`.githooks/pre-commit`) auto-formats staged files and blocks on errors. It's wired up automatically on `bun install` (via the `prepare` script).
-
-### Releasing
-
-Releases are **fully automated**. Every push to `main` runs
-[semantic-release](https://semantic-release.gitbook.io) (`.github/workflows/release.yml`):
-it reads the **Conventional Commits** and, when there's something to ship,
-computes the version, builds the app for **macOS, Windows and Linux** on their
-own runners, publishes `clauddy` to npm, and cuts a GitHub Release with every
-artifact attached. Nothing to do by hand — just merge your PRs.
-
-The pipeline runs in three stages, because electron-builder can't cross-build
-Windows/Linux from macOS: `version` (a semantic-release dry-run that computes
-the next version) → `build` (a matrix that stamps that version into
-`package.json` so the filenames are right) → `publish` (downloads every
-artifact and runs semantic-release for real).
-
-- `feat:` → minor, `fix:` → patch, `feat!:`/`BREAKING CHANGE` → major.
-- `docs:`/`chore:`/`ci:` etc. don't trigger a release.
+Clauddy is licensed under the [MIT License](LICENSE).
