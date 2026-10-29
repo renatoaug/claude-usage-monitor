@@ -32,7 +32,3 @@ When the selected session crosses the first threshold, **Notify at reset** appea
 - Clauddy must be running to notify.
 
 A deadline alone does not prove a new budget ([ADR-007](../decisions/ADR-007-a-deadline-is-not-a-new-budget.md)). Only a fresh, lower reading after the reset time says _"budget is back"_, and the pet celebrates. Without one, which is common with an idle Codex, the reminder only says the reset time arrived and asks to check the usage.
-
-## Still open
-
-- [ ] **Alerts and the panel disagree without an account.** The panel shows a % only from the connected account. The alerts in `main.js` still fall back to a % worked out from local tokens, a budget guess that can be off by an order of magnitude, and a comment there still says the widget shows that estimate too. Either the alerts stop using the estimate, or the docs say they do.

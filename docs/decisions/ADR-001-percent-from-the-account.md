@@ -22,4 +22,4 @@ The session and weekly % shown in the widget come only from the account, through
 - The % matches the official panel exactly.
 - Using the % needs a login; the token is kept in `auth.json` (mode `600`) and never committed.
 - When the token dies the % disappears, so a notification says so.
-- The alerts still fall back to the token estimate without an account ([design/05-alerts.md](../design/05-alerts.md#still-open)).
+- The alerts still fall back to the token estimate without an account, unlike the panel.

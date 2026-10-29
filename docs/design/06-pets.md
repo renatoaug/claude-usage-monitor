@@ -48,8 +48,3 @@ On a pack's days, one of its pets takes over ([ADR-009](../decisions/ADR-009-hol
 3. Add its part animations to `renderer/pets.css` under `body.state-working #skin`, with `pk-` keyframes. A new `move` needs its `body.state-working.pet-move-<move> #claude` rule.
 4. A new pack goes in `PACKS`, with `days` if it should take over on holidays.
 5. `bun run test` checks every pet: a unique id, a known pack, a move the stylesheet defines, gradient ids that never collide.
-
-## Still open
-
-- [ ] **Theme colour.** Choosing the widget's colours was the other half of the original request; it is tracked in [#67](https://github.com/renatoaug/claude-usage-monitor/issues/67).
-- [ ] **The README video and the GIFs show only the classic sprite.** The pets appear only in the video attached to [#66](https://github.com/renatoaug/claude-usage-monitor/pull/66).
