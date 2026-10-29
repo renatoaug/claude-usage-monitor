@@ -1,0 +1,907 @@
+/* Selectable pets (pets.js). Everything is scoped to #skin, the pet drawn
+   inside #claude, so the Settings thumbnails stay still and nothing leaks into
+   the rest of the widget. Keyframes carry a pk- prefix for the same reason. */
+
+#claude.skinned > #body,
+#claude.skinned > #eyes,
+#claude.skinned > #mouth {
+  display: none;
+}
+#skin {
+  overflow: visible;
+}
+#skin * {
+  transform-box: view-box;
+}
+/* Pets stand taller than the sprite, so their box reaches above it. Next to
+   two or more provider rows there's no room up there: fit the pet inside the
+   sprite's own box instead, level with the first row. */
+body.collapsed.dual #skin {
+  x: -6px;
+  y: -14px;
+  width: 112px;
+  height: 106px;
+}
+#skin .blink {
+  animation: pk-blink 5.5s infinite;
+}
+#skin .only-work {
+  display: none;
+}
+body.state-working #skin .only-work {
+  display: inline;
+}
+body.state-working #skin .only-idle {
+  display: none;
+}
+/* The classic sprite recolours its pixels for these moods; a pet has many
+   colours, so it gets a filter instead: heated red on fire, drained when
+   maxed out, dimmed asleep. */
+#skin {
+  transition: filter 0.4s ease;
+}
+body.state-stressed #skin {
+  filter: sepia(0.85) saturate(3.4) hue-rotate(-32deg) brightness(0.92)
+    drop-shadow(0 0 6px rgba(255, 86, 48, 0.7));
+}
+body.state-tired #skin {
+  filter: grayscale(0.7) brightness(0.8);
+}
+body.state-sleeping #skin {
+  filter: saturate(0.7) brightness(0.82);
+}
+/* asleep or maxed out, the eyes close like the classic sprite's do */
+body.state-sleeping #skin .blink {
+  animation: none;
+  transform: scaleY(0.12);
+}
+body.state-tired #skin .blink {
+  animation: none;
+  transform: scaleY(0.4);
+}
+
+/* while working, each pet moves its own way instead of the shared hop */
+body.state-working[class*="pet-move-"] #claude {
+  transform-origin: 50% 100%;
+}
+body.state-working.pet-move-rock #claude {
+  animation: pk-rock 1s ease-in-out infinite;
+}
+body.state-working.pet-move-sway #claude {
+  animation: pk-rock 1.6s ease-in-out infinite;
+}
+body.state-working.pet-move-dance #claude {
+  animation: pk-dance 0.8s ease-in-out infinite;
+}
+body.state-working.pet-move-drift #claude {
+  animation: pk-drift 1.8s ease-in-out infinite alternate;
+}
+body.state-working.pet-move-wiggle #claude {
+  animation: pk-wiggle 1.8s ease-in-out infinite;
+}
+body.state-working.pet-move-levitate #claude {
+  animation: pk-levitate 1.4s ease-in-out infinite alternate;
+}
+body.state-working.pet-move-jolly #claude {
+  animation: pk-jolly 0.7s ease-in-out infinite;
+}
+body.state-working.pet-move-prance #claude {
+  animation: pk-prance 0.8s ease-in-out infinite;
+}
+body.state-working.pet-move-jump #claude {
+  animation: pk-jump 0.7s ease-in-out infinite;
+}
+
+/* pumpkin */
+#skin .p-halo {
+  opacity: 0.55;
+}
+body.state-working #skin .p-flame {
+  animation: pk-flicker 0.9s steps(1) infinite;
+}
+body.state-working #skin .p-halo {
+  animation: pk-halo 0.9s ease-in-out infinite;
+}
+body.state-working #skin .p-leaf {
+  animation: pk-leaf 0.6s ease-in-out infinite alternate;
+}
+body.state-working #skin .p-body {
+  animation: pk-wobble 1.2s ease-in-out infinite;
+}
+
+/* skull */
+#skin .k-glow {
+  opacity: 0.55;
+}
+body.state-working #skin .k-jaw {
+  animation: pk-chatter 0.18s ease-in-out infinite alternate;
+}
+body.state-working #skin .k-glow {
+  animation: pk-halo 0.5s ease-in-out infinite;
+}
+body.state-working #skin .k-head {
+  transform-origin: 100px 118px;
+  animation: pk-wobble 0.6s ease-in-out infinite;
+}
+body.state-working #skin .k-arm-l {
+  animation: pk-arm-l 0.6s ease-in-out infinite;
+}
+body.state-working #skin .k-arm-r {
+  animation: pk-arm-r 0.6s ease-in-out infinite 0.3s;
+}
+body.state-working #skin .k-leg-a {
+  animation: pk-step 0.6s ease-in-out infinite;
+}
+body.state-working #skin .k-leg-b {
+  animation: pk-step 0.6s ease-in-out infinite 0.3s;
+}
+
+/* ghost */
+#skin .g-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+body.state-working #skin .g-float {
+  animation: pk-float 1.2s ease-in-out infinite;
+}
+body.state-working #skin .g-sheet {
+  animation: pk-hem 0.45s ease-in-out infinite alternate;
+}
+body.state-working #skin .g-arm-l {
+  animation: pk-boo-l 1.2s ease-in-out infinite;
+}
+body.state-working #skin .g-arm-r {
+  animation: pk-boo-r 1.2s ease-in-out infinite;
+}
+body.state-working #skin .g-mouth {
+  animation: pk-boo 1.2s ease-in-out infinite;
+}
+
+/* bat: wings folded at rest, flapping at work */
+#skin .b-wing-l {
+  transform: rotate(18deg);
+}
+#skin .b-wing-r {
+  transform: rotate(-18deg);
+}
+body.state-working #skin .b-wing-l {
+  animation: pk-bat-l 0.22s ease-in-out infinite alternate;
+}
+body.state-working #skin .b-wing-r {
+  animation: pk-bat-r 0.22s ease-in-out infinite alternate;
+}
+body.state-working #skin .b-fly {
+  animation: pk-float 0.44s ease-in-out infinite;
+}
+
+/* black cat */
+#skin .c-pupil {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.3s;
+}
+body.state-working #skin .c-pupil {
+  transform: scale(2.6, 1);
+}
+body.state-working #skin .c-tail {
+  animation: pk-whip 0.5s ease-in-out infinite alternate;
+}
+body.state-working #skin .c-ear-l {
+  animation: pk-twitch 0.9s ease-in-out infinite;
+}
+body.state-working #skin .c-ear-r {
+  animation: pk-twitch 0.9s ease-in-out infinite 0.45s;
+}
+body.state-working #skin .c-hat {
+  animation: pk-sway 0.3s ease-in-out infinite alternate;
+}
+
+/* snowman, and the Santa hat it shares with Santa */
+#skin .flake {
+  animation: pk-fall 2.2s linear infinite;
+}
+body.state-working #skin .s-hat {
+  animation: pk-hat 0.6s ease-in-out infinite alternate;
+}
+body.state-working #skin .s-pom {
+  animation: pk-pom 0.6s ease-in-out infinite alternate;
+}
+body.state-working #skin .s-arm-l {
+  animation: pk-arm-l 0.6s ease-in-out infinite;
+}
+body.state-working #skin .s-arm-r {
+  animation: pk-arm-r 0.6s ease-in-out infinite 0.3s;
+}
+body.state-working #skin .s-scarf {
+  animation: pk-sway 0.5s ease-in-out infinite alternate;
+}
+
+/* santa */
+body.state-working #skin .n-arm-l {
+  animation: pk-wave-hi 0.7s ease-in-out infinite;
+}
+body.state-working #skin .n-sack {
+  animation: pk-sack 0.7s ease-in-out infinite;
+}
+
+/* reindeer */
+body.state-working #skin .r-bell {
+  animation: pk-sway 0.4s ease-in-out infinite alternate;
+}
+body.state-working #skin .r-ear-l {
+  animation: pk-twitch 0.8s ease-in-out infinite;
+}
+body.state-working #skin .r-ear-r {
+  animation: pk-twitch 0.8s ease-in-out infinite 0.4s;
+}
+body.state-working #skin .r-leg-a {
+  animation: pk-step 0.4s ease-in-out infinite;
+}
+body.state-working #skin .r-leg-b {
+  animation: pk-step 0.4s ease-in-out infinite 0.2s;
+}
+
+/* gingerbread: jumping jacks */
+body.state-working #skin .gb-arm-l {
+  animation: pk-jack-l 0.7s ease-in-out infinite;
+}
+body.state-working #skin .gb-arm-r {
+  animation: pk-jack-r 0.7s ease-in-out infinite;
+}
+body.state-working #skin .gb-leg-l {
+  animation: pk-legs-l 0.7s ease-in-out infinite;
+}
+body.state-working #skin .gb-leg-r {
+  animation: pk-legs-r 0.7s ease-in-out infinite;
+}
+
+/* wizard: the owl only flies while the spell is on */
+#skin .m-lumos {
+  opacity: 0.25;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+#skin .spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pk-pop 0.9s ease-out infinite;
+}
+#skin .s2 {
+  animation-delay: 0.22s;
+}
+#skin .s3 {
+  animation-delay: 0.45s;
+}
+#skin .s4 {
+  animation-delay: 0.68s;
+}
+#skin .m-owl {
+  animation: pk-fly 3.2s linear infinite;
+}
+#skin .m-owl-bob {
+  animation: pk-owlbob 0.5s ease-in-out infinite alternate;
+}
+#skin .m-wing-l {
+  animation: pk-wing-l 0.25s ease-in-out infinite alternate;
+}
+#skin .m-wing-r {
+  animation: pk-wing-r 0.25s ease-in-out infinite alternate;
+}
+body.state-working #skin .m-arm {
+  animation: pk-spell 1.2s ease-in-out infinite;
+}
+body.state-working #skin .m-lumos {
+  animation: pk-lumos 1.2s ease-in-out infinite;
+}
+body.state-working #skin .m-scarf {
+  animation: pk-sway 0.6s ease-in-out infinite alternate;
+}
+body.state-working #skin .twinkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pk-twinkle 1.1s ease-in-out infinite;
+}
+body.state-working #skin .t2 {
+  animation-delay: 0.3s;
+}
+body.state-working #skin .t3 {
+  animation-delay: 0.6s;
+}
+body.state-working #skin .t4 {
+  animation-delay: 0.85s;
+}
+
+/* body moves (on #claude, in screen px) */
+@keyframes pk-rock {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes pk-dance {
+  0%,
+  100% {
+    transform: translateX(-5px) rotate(-5deg);
+  }
+  25%,
+  75% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: translateX(5px) rotate(5deg);
+  }
+}
+@keyframes pk-drift {
+  from {
+    transform: translateX(-8px) rotate(-3deg);
+  }
+  to {
+    transform: translateX(8px) rotate(3deg);
+  }
+}
+@keyframes pk-wiggle {
+  0%,
+  40%,
+  80%,
+  100% {
+    transform: none;
+  }
+  5%,
+  15%,
+  25%,
+  35% {
+    transform: rotate(-2.5deg);
+  }
+  10%,
+  20%,
+  30% {
+    transform: rotate(2.5deg);
+  }
+  55% {
+    transform: translateY(-10px) scale(1.04, 0.97);
+  }
+  70% {
+    transform: translateY(0) scale(1.05, 0.94);
+  }
+}
+@keyframes pk-levitate {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+@keyframes pk-jolly {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  25%,
+  75% {
+    transform: scale(1.05, 0.95);
+  }
+  50% {
+    transform: translateY(-4px) scale(0.97, 1.03);
+  }
+}
+@keyframes pk-prance {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  25%,
+  75% {
+    transform: translateY(-6px);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes pk-jump {
+  0%,
+  85%,
+  100% {
+    transform: scale(1.06, 0.93);
+  }
+  40%,
+  60% {
+    transform: translateY(-13px) scale(0.97, 1.04);
+  }
+}
+
+/* parts (inside #skin, in the pet's own viewBox units) */
+@keyframes pk-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes pk-arm-l {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(62deg);
+  }
+}
+@keyframes pk-arm-r {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-62deg);
+  }
+}
+@keyframes pk-step {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@keyframes pk-flicker {
+  0% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  30% {
+    opacity: 0.95;
+  }
+  52% {
+    opacity: 0.7;
+  }
+  66% {
+    opacity: 1;
+  }
+  84% {
+    opacity: 0.6;
+  }
+}
+@keyframes pk-halo {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  40% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.6;
+  }
+}
+@keyframes pk-leaf {
+  from {
+    transform: rotate(-9deg);
+  }
+  to {
+    transform: rotate(10deg);
+  }
+}
+@keyframes pk-wobble {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+@keyframes pk-sway {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(10deg);
+  }
+}
+@keyframes pk-twitch {
+  0%,
+  70%,
+  100% {
+    transform: rotate(0);
+  }
+  80% {
+    transform: rotate(-9deg);
+  }
+  90% {
+    transform: rotate(5deg);
+  }
+}
+@keyframes pk-chatter {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(6px);
+  }
+}
+@keyframes pk-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes pk-hem {
+  from {
+    d: path(
+      "M100 30 C 140 30, 156 64, 156 104 L 156 166 Q 147 180 138 166 Q 129 152 119 166 Q 110 180 100 166 Q 90 152 81 166 Q 72 180 62 166 Q 53 152 44 166 L 44 104 C 44 64, 60 30, 100 30 Z"
+    );
+  }
+  to {
+    d: path(
+      "M100 30 C 140 30, 156 64, 156 104 L 156 166 Q 147 152 138 166 Q 129 180 119 166 Q 110 152 100 166 Q 90 180 81 166 Q 72 152 62 166 Q 53 180 44 166 L 44 104 C 44 64, 60 30, 100 30 Z"
+    );
+  }
+}
+@keyframes pk-boo-l {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(70deg);
+  }
+}
+@keyframes pk-boo-r {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-70deg);
+  }
+}
+@keyframes pk-boo {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6, 1.8);
+  }
+}
+@keyframes pk-bat-l {
+  from {
+    transform: rotate(-22deg);
+  }
+  to {
+    transform: rotate(24deg);
+  }
+}
+@keyframes pk-bat-r {
+  from {
+    transform: rotate(22deg);
+  }
+  to {
+    transform: rotate(-24deg);
+  }
+}
+@keyframes pk-whip {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes pk-fall {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(70px);
+    opacity: 0;
+  }
+}
+@keyframes pk-hat {
+  from {
+    d: path(
+      "M42 84 C 42 48, 72 24, 108 24 C 142 22, 168 30, 178 50 L 168 58 C 160 48, 148 46, 134 50 C 146 58, 154 70, 158 84 Z"
+    );
+  }
+  to {
+    d: path(
+      "M42 84 C 42 48, 72 24, 108 24 C 140 26, 164 48, 166 86 L 154 86 C 152 68, 146 56, 134 50 C 146 58, 154 70, 158 84 Z"
+    );
+  }
+}
+@keyframes pk-pom {
+  from {
+    transform: translate(6px, -21px);
+  }
+  to {
+    transform: translate(-7px, 11px);
+  }
+}
+@keyframes pk-wave-hi {
+  0%,
+  100% {
+    transform: rotate(110deg);
+  }
+  50% {
+    transform: rotate(140deg);
+  }
+}
+@keyframes pk-sack {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-8px) rotate(6deg);
+  }
+}
+@keyframes pk-jack-l {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  60% {
+    transform: rotate(48deg);
+  }
+}
+@keyframes pk-jack-r {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  60% {
+    transform: rotate(-48deg);
+  }
+}
+@keyframes pk-legs-l {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  60% {
+    transform: rotate(14deg);
+  }
+}
+@keyframes pk-legs-r {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40%,
+  60% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes pk-spell {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-38deg);
+  }
+  60% {
+    transform: rotate(12deg);
+  }
+}
+@keyframes pk-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.2) rotate(90deg);
+    opacity: 0;
+  }
+}
+@keyframes pk-lumos {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+@keyframes pk-fly {
+  0% {
+    transform: translate(14px, 40px) scale(1.3);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(100px, 22px) scale(1.3);
+  }
+  100% {
+    transform: translate(186px, 40px) scale(1.3);
+    opacity: 0;
+  }
+}
+@keyframes pk-owlbob {
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+@keyframes pk-wing-l {
+  from {
+    transform: rotate(-35deg);
+  }
+  to {
+    transform: rotate(25deg);
+  }
+}
+@keyframes pk-wing-r {
+  from {
+    transform: rotate(35deg);
+  }
+  to {
+    transform: rotate(-25deg);
+  }
+}
+@keyframes pk-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+/* Settings: the current pet and a pencil; the catalog opens in a modal */
+.pet-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pet-thumb {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+}
+.pet-thumb svg {
+  width: 100%;
+  height: 100%;
+}
+.pet-thumb .only-work {
+  display: none;
+}
+.pet-edit {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--hair);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  cursor: pointer;
+}
+.pet-edit:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+.pet-edit .ic {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+#pet-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background: rgba(12, 9, 7, 0.62);
+  -webkit-app-region: no-drag;
+}
+#pet-modal[hidden] {
+  display: none;
+}
+.pet-modal-card {
+  width: 100%;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--settings-bg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.pet-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* the pet picker in Settings */
+#set-pet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pet-pack-name {
+  font-size: 11px;
+  color: var(--muted);
+}
+.pet-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+.pet-opt {
+  aspect-ratio: 1;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--hair);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.pet-opt:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.pet-opt.on {
+  border-color: var(--coral);
+  background: rgba(217, 119, 87, 0.14);
+}
+.pet-opt:focus-visible {
+  outline: 2px solid var(--coral-soft);
+  outline-offset: 1px;
+}
+.pet-opt svg {
+  width: 100%;
+  height: 100%;
+}
+#pet-season {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* thumbnails show the pet at rest */
+.pet-opt .only-work {
+  display: none;
+}

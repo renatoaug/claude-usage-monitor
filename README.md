@@ -103,6 +103,12 @@ It only appears once there's enough to say honestly — roughly 5 minutes into a
 
 Plus a welcome **wave** on launch. You can [poke the pet from the terminal](#play-with-the-pet) too.
 
+### Pick your pet
+
+Clauddy is the default, but **⚙ Settings → pet** has more: a Wizard, a Halloween pack (Pumpkin, Skull, Ghost, Bat, Black cat) and a Christmas pack (Snowman, Santa, Reindeer, Gingerbread). Click one to preview it and **Save** to keep it. Each pet stays still and blinks when nothing is running, and has its own way of moving while a provider works: the Pumpkin rocks, the Bat flaps, the Wizard levitates while an owl flies by.
+
+On holidays a pet from the season's pack takes over for the day, whichever pet you picked: one Halloween pet on October 31, one Christmas pet on December 24 and 25. The pick changes every year and holds all day. Your own pet comes back the next day.
+
 ### What Claude's up to
 
 While Claude Code is actively working, the pet sets up a little desk scene that

@@ -371,6 +371,7 @@ describe('startup', () => {
     expect(cfg.talk).toBe(true)
     expect(cfg.sound).toBe(false)
     expect(cfg.soundMutedUntil).toBe(0)
+    expect(cfg.pet).toBe('clauddy') // the classic sprite until the user picks another
     expect(cfg).not.toHaveProperty('pollIntervalMs') // internal only
     expect(cfg).not.toHaveProperty('sleepThresholdMs')
   })

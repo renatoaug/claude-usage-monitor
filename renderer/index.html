@@ -6,6 +6,7 @@
     <title>Clauddy</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="motion.css" />
+    <link rel="stylesheet" href="pets.css" />
   </head>
   <body class="state-idle one-account">
     <!-- brand marks from simple-icons (CC0); the trademarks are Anthropic's and OpenAI's -->
@@ -460,6 +461,17 @@
             <span class="set-row-label">Chiptune voice</span>
             <input id="set-sound" class="set-toggle" type="checkbox" aria-label="Play blips when the pet talks" />
           </div>
+          <div class="settings-label threshold-label">pet</div>
+          <div class="set-row">
+            <span class="pet-current">
+              <span id="pet-current-thumb" class="pet-thumb" aria-hidden="true"></span>
+              <span id="pet-current-name" class="set-row-label"></span>
+            </span>
+            <button type="button" id="pet-edit" class="pet-edit" aria-label="Change pet" aria-haspopup="dialog">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z" /><path d="m13 7 4 4" /></svg>
+            </button>
+          </div>
+          <div id="pet-season" hidden></div>
         </div>
 
         <div class="set-actions">
@@ -477,9 +489,21 @@
         </div>
       </div>
     </div>
+    <div id="pet-modal" role="dialog" aria-modal="true" aria-labelledby="pet-modal-title" hidden>
+      <div class="pet-modal-card">
+        <div class="pet-modal-head">
+          <span id="pet-modal-title">Choose a pet</span>
+          <button type="button" id="pet-modal-close" class="pet-edit" aria-label="Close">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <div id="set-pet" role="radiogroup" aria-label="Pet"></div>
+      </div>
+    </div>
     <script src="burn.js"></script>
 <script src="voice.js"></script>
 <script src="companion.js"></script>
+<script src="pets.js"></script>
 <script src="pet.js"></script>
   </body>
 </html>

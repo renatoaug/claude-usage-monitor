@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, setSystemTime, test } from 'bun:test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
@@ -95,6 +95,7 @@ window.api = api
 globalThis.Burn = await import('../../renderer/burn.js')
 globalThis.Voice = await import('../../renderer/voice.js')
 globalThis.Companion = await import('../../renderer/companion.js')
+globalThis.Pets = await import('../../renderer/pets.js')
 const pet = await import('../../renderer/pet.js')
 
 afterAll(() => GlobalRegistrator.unregister())
@@ -1562,5 +1563,127 @@ describe('pet-only companion and reset controls', () => {
     expect(el('companion-notice').textContent).toBe('Codex · reset time reached')
     api.handlers.onReminderDue({ provider: 'claude', confirmed: true, isCurrent: true })
     expect(el('companion-notice').textContent).toBe('Claude · budget is back!')
+  })
+})
+
+describe('pets', () => {
+  const june = () => setSystemTime(new Date(2026, 5, 1, 12))
+  const skin = () => el('skin')
+  const move = () => [...document.body.classList].find((c) => c.startsWith('pet-move-'))
+  const option = (id) => el('set-pet').querySelector(`[data-pet="${id}"]`)
+  const config = (over = {}) =>
+    api.handlers.onConfig({ mode: 'floating', alertThresholds: [80, 95], ...over })
+
+  test('draws the saved pet inside the sprite and gives it its own move', () => {
+    june()
+    config({ pet: 'bat' })
+    expect(skin()).not.toBeNull()
+    expect(el('claude').classList.contains('skinned')).toBe(true)
+    expect(move()).toBe('pet-move-drift')
+    config({ pet: 'clauddy' })
+    expect(skin()).toBeNull()
+    expect(el('claude').classList.contains('skinned')).toBe(false)
+    expect(move()).toBeUndefined()
+    setSystemTime()
+  })
+
+  test('falls back to the classic sprite for a pet it does not know', () => {
+    june()
+    config({ pet: 'dragon' })
+    expect(skin()).toBeNull()
+    setSystemTime()
+  })
+
+  test('a holiday overrides the pick, and the picker says so', () => {
+    setSystemTime(new Date(2026, 9, 31, 12))
+    config({ pet: 'wizard' })
+    const shown = Pets.activePet('wizard')
+    expect(Pets.findPet(shown).pack).toBe('halloween')
+    expect(move()).toBe(`pet-move-${Pets.findPet(shown).move}`)
+    el('gear').click()
+    expect(el('pet-season').hidden).toBe(false)
+    expect(el('pet-season').textContent).toContain(Pets.findPet(shown).name)
+    expect(option('wizard').getAttribute('aria-checked')).toBe('true') // the pick itself is kept
+    el('set-cancel').click()
+    setSystemTime()
+  })
+
+  test('the picker lists every pet by pack, the classic sprite first', () => {
+    const ids = [...el('set-pet').querySelectorAll('.pet-opt')].map((b) => b.dataset.pet)
+    expect(ids[0]).toBe('clauddy')
+    expect(ids.slice(1).sort()).toEqual(Pets.PETS.map((p) => p.id).sort())
+    expect(el('set-pet').textContent).toContain('Halloween')
+    expect(el('set-pet').textContent).toContain('Christmas')
+  })
+
+  test('Settings shows the current pet; the pencil opens the catalog', () => {
+    june()
+    config({ pet: 'bat' })
+    el('gear').click()
+    expect(el('pet-current-name').textContent).toBe('Bat')
+    expect(el('pet-current-thumb').querySelector('svg')).not.toBeNull()
+    expect(el('pet-modal').hidden).toBe(true)
+    el('pet-edit').click()
+    expect(el('pet-modal').hidden).toBe(false)
+    el('pet-modal-close').click()
+    expect(el('pet-modal').hidden).toBe(true)
+    el('pet-edit').click()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(el('pet-modal').hidden).toBe(true)
+    el('pet-edit').click()
+    el('pet-modal').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(el('pet-modal').hidden).toBe(true)
+    el('pet-edit').click()
+    el('set-cancel').click() // leaving Settings puts the catalog away too
+    expect(el('pet-modal').hidden).toBe(true)
+    config({ pet: 'clauddy' })
+    setSystemTime()
+  })
+
+  test('picking previews right away, Cancel puts the saved pet back', () => {
+    june()
+    config({ pet: 'clauddy' })
+    el('gear').click()
+    expect(el('pet-season').hidden).toBe(true)
+    expect(el('pet-current-name').textContent).toBe('Clauddy')
+    el('pet-edit').click()
+    option('ghost').click()
+    expect(el('pet-modal').hidden).toBe(true) // a pick closes the catalog
+    expect(el('pet-current-name').textContent).toBe('Ghost')
+    expect(skin()).not.toBeNull()
+    expect(option('ghost').classList.contains('on')).toBe(true)
+    expect(el('set-save').disabled).toBe(false)
+    el('set-cancel').click()
+    expect(skin()).toBeNull()
+    setSystemTime()
+  })
+
+  test('Save stores the pick and keeps showing it', () => {
+    june()
+    config({ pet: 'clauddy' })
+    el('gear').click()
+    option('santa').click()
+    el('set-save').click()
+    const saved = api.sent.find((m) => m.name === 'saveConfig')
+    expect(saved.args[0].pet).toBe('santa')
+    expect(move()).toBe('pet-move-jolly')
+    config({ pet: 'santa' })
+    expect(move()).toBe('pet-move-jolly')
+    config({ pet: 'clauddy' })
+    setSystemTime()
+  })
+
+  test("the pet's eyes follow the cursor", () => {
+    june()
+    config({ pet: 'cat' })
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 0 }))
+    const eyes = skin().querySelector('.blink')
+    expect(eyes.style.translate).not.toBe('')
+    window.dispatchEvent(new MouseEvent('mouseout', {}))
+    expect(eyes.style.translate).toBe('0px 0px')
+    config({ pet: 'clauddy' })
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 0 }))
+    expect(el('eyes').getAttribute('transform')).toContain('translate(')
+    setSystemTime()
   })
 })

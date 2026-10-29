@@ -89,6 +89,7 @@ function publicConfig(c) {
     talk: c.talk,
     sound: c.sound,
     soundMutedUntil: c.soundMutedUntil,
+    pet: c.pet,
   }
 }
 
@@ -108,6 +109,7 @@ function loadConfig() {
     talk: true, // speech bubbles on transitions
     sound: false, // chiptune blips: opt-in, audio must never surprise anyone
     soundMutedUntil: 0, // the one-click "mute for 1 hour", as an epoch ms
+    pet: 'clauddy', // renderer/pets.js; holidays override it on their own days
     pollIntervalMs: 4000,
     activeThresholdMs: 20000,
     sleepThresholdMs: 300000,
