@@ -51,6 +51,50 @@ const SPRITE = [
   })
 })()
 
+// ---- selectable pets (pets.js) ----------------------------------------------
+// The classic sprite stays in #claude; another pet is drawn inside it as #skin,
+// so every mood animation on #claude (sleep bob, slump, poke…) still applies.
+// Working swaps the shared hop for the pet's own move (pets.css).
+const SKIN_ID = 'skin'
+let shownPet = null
+let pickedPet = null // the Settings selection, previewed live until Save/Cancel
+function showPet(id) {
+  if (id === shownPet) return
+  shownPet = id
+  el(SKIN_ID)?.remove()
+  const b = document.body.classList
+  for (const c of [...b]) if (c.startsWith('pet-move-')) b.remove(c)
+  const pet = Pets.PETS.find((p) => p.id === id)
+  el('claude').classList.toggle('skinned', !!pet)
+  if (!pet) return
+  el('claude').insertAdjacentHTML(
+    'beforeend',
+    Pets.petMarkup(
+      id,
+      'sk',
+      `id="${SKIN_ID}" x="-8" y="-26" width="116" height="116" preserveAspectRatio="xMidYMax meet"`,
+    ),
+  )
+  b.add(`pet-move-${pet.move}`)
+}
+const chosenPet = () => currentConfig.pet || Pets.DEFAULT_PET
+function refreshPet() {
+  showPet(pickedPet ?? Pets.activePet(chosenPet()))
+}
+// holidays start and end at midnight, with the widget open
+setInterval(refreshPet, 60_000)
+// What the eyes follow: the sprite's eye group, or the pet's (its blink groups,
+// moved with `translate` so it composes with the blink's own transform). The
+// pet's viewBox is about twice the sprite's, so its units are half as big.
+function lookTargets() {
+  const skin = el(SKIN_ID)
+  return skin ? [...skin.querySelectorAll('.blink')] : [el('eyes')]
+}
+function lookAt(x, y) {
+  const skin = el(SKIN_ID)
+  if (!skin) return el('eyes').setAttribute('transform', `translate(${x} ${y})`)
+  for (const g of lookTargets()) g.style.translate = `${x * 2}px ${y * 2}px`
+}
 // night scene backdrop (clouds, crescent moon, stars, dotted ground/sky)
 ;(function buildScene() {
   const s = el('scene')
@@ -950,7 +994,33 @@ const activityTracker = Companion.createActivityTracker()
 function setPetPeek(on) {
   if (!document.body.classList.contains('pet-only')) return
   clearTimeout(peekTimer)
+  // placed once as it appears: re-placing on every click or focus made it jump
+  if (on && !document.body.classList.contains('pet-peek')) placeGlance()
   document.body.classList.toggle('pet-peek', on)
+}
+// The glance bubble sits just above the pet's head, and every pet's head is at
+// its own height (the bat's ears, the wizard's hat), so measure the drawing's
+// top instead of a fixed spot. Parts that only show while working (the owl,
+// sparks, snow) don't count: they come and go. The pet is mid-animation (a
+// bob, a hop, levitating), so the head is measured against #claude itself and
+// laid on #claude's resting spot, at the foot of the still #pet box.
+function placeGlance() {
+  const skin = el(SKIN_ID)
+  const parts = skin
+    ? [...skin.children].filter((c) => !c.matches('defs, .only-work'))
+    : [el('body')]
+  const tops = parts
+    .map((part) => part.getBoundingClientRect())
+    .filter((r) => r.width > 0)
+    .map((r) => r.top)
+  if (!tops.length) return
+  const zoom = Number.parseFloat(document.body.style.zoom) || 1
+  const sprite = el('claude').getBoundingClientRect()
+  const resting = el('pet').getBoundingClientRect().bottom - sprite.height
+  const head =
+    (Math.min(...tops) - sprite.top + resting - el('card').getBoundingClientRect().top) / zoom
+  const glance = el('pet-glance')
+  glance.style.top = `${Math.max(2, Math.round(head - glance.offsetHeight - 10))}px`
 }
 function setDisplaySize(size, remember = true) {
   if (!['expanded', 'compact', 'pet'].includes(size)) size = 'expanded'
@@ -1026,6 +1096,9 @@ function paintCompanion(view) {
     button.setAttribute('aria-pressed', String(provider === view))
     button.classList.toggle('urgent', session?.pct >= warnAt())
     el(`glance-${provider}-value`).textContent = pctText(session?.pct)
+    // the bar under each reading fills with the session %; none when unknown
+    const pct = session?.pct
+    button.style.setProperty('--pct', pct == null ? '0' : String(Math.max(0, Math.min(100, pct))))
     const stale = provider !== 'claude' && readingStale(dataOf(provider))
     button.title = stale
       ? 'Last recorded usage · waiting for a fresh reading'
@@ -1100,15 +1173,18 @@ function reactToProvider(provider, data) {
   if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     // in tab order: Claude to the left, Codex to the right, Cursor down-right
     const [x, y] = { claude: [-3, 0], codex: [3, 0], cursor: [3, 1] }[provider] || [0, 0]
-    el('eyes').animate(
-      [
-        { transform: 'translate(0, 0)' },
-        { transform: `translate(${x}px, ${y}px)`, offset: 0.3 },
-        { transform: `translate(${x}px, ${y}px)`, offset: 0.7 },
-        { transform: 'translate(0, 0)' },
-      ],
-      { duration: 1100, easing: 'ease-in-out' },
-    )
+    const k = el(SKIN_ID) ? 2 : 1
+    for (const target of lookTargets()) {
+      target.animate(
+        [
+          { translate: '0 0' },
+          { translate: `${x * k}px ${y * k}px`, offset: 0.3 },
+          { translate: `${x * k}px ${y * k}px`, offset: 0.7 },
+          { translate: '0 0' },
+        ],
+        { duration: 1100, easing: 'ease-in-out' },
+      )
+    }
   }
 }
 
@@ -1363,7 +1439,9 @@ function paint() {
 // fit the window to the content (no leftover border)
 let lastH = 0
 let lastW = 0
-function fitSize() {
+// `animate` eases the window to its new size (opening and closing Settings);
+// every other resize is immediate, so the widget tracks its content exactly
+function fitSize(animate = false) {
   requestAnimationFrame(() => {
     const collapsed = document.body.classList.contains('collapsed')
     const zoom = Number.parseFloat(document.body.style.zoom) || 1
@@ -1372,7 +1450,7 @@ function fitSize() {
     const dual = document.body.classList.contains('dual')
     const trio = document.body.classList.contains('trio')
     const petOnly = document.body.classList.contains('pet-only')
-    const w = (petOnly ? (trio ? 212 : 168) : collapsed ? (dual ? 240 : 192) : 304) * zoom
+    const w = (petOnly ? (trio ? 212 : 168) : collapsed ? (dual ? 240 : 170) : 304) * zoom
     // offsetHeight never reflects a CSS zoom applied to an ancestor (confirmed
     // empirically against this Electron build) — so measure the unzoomed content
     // height, then scale the whole thing (content + margin) ourselves
@@ -1380,7 +1458,7 @@ function fitSize() {
     if (Math.abs(h - lastH) > 2 || w !== lastW) {
       lastH = h
       lastW = w
-      window.api.resize(w, h)
+      window.api.resize(w, h, animate)
     }
   })
 }
@@ -1404,6 +1482,8 @@ window.api.onDebugState((o) => {
   if (lastData) render(lastData)
 })
 window.api.onUsage(render)
+// menu-bar popover: where its nib sits, so it points at the tray icon
+window.api.onPopoverAnchor((x) => document.body.style.setProperty('--nib-x', `${x}px`))
 window.api.onError((msg) => {
   el('status-text').textContent = 'error'
   console.error(msg)
@@ -1428,6 +1508,7 @@ window.api.onConfig((cfg) => {
     setDisplaySize('compact', false)
   }
   heardConfig = true
+  refreshPet()
   paintMute()
   paint()
   applyZoom(currentConfig.zoom)
@@ -1946,6 +2027,7 @@ function snapshotSettings() {
     zoom: el('set-zoom').value,
     talk: el('set-talk').checked,
     sound: el('set-sound').checked,
+    pet: pickedPet,
   })
 }
 function refreshSaveDirty() {
@@ -1954,12 +2036,19 @@ function refreshSaveDirty() {
   const b = el('set-save')
   b.classList.toggle('dirty', dirty)
   b.disabled = !dirty // nothing to save, nothing to click
+  paintSettingsFooter(dirty)
+}
+// nothing changed: a single Done; once something has, Cancel and Save
+function paintSettingsFooter(dirty) {
+  el('settings').classList.toggle('dirty', dirty)
+  el('set-cancel').textContent = dirty ? 'Cancel' : 'Done'
 }
 function clearSaveDirty() {
   settingsBaseline = snapshotSettings()
   const b = el('set-save')
   b.classList.remove('dirty')
   b.disabled = true
+  paintSettingsFooter(false)
 }
 function reflectAlertsOn() {
   el('set-rows').classList.toggle('alerts-off', !el('set-alerts').checked)
@@ -1989,6 +2078,14 @@ function populateSettings() {
   el('set-talk').checked = c.talk !== false
   el('set-sound').checked = !!c.sound
   reflectTalkOn()
+  pickedPet = Pets.findPet(c.pet) ? c.pet : Pets.DEFAULT_PET
+  paintPetPicker()
+  const visiting = Pets.findPet(Pets.seasonalPet())
+  el('pet-season').hidden = !visiting
+  if (visiting) {
+    el('pet-season').textContent =
+      `${visiting.name} takes over for the holiday, then your pick comes back.`
+  }
   clearSaveDirty() // fields now match the saved config
 }
 // `provider` opens that service's connection card straight away
@@ -1996,10 +2093,42 @@ function openSettings(provider = null) {
   hideBubble()
   setDisplaySize('expanded', false)
   populateSettings()
+  showSettingsTab(typeof provider === 'string' ? 'accounts' : settingsTab)
   if (typeof provider === 'string') openConnection(provider)
   document.body.classList.add('settings-open')
-  fitSize()
+  fitSize(true)
 }
+
+// Settings tabs: one pane at a time, each at its own height, and the window
+// eases between them rather than keeping the tallest one's empty space
+let settingsTab = 'accounts'
+function showSettingsTab(tab) {
+  const changed = tab !== settingsTab
+  settingsTab = tab
+  for (const b of document.querySelectorAll('.set-tab')) {
+    const on = b.dataset.tab === tab
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-selected', String(on))
+    b.tabIndex = on ? 0 : -1
+    el(`pane-${b.dataset.tab}`).classList.toggle('on', on)
+  }
+  if (changed && document.body.classList.contains('settings-open')) fitSize(true)
+}
+for (const b of document.querySelectorAll('.set-tab')) {
+  b.addEventListener('click', () => showSettingsTab(b.dataset.tab))
+}
+// arrow keys move between tabs, as a tablist should
+el('set-tabs').addEventListener('keydown', (e) => {
+  const tabs = [...document.querySelectorAll('.set-tab')]
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key]
+  if (!step) return
+  const next =
+    tabs[(tabs.findIndex((t) => t.dataset.tab === settingsTab) + step + tabs.length) % tabs.length]
+  showSettingsTab(next.dataset.tab)
+  next.focus()
+  e.preventDefault()
+})
+showSettingsTab(settingsTab)
 
 // Settings → Connections: a tile per service says whether it's on (a check and
 // its plan); a click opens its card underneath, one at a time
@@ -2049,10 +2178,13 @@ function closeSettings() {
   document.body.classList.remove('settings-open')
   document.body.classList.add('settings-closing')
   clearTimeout(closingTimer)
-  closingTimer = setTimeout(() => document.body.classList.remove('settings-closing'), 600)
+  closingTimer = setTimeout(() => document.body.classList.remove('settings-closing'), 420)
   clearSaveDirty()
   applyZoom(currentConfig?.zoom != null ? currentConfig.zoom : 100) // undo the preview
-  fitSize()
+  pickedPet = null
+  el('pet-modal').hidden = true
+  refreshPet()
+  fitSize(true)
 }
 el('gear').addEventListener('click', () => {
   if (document.body.classList.contains('settings-open')) closeSettings()
@@ -2073,6 +2205,74 @@ for (const b of document.querySelectorAll('.num-btn')) {
     if (input.id === 'set-zoom') previewZoom()
   })
 }
+// the pet picker: one button per pet, grouped by pack; a click previews it
+function clauddyThumb() {
+  // one path per colour: separate squares leave hairline seams when scaled
+  const cells = (pick) =>
+    SPRITE.flatMap((row, r) =>
+      [...row].map((ch, c) => (pick(ch) ? `M${c} ${r}h1v1h-1z` : '')),
+    ).join('')
+  return `<svg viewBox="-1 -1 12 11" aria-hidden="true"><path d="${cells((ch) => ch !== '.')}" fill="var(--pixel)"/><path d="${cells((ch) => ch === 'o')}" fill="var(--eye)"/></svg>`
+}
+function buildPetPicker() {
+  for (const pack of Pets.PACKS) {
+    const pets = Pets.PETS.filter((p) => p.pack === pack.id)
+    if (pack.id === 'everyday') pets.unshift(Pets.findPet(Pets.DEFAULT_PET))
+    const group = document.createElement('div')
+    group.innerHTML = `<div class="pet-pack-name">${pack.name}</div><div class="pet-grid"></div>`
+    for (const pet of pets) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'pet-opt'
+      b.dataset.pet = pet.id
+      b.setAttribute('role', 'radio')
+      b.setAttribute('aria-label', pet.name)
+      b.innerHTML =
+        pet.id === Pets.DEFAULT_PET ? clauddyThumb() : Pets.petMarkup(pet.id, `th-${pet.id}-`)
+      b.addEventListener('click', () => {
+        pickedPet = pet.id
+        paintPetPicker()
+        showPet(pet.id)
+        refreshSaveDirty()
+        closePetModal()
+      })
+      group.querySelector('.pet-grid').appendChild(b)
+    }
+    el('set-pet').appendChild(group)
+  }
+}
+function paintPetPicker() {
+  for (const b of el('set-pet').querySelectorAll('.pet-opt')) {
+    const on = b.dataset.pet === pickedPet
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-checked', String(on))
+  }
+  // the row shows the pick; the full catalog waits behind the pencil
+  const pet = Pets.findPet(pickedPet)
+  el('pet-current-name').textContent = pet?.name || ''
+  el('pet-current-thumb').innerHTML =
+    pickedPet === Pets.DEFAULT_PET ? clauddyThumb() : Pets.petMarkup(pickedPet, 'cur-')
+}
+function openPetModal() {
+  el('pet-modal').hidden = false
+  ;(el('set-pet').querySelector('.pet-opt.on') || el('set-pet').querySelector('.pet-opt'))?.focus()
+}
+function closePetModal() {
+  if (el('pet-modal').hidden) return
+  el('pet-modal').hidden = true
+  el('pet-edit').focus()
+}
+buildPetPicker()
+el('pet-edit').addEventListener('click', openPetModal)
+el('pet-modal-close').addEventListener('click', closePetModal)
+// a click on the dimmed backdrop, outside the card, puts it away too
+el('pet-modal').addEventListener('click', (e) => {
+  if (e.target === el('pet-modal')) closePetModal()
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePetModal()
+})
+
 // light up Save whenever an editable field changes
 for (const id of [
   'set-alerts',
@@ -2118,7 +2318,11 @@ el('set-save').addEventListener('click', () => {
     zoom,
     talk: el('set-talk').checked,
     sound: el('set-sound').checked,
+    pet: pickedPet,
   })
+  const saved = pickedPet
+  pickedPet = null
+  showPet(Pets.activePet(saved))
   clearSaveDirty()
   document.body.classList.remove('settings-open')
   fitSize()
@@ -2140,7 +2344,6 @@ el('pet').addEventListener('click', () => {
 })
 
 // eyes follow the cursor
-const eyesG = el('eyes')
 window.addEventListener('mousemove', (e) => {
   const b = document.body.classList
   if (b.contains('state-sleeping') || b.contains('state-tired')) return
@@ -2148,13 +2351,10 @@ window.addEventListener('mousemove', (e) => {
   const dx = e.clientX - (r.left + r.width / 2)
   const dy = e.clientY - (r.top + r.height / 2)
   const len = Math.hypot(dx, dy) || 1
-  eyesG.setAttribute(
-    'transform',
-    `translate(${((dx / len) * 3).toFixed(2)} ${((dy / len) * 2).toFixed(2)})`,
-  )
+  lookAt(((dx / len) * 3).toFixed(2), ((dy / len) * 2).toFixed(2))
 })
 window.addEventListener('mouseout', (e) => {
-  if (!e.relatedTarget) eyesG.setAttribute('transform', 'translate(0 0)')
+  if (!e.relatedTarget) lookAt(0, 0)
 })
 
 // welcome wave
@@ -2188,5 +2388,7 @@ if (typeof module === 'object' && module.exports) {
     paintCompanion,
     activityTracker,
     blipper,
+    showPet,
+    refreshPet,
   }
 }

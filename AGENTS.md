@@ -19,6 +19,7 @@ A cute pixel-art desktop pet (Electron) that tracks Claude Code usage: real sess
 - `codex.js` — reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (limits %, tokens, 30-day history). Opt-in from Settings (`config.codex.enabled`); with more than one service connected, tabs under the pet pick which one the whole panel shows
 - `cursor.js` — Cursor: usage % from Cursor's (unofficial) dashboard API with the token the Cursor app keeps in its `state.vscdb` (read via `node:sqlite`, `bun:sqlite` in tests), activity from the agent transcripts under `~/.cursor/projects`. Monthly billing cycle, no tokens. Opt-in from Settings (`config.cursor.enabled`)
 - `reminders.js` — persistent, one-shot session reset reminders, keyed by provider and Claude account
+- `renderer/pets.js` + `renderer/pets.css` — the selectable pets beyond the classic sprite (vector SVG drawn in code, grouped in packs) and the holiday rule. The chosen id is `config.pet`
 - `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
 - `renderer/companion.js` — provider activity transitions, with a shared cooldown
 - `renderer/voice.js` — the pet's voice: remark lines for the speech bubble and the chiptune blips (Web Audio square waves, no assets). Talk is on by default, sound is opt-in (`config.sound`) and silent in menu-bar mode, collapsed, or muted
@@ -52,7 +53,7 @@ bun run test:coverage
 
 `bun run test` — three processes, not plain `bun test`:
 
-- `test/unit/` — `usage.js`, `auth.js`, `codex.js`, `cursor.js`, `renderer/burn.js`, `renderer/voice.js`, `renderer/companion.js` (no mocks)
+- `test/unit/` — `usage.js`, `auth.js`, `codex.js`, `cursor.js`, `renderer/burn.js`, `renderer/voice.js`, `renderer/companion.js`, `renderer/pets.js` (no mocks)
 - `test/main/` — `main.js`, with `reminders.js` through it (mocks `electron`, `./usage`, `./auth`, `./codex`, `./cursor`)
 - `test/dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
 
@@ -60,7 +61,7 @@ Split because bun mocks are per-runtime and it loads every test file before runn
 
 `bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js` without coverage. Runs on every PR.
 
-`pet.js`, `burn.js`, `voice.js` and `companion.js` end with a `module.exports` guard so one file works as a `<script>` in the widget and as an import in the tests.
+`pet.js`, `burn.js`, `voice.js`, `companion.js` and `pets.js` end with a `module.exports` guard so one file works as a `<script>` in the widget and as an import in the tests.
 
 > `main.js`'s update path spawns `curl … | bash` — always stub `child_process.spawn`, or it installs over the running app.
 
@@ -110,11 +111,12 @@ Examples:
 
 ## Companion behavior
 
-- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage remembers the choice. Pet-only is floating-mode only; hovering over the pet (or focusing it) fades a usage glance in below it, within fixed window bounds, without resizing or moving the window.
+- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage remembers the choice. Pet-only is floating-mode only; hovering over the pet (or focusing it) shows a usage glance above it, drawn as the pet's own speech bubble and placed once per show just over the pet's head, within fixed window bounds, without resizing or moving the window.
 - In pet-only mode, the sprite is a native Electron drag region. The expand button inside the glance opens compact, and so does Enter on the focused pet. Pointer clicks on the sprite do not change size. Main sends window-relative cursor coordinates only in this mode, and only when they change: native drag regions suppress DOM hover events. Keep logo descriptions accessible, without visible activity captions or native title tooltips.
 - Session reset reminders are explicitly requested, separate from threshold notifications. They run while Clauddy is open and catch up after sleep/restart. They persist before firing, cancel on disconnect/removal, and are account-scoped.
 - A deadline alone does not prove a new budget. Only a fresh, lower reading after that deadline earns “budget is back”; otherwise say the reset time arrived. Codex logs and Cursor fetches can be stale. Never substitute an expired reading with zero.
 - Compact and pet-only moods follow activity across connected providers, independently of the selected usage tab. Logos identify the workers; simultaneous work uses a stable generic working animation. With no active sources, the hottest connected session sets the mood: on fire past the fire threshold, maxed out at 100%, otherwise rest. The logo of the service on fire (or maxed out) takes the status dot's place. Cursor's session is its billing month. An expired Codex or Cursor reading doesn't count. Stale activity and disconnected sources are ignored.
 - Working means an open turn, not a recent write: Claude Code and Cursor write nothing while a command runs or the model thinks. Claude's turn closes on a final answer (`end_turn`, then `system/turn_duration`) or `[Request interrupted by user`; Cursor's on `turn_ended`. Slash commands, `!` shell input, task notices and meta lines open nothing. An open turn untouched for 30 minutes counts as abandoned; a tail that says nothing falls back to the recent-write window.
+- Pets: the classic sprite stays in `#claude`; another pet is drawn inside it as `#skin`, so the mood animations on `#claude` keep working. While working, a pet swaps the shared hop for its own move (`pet-move-*`). Its parts only animate under `#skin`, so Settings thumbnails stay still. Seasonal packs override the saved pick on their days (Halloween 10/31, Christmas 12/24–25), one pet per pack and year, picked by a hash and not stored.
 - Provider cues are a glance of the pet's eyes toward the provider, never a caption. They preserve manual selection and do not claim task completion from inactivity. First reads establish a baseline; cues share a 30-second cooldown.
 - `AGENTS.md` is the single source of project instructions.
