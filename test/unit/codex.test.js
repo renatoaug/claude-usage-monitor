@@ -38,6 +38,7 @@ beforeEach(() => {
   fs.rmSync(path.join(root, 'sessions'), { recursive: true, force: true })
   fs.mkdirSync(dayDir, { recursive: true })
   codex.setCodexDir(root)
+  codex.setCodexBin(false) // never spawn the real Codex
 })
 afterAll(() => fs.rmSync(root, { recursive: true, force: true }))
 
@@ -175,5 +176,105 @@ describe('detectCodex', () => {
   test('a session without limits is found, plan unknown', () => {
     write('rollout-g.jsonl', [tokenCount('2026-09-12T10:00:00Z', 10, PREMIUM)])
     expect(codex.detectCodex()).toEqual({ found: true, plan: null })
+  })
+})
+
+describe('live limits', () => {
+  const LIVE_RESULT = {
+    rateLimitsByLimitId: {
+      codex: {
+        planType: 'prolite',
+        primary: { usedPercent: 40, windowDurationMins: 10080, resetsAt: NOW / 1000 + 86400 },
+        secondary: null,
+      },
+    },
+  }
+  // a stand-in app-server: answers initialize, then the given read response
+  function stubBin(readResponse) {
+    const f = path.join(root, `stub-${Math.random().toString(36).slice(2)}`)
+    fs.writeFileSync(
+      f,
+      `#!/bin/sh
+echo "$1" > "$0.args"
+echo run >> "$0.runs"
+echo "$CODEX_HOME" > "$0.home"
+while read -r line; do
+  case "$line" in
+    *'"id":1'*) echo 'noise'; echo '{"id":1,"result":{}}' ;;
+    *'"id":2'*) printf '%s\\n' '${JSON.stringify(readResponse)}' ;;
+  esac
+done
+`,
+      { mode: 0o755 },
+    )
+    return f
+  }
+  const stale = () =>
+    write('rollout-l.jsonl', [
+      tokenCount('2026-09-12T10:00:00Z', 10, {
+        plan_type: 'prolite',
+        primary: { used_percent: 85, window_minutes: 10080, resets_at: NOW / 1000 + 3600 },
+        secondary: null,
+      }),
+    ])
+
+  test('a live reading beats an older rollout', async () => {
+    stale()
+    const bin = stubBin({ id: 2, result: LIVE_RESULT })
+    codex.setCodexBin(bin)
+    await codex.refreshLimits(NOW)
+    const u = codex.getCodexUsage(NOW)
+    expect(u.session.pct).toBe(40)
+    expect(u.weeklyOnly).toBe(true)
+    expect(u.plan).toBe('prolite')
+    expect(u.limitsAt).toBe(NOW)
+    expect(fs.readFileSync(`${bin}.args`, 'utf8').trim()).toBe('app-server')
+    expect(fs.readFileSync(`${bin}.home`, 'utf8').trim()).toBe(root)
+  })
+
+  test('falls back to the single bucket when it is not keyed', async () => {
+    stale()
+    const { codex: only } = LIVE_RESULT.rateLimitsByLimitId
+    codex.setCodexBin(stubBin({ id: 2, result: { rateLimits: only } }))
+    await codex.refreshLimits(NOW)
+    expect(codex.getCodexUsage(NOW).session.pct).toBe(40)
+  })
+
+  test('a rollout newer than the live read wins', async () => {
+    write('rollout-l.jsonl', [tokenCount('2026-09-12T19:30:00Z', 10, CODEX_LIMITS)])
+    codex.setCodexBin(stubBin({ id: 2, result: LIVE_RESULT }))
+    await codex.refreshLimits(NOW - 3600000)
+    expect(codex.getCodexUsage(NOW).session.pct).toBe(40)
+    expect(codex.getCodexUsage(NOW).weekly.pct).toBe(31)
+  })
+
+  test('a failed read keeps the last good one', async () => {
+    stale()
+    codex.setCodexBin(stubBin({ id: 2, result: LIVE_RESULT }))
+    await codex.refreshLimits(NOW)
+    codex.setCodexBin(stubBin({ id: 2, error: { message: 'not logged in' } }))
+    await codex.refreshLimits(NOW + 1)
+    expect(codex.getCodexUsage(NOW).session.pct).toBe(40)
+  })
+
+  test('a missing binary falls back to the logs', async () => {
+    stale()
+    codex.setCodexBin(path.join(root, 'no-such-codex'))
+    await codex.refreshLimits(NOW)
+    expect(codex.getCodexUsage(NOW).session.pct).toBe(85)
+  })
+
+  test('getCodexUsage asks at most once per interval', async () => {
+    stale()
+    const bin = stubBin({ id: 2, result: LIVE_RESULT })
+    codex.setCodexBin(bin)
+    codex.getCodexUsage(NOW)
+    codex.getCodexUsage(NOW + 60000)
+    await Bun.sleep(300)
+    expect(fs.readFileSync(`${bin}.runs`, 'utf8').trim().split('\n')).toHaveLength(1)
+    expect(codex.getCodexUsage(NOW + 60000).session.pct).toBe(40)
+    codex.getCodexUsage(NOW + 120000)
+    await Bun.sleep(300)
+    expect(fs.readFileSync(`${bin}.runs`, 'utf8').trim().split('\n')).toHaveLength(2)
   })
 })
