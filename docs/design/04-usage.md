@@ -25,12 +25,13 @@ A personal Pro and a work Max, say. The **account chip** in the top-left corner 
 
 ## Codex
 
-[Codex](https://openai.com/codex) (the CLI and the desktop app) is opt-in ([ADR-004](../decisions/ADR-004-codex-and-cursor-are-opt-in.md)): **⚙ Settings → Accounts → Codex → Connect** looks for a Codex session on this computer and starts if it finds one. There is nothing to log into: Codex writes its tokens and rate limits to `~/.codex/sessions` (or `$CODEX_HOME`), and Clauddy only reads them.
+[Codex](https://openai.com/codex) (the CLI and the desktop app) is opt-in ([ADR-004](../decisions/ADR-004-codex-and-cursor-are-opt-in.md)): **⚙ Settings → Accounts → Codex → Connect** looks for a Codex session on this computer and starts if it finds one. There is nothing to log into: Codex writes its tokens to `~/.codex/sessions` (or `$CODEX_HOME`) and Clauddy only reads them. The % comes from whichever is newer, those logs or Codex's own app-server, asked every 2 minutes ([ADR-011](../decisions/ADR-011-codex-limits-from-the-app-server.md)).
 
 With more than one service connected, **tabs under the pet** pick which one the panel shows; the other tab keeps its % and gets a **!** past an alert threshold. Minimized, the ring becomes one line per service.
 
-- **The % moves only while Codex runs.** Its logs are written during a session, so an idle Codex shows its last reading with its age (`read 1h 30m ago`), and the usage bar under it goes dotted. A window that reset since then shows **—**, never a made-up 0%.
-- **It can lag the account page**: the limits are shared with other ChatGPT products that do not write these logs.
+- **The % follows the whole plan.** The limits are shared with other ChatGPT products, such as Dot, that do not write these logs; the app-server sees that spending. Clauddy starts the desktop app's bundled CLI, or `codex` from the PATH.
+- **Without the app-server, the % moves only while Codex runs.** An app-server that can't be started or answers with an error leaves the logs and the last good reading, shown with its age (`read 1h 30m ago`) and a dotted usage bar. A window that reset since then shows **—**, never a made-up 0%.
+- **Tokens and history cover local sessions only**: products that write no logs add to the % and not to the token counts.
 - **No burn rate and no activity scenes**: the logs do not carry enough to draw them honestly.
 - A plan with only a weekly window shows one weekly meter.
 

@@ -1,16 +1,26 @@
+const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 
 // Codex (CLI and the desktop app alike) writes one `rollout-*.jsonl` per
 // session under ~/.codex/sessions/YYYY/MM/DD. Its `token_count` events carry
-// both the token totals and the account's rate limits, so everything here comes
-// from local files — no login needed.
+// both the token totals and the account's rate limits, so the tokens and history
+// come from local files. Other ChatGPT products share those limits without
+// writing rollouts, so the % also comes from Codex's own app-server.
 let codexDir = process.env.CODEX_HOME || path.join(os.homedir(), '.codex')
 
 function setCodexDir(dir) {
   codexDir = dir || process.env.CODEX_HOME || path.join(os.homedir(), '.codex')
   fileCache.clear()
+  liveLimits = null
+  lastLiveTry = 0
+  lastLiveFailed = false
+}
+
+// tests point this at a stub; false turns the live read off
+function setCodexBin(bin) {
+  codexBin = bin
 }
 
 const DAY = 86400000
@@ -19,6 +29,14 @@ const WEEK = 7 * DAY
 const ACTIVE_MS = 60000 // a rollout touched within the last minute = Codex working
 const DAY_MIN = 24 * 60
 const TOP_PROJECTS = 5 // same fold as Claude's panel
+const LIVE_MS = 2 * 60000 // how often to ask the app-server for the limits
+const LIVE_RETRY_MS = 5 * 60000 // a process spawn per try: back off when it fails
+const LIVE_TIMEOUT_MS = 15000
+
+let codexBin
+let liveLimits = null
+let lastLiveTry = 0
+let lastLiveFailed = false
 
 // per file: how far we've read, plus what we got out of it. Rollouts only ever
 // grow, so a poll reads just the bytes appended since the last one.
@@ -49,6 +67,94 @@ function limitsOf(rl, ts) {
     else session = v
   }
   return { ts, plan: rl.plan_type || null, session, weekly }
+}
+
+// the app-server reports the same windows as the rollouts, in camelCase
+function limitsFromLive(result, ts) {
+  const rl = result?.rateLimitsByLimitId?.codex || result?.rateLimits
+  if (!rl) return null
+  const win = (w) =>
+    w && {
+      used_percent: w.usedPercent,
+      window_minutes: w.windowDurationMins,
+      resets_at: w.resetsAt,
+    }
+  return limitsOf(
+    { primary: win(rl.primary), secondary: win(rl.secondary), plan_type: rl.planType },
+    ts,
+  )
+}
+
+// the desktop app's bundled CLI first: a GUI app doesn't get the shell's PATH
+function findCodexBin() {
+  if (codexBin !== undefined) return codexBin
+  const home = os.homedir()
+  const bundled = ['/Applications', path.join(home, 'Applications')].flatMap((dir) => [
+    path.join(dir, 'ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex'),
+    path.join(dir, 'Codex.app/Contents/Resources/codex'),
+  ])
+  return bundled.find((f) => fs.existsSync(f)) || 'codex'
+}
+
+// One `account/rateLimits/read` over the app-server's stdio JSON-RPC. Codex keeps
+// its own login and token refresh: Clauddy never touches the token.
+function readLiveLimits(bin, ts) {
+  return new Promise((resolve) => {
+    let child
+    try {
+      child = spawn(bin, ['app-server'], {
+        env: { ...process.env, CODEX_HOME: codexDir },
+        stdio: ['pipe', 'pipe', 'ignore'],
+      })
+    } catch {
+      resolve(null)
+      return
+    }
+    const finish = (limits) => {
+      clearTimeout(timer)
+      child.kill()
+      resolve(limits)
+    }
+    const timer = setTimeout(() => finish(null), LIVE_TIMEOUT_MS)
+    const send = (msg) => child.stdin.write(`${JSON.stringify(msg)}\n`)
+    child.on('error', () => finish(null))
+    child.on('exit', () => finish(null))
+    child.stdin.on('error', () => finish(null))
+    let rest = ''
+    child.stdout.on('data', (chunk) => {
+      const lines = (rest + chunk).split('\n')
+      rest = lines.pop()
+      for (const line of lines) {
+        let msg
+        try {
+          msg = JSON.parse(line)
+        } catch {
+          continue
+        }
+        if (msg.id === 1) {
+          send({ method: 'initialized' })
+          send({ id: 2, method: 'account/rateLimits/read' })
+        } else if (msg.id === 2) finish(limitsFromLive(msg.result, ts))
+      }
+    })
+    send({
+      id: 1,
+      method: 'initialize',
+      params: { clientInfo: { name: 'clauddy', version: '0' } },
+    })
+  })
+}
+
+// A failed read keeps the last good one: it ages into stale, never into zero.
+async function refreshLimits(now = Date.now()) {
+  const bin = findCodexBin()
+  if (!bin) return
+  lastLiveTry = now
+  const dir = codexDir
+  const limits = await readLiveLimits(bin, now)
+  if (dir !== codexDir) return // the source changed while this one was running
+  lastLiveFailed = !limits
+  if (limits) liveLimits = limits
 }
 
 function ingestLine(sum, line) {
@@ -164,6 +270,7 @@ function ranked(map) {
 
 function getCodexUsage(now = Date.now()) {
   if (!fs.existsSync(path.join(codexDir, 'sessions'))) return null
+  if (now - lastLiveTry >= (lastLiveFailed ? LIVE_RETRY_MS : LIVE_MS)) refreshLimits(now)
   const startOfDay = new Date(now).setHours(0, 0, 0, 0)
   const start30 = startOfDay - (DAYS - 1) * DAY
   const files = rollouts(start30)
@@ -199,6 +306,8 @@ function getCodexUsage(now = Date.now()) {
       }
     }
   }
+  // whichever is newer: a rollout written after the last live read beats it
+  if (liveLimits && (!limits || liveLimits.ts >= limits.ts)) limits = liveLimits
   // forget files that aged out of the window
   for (const f of fileCache.keys()) if (!seen.has(f)) fileCache.delete(f)
 
@@ -233,4 +342,4 @@ function getCodexUsage(now = Date.now()) {
   }
 }
 
-module.exports = { getCodexUsage, detectCodex, setCodexDir }
+module.exports = { getCodexUsage, refreshLimits, detectCodex, setCodexDir, setCodexBin }

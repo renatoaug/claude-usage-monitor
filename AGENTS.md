@@ -16,7 +16,7 @@ Clauddy is a pixel-art desktop pet (Electron) that tracks Claude Code usage: the
 - `usage.js` — reads `~/.claude/projects/**/*.jsonl` (tokens, session window, activity)
 - `auth.js` — OAuth (PKCE) login + authoritative usage % fetch
 - `accounts.js` — the account list (several subscriptions, one active at a time)
-- `codex.js` — reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (limits %, tokens, 30-day history). Opt-in from Settings (`config.codex.enabled`); with more than one service connected, tabs under the pet pick which one the whole panel shows
+- `codex.js` — reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (limits %, tokens, 30-day history) and asks `codex app-server` for the current limits, which other ChatGPT products also spend. Opt-in from Settings (`config.codex.enabled`); with more than one service connected, tabs under the pet pick which one the whole panel shows
 - `cursor.js` — Cursor: usage % from Cursor's (unofficial) dashboard API with the token the Cursor app keeps in its `state.vscdb` (read via `node:sqlite`, `bun:sqlite` in tests), activity from the agent transcripts under `~/.cursor/projects`. Monthly billing cycle, no tokens. Opt-in from Settings (`config.cursor.enabled`)
 - `reminders.js` — persistent, one-shot session reset reminders, keyed by provider and Claude account
 - `renderer/pets.js` + `renderer/pets.css` — the selectable pets beyond the classic sprite (vector SVG drawn in code, grouped in packs) and the holiday rule. The chosen id is `config.pet`

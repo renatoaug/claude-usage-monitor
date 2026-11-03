@@ -44,7 +44,7 @@ The **percentages** come from each service's own account ([usage](04-usage.md)).
 | `usage.js` | Reads `~/.claude/projects/**/*.jsonl` incrementally: tokens, the 5-hour session window, whether a turn is open, the current activity |
 | `auth.js` | OAuth login (PKCE) and the call that returns the account's real session and weekly % |
 | `accounts.js` | The account list: several Claude subscriptions, one active at a time |
-| `codex.js` | Reads Codex's `~/.codex/sessions/**/rollout-*.jsonl`: limits, tokens, 30-day history |
+| `codex.js` | Reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (tokens, 30-day history, limits) and asks its app-server for the current limits |
 | `cursor.js` | Cursor: usage % from its dashboard API with the token the Cursor app keeps in `state.vscdb`, activity from `~/.cursor/projects` |
 | `reminders.js` | One-shot session reset reminders, kept on disk, keyed by provider and account |
 | `renderer/index.html`, `pet.js`, `style.css`, `motion.css` | The widget: the pet, the panel, Settings, every size |
@@ -73,7 +73,7 @@ Everything Clauddy keeps lives in `~/.claude-usage-monitor/`, on every platform 
 | `debug.json` | The simulator's forced state |
 | `accounts/<id>/` | `auth.json` and `alerts.json` of each extra account; the first account keeps the top-level files |
 
-With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions`. With Cursor connected, it reads the Cursor app's login and `~/.cursor/projects`, also without writing. Nothing leaves the machine except the OAuth and usage calls to Anthropic and, with Cursor connected, the usage calls to Cursor with the Cursor app's token.
+With Codex connected, Clauddy also reads (never writes) `~/.codex/sessions` and starts Codex's app-server, which asks OpenAI for the limits with Codex's own login. With Cursor connected, it reads the Cursor app's login and `~/.cursor/projects`, also without writing. Clauddy itself sends nothing else: only the OAuth and usage calls to Anthropic and, with Cursor connected, the usage calls to Cursor with the Cursor app's token.
 
 ## Tests
 
