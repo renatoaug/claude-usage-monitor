@@ -226,7 +226,7 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32) {
     let gy = group_label(&p, left, y, "pet");
     let rows = group(&p, left, right, gy, 1);
     let thumb = Rect::from_center_size(Pos2::new(left + 22.0, rows[0]), Vec2::splat(22.0));
-    f.pet.draw_fit(&p, thumb, crate::components::pet::Mood::Idle);
+    let _ = f.pet.draw_fit(&p, thumb, crate::components::pet::Mood::Idle);
     text_mid(&p, left + 40.0, rows[0], Align::Min, "Clauddy", text::BODY, color::ROW_LABEL);
     text_mid(&p, right - 10.0, rows[0], Align::Max, "Change", text::BODY, color::ADD.gamma_multiply(0.4));
 

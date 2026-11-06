@@ -64,7 +64,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     let column = Rect::from_min_max(above.left_top(), Pos2::new(above.left() + STAGE.x, above.bottom()));
     halo(p, column, color::CLAUDE_BAR.gamma_multiply(0.06));
-    f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
+    let _ = f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
     let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
     caption(p, ctx, f.logos, column.center().x, line_y, f.mood, activity);
 

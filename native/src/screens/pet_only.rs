@@ -29,12 +29,14 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, glance_override: Option<bool>) ->
     if resp.drag_started() {
         ctx.send_viewport_cmd(ViewportCommand::StartDrag);
     }
-    f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(5.0, 10.0)), f.mood);
+    let body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(5.0, 10.0)), f.mood);
 
     // the glance, while the pointer is over the window
     let over = glance_override.unwrap_or_else(|| ctx.input(|i| i.pointer.hover_pos().is_some()));
     let shown = ctx.animate_bool_with_time(ui.scope_id().with("glance"), over, 0.16);
-    if shown > 0.0 && glance(ui, f.logos, stage.center().x, rect.top() + 10.0, &compact::rows(f), shown) {
+    // just above the head, but never off the top of the window
+    let tip = (body.top() - 4.0).max(rect.top() + 4.0 + crate::components::glance::HEIGHT);
+    if shown > 0.0 && glance(ui, f.logos, body.center().x, tip, &compact::rows(f), shown) {
         actions.push(Action::Resize(Size::Compact));
     }
     if ctx.input(|i| i.key_pressed(Key::Enter)) {

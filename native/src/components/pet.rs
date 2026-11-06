@@ -78,7 +78,8 @@ impl Pet {
     /// desk scene by its whole art, a standing mood by its body alone, so
     /// switching moods doesn't move it (Zz may spill past `space`; the flames
     /// are fitted whole, so they never cover the title band).
-    pub fn draw_fit(&self, painter: &Painter, space: Rect, mood: Mood) {
+    /// Returns where the body landed, for things that sit on or above it.
+    pub fn draw_fit(&self, painter: &Painter, space: Rect, mood: Mood) -> Rect {
         let frame = sprite::at(mood.seq(), self.t()).0;
         // where the art sits inside a frame, as fractions (measured)
         let (sheet, art) = match mood {
@@ -90,6 +91,7 @@ impl Pet {
         let side = (space.width() / art.width()).min(space.height() / art.height());
         let min = space.center() - art.center().to_vec2() * side;
         sheet.draw(painter, Rect::from_min_size(min, Vec2::splat(side)), frame);
+        Rect::from_min_max(min + art.min.to_vec2() * side, min + art.max.to_vec2() * side)
     }
 
     /// Draw the pet in `area`. The desk scene fills the area's width and sits
