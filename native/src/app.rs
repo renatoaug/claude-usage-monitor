@@ -266,13 +266,6 @@ impl App {
                 Action::HidePopover => self.close_popover(ctx),
                 Action::CheckUpdates => self.updater.check(),
                 Action::InstallUpdate => self.updater.install(),
-                Action::ToggleMute => {
-                    let now = crate::usage::now_ms();
-                    let until = if self.prefs.muted_until > now { 0 } else { now + 3_600_000 };
-                    self.prefs.muted_until = until;
-                    self.draft.muted_until = until;
-                    self.prefs.save();
-                }
                 Action::DismissBubble => {
                     if let Some(s) = &mut self.said {
                         s.until = s.until.min(Instant::now());
@@ -588,7 +581,6 @@ impl eframe::App for App {
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
             bubble,
             update: self.updater.state(),
-            mute: (self.prefs.talk && self.prefs.sound && !self.prefs.menu_bar).then(|| self.prefs.muted_until > crate::usage::now_ms()),
         };
 
         // the areas that take the pointer; clicks anywhere else fall through

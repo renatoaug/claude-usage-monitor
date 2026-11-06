@@ -50,10 +50,6 @@ pub const LOG_OUT: Glyph = &[
     &[(16., 17.), (21., 12.), (16., 7.)],
     &[(21., 12.), (9., 12.)],
 ];
-const SPEAKER_BODY: &[(f32, f32)] = &[(11., 5.), (6., 9.), (2., 9.), (2., 15.), (6., 15.), (11., 19.), (11., 5.)];
-pub const SPEAKER: Glyph =
-    &[SPEAKER_BODY, &[(15.5, 8.5), (16.8, 10.2), (17., 12.), (16.8, 13.8), (15.5, 15.5)], &[(19., 5.), (21.2, 8.2), (22., 12.), (21.2, 15.8), (19., 19.)]];
-pub const SPEAKER_OFF: Glyph = &[SPEAKER_BODY, &[(22., 9.), (16., 15.)], &[(16., 9.), (22., 15.)]];
 pub const CHEVRON_DOWN: Glyph = &[&[(7., 10.), (12., 15.), (17., 10.)]];
 
 /// Draw `glyph` centred on `center`, `size` points across.

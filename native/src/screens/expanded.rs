@@ -322,10 +322,6 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
         buttons.push(("minimize", icon::MINIMIZE, Action::Resize(Size::Compact)));
         buttons.push(("pet-only", icon::PET, Action::Resize(Size::PetOnly)));
     }
-    // one click before a call: the voice goes quiet for an hour
-    if let Some(muted) = f.mute {
-        buttons.push(("mute", if muted { icon::SPEAKER_OFF } else { icon::SPEAKER }, Action::ToggleMute));
-    }
     buttons.push(("usage", icon::EXTERNAL, Action::OpenUsagePage));
     buttons.push(("settings", icon::GEAR, Action::ToggleSettings));
     let glyphs: Vec<_> = buttons.iter().map(|b| (b.0, b.1)).collect();

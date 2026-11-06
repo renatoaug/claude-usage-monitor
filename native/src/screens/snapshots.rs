@@ -111,7 +111,6 @@ fn render_inner(case: Case, draft: Prefs) {
                 .name
                 .ends_with("-talking")
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
-            mute: case.name.ends_with("-talking").then_some(false),
             update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
         };
         size(&f)
@@ -135,7 +134,6 @@ fn render_inner(case: Case, draft: Prefs) {
                 .name
                 .ends_with("-talking")
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
-            mute: case.name.ends_with("-talking").then_some(false),
             update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
         };
         let _ = match (case.view.settings, case.view.size) {

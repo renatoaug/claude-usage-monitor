@@ -64,6 +64,10 @@ impl Updater {
         std::thread::Builder::new()
             .name("updates".into())
             .spawn(move || {
+                // a development build (under target/) is always behind: no nagging dot
+                if std::env::current_exe().is_ok_and(|e| e.components().any(|c| c.as_os_str() == "target")) {
+                    return;
+                }
                 std::thread::sleep(FIRST);
                 loop {
                     if let Ok(tag) = latest_tag() {
