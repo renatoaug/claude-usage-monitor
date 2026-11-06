@@ -61,6 +61,8 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Clauddy")
             .with_inner_size(app::initial_size())
+            // living in the menu bar, the panel waits for a click on the icon
+            .with_visible(!prefs::Prefs::load().menu_bar)
             .with_transparent(true)
             .with_decorations(false)
             .with_has_shadow(false)

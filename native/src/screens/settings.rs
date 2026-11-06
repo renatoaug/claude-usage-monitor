@@ -85,7 +85,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
     match tab {
         Tab::Accounts => accounts(ui, f, left, right, y, code, &mut actions),
         Tab::Alerts => alerts(ui, left, right, y, draft, &mut actions),
-        Tab::Appearance => appearance(ui, f, left, right, y),
+        Tab::Appearance => appearance(ui, f, left, right, y, draft, &mut actions),
     }
     y += pane_h(tab, f.snap);
 
@@ -219,7 +219,7 @@ fn alerts(ui: &Ui, left: f32, right: f32, y: f32, draft: &Prefs, actions: &mut V
 }
 
 // Appearance: what the native app can't change yet is shown, faded.
-fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32) {
+fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, actions: &mut Vec<Action>) {
     let p = ui.painter().clone();
     let row = crate::ui::group::ROW;
 
@@ -234,7 +234,9 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32) {
     let rows = group(&p, left, right, gy, 2);
     row_label(&p, left, rows[0], "Lives in", false);
     let seg = Rect::from_min_size(Pos2::new(right - 10.0 - 140.0, rows[0] - 12.0), Vec2::new(140.0, 24.0));
-    segmented(ui, seg, "lives-in", &["Floating", "Menu bar"], 0, text::SMALL, &[1]);
+    if let Some(i) = segmented(ui, seg, "lives-in", &["Floating", "Menu bar"], draft.menu_bar as usize, text::SMALL, &[]) {
+        actions.push(Action::EditPrefs(Prefs { menu_bar: i == 1, ..draft.clone() }));
+    }
     row_label(&p, left, rows[1], "Zoom", false);
     stepper(ui, right - 10.0, rows[1], "zoom", 100, "%", false);
 

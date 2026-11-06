@@ -36,6 +36,13 @@ pub struct App {
     cursor: crate::platform::cursor::Watch,
     /// whether clicks fall through the window (just the pet, off the pet)
     passthrough: bool,
+    /// the menu-bar icon, while Clauddy lives there
+    tray: Option<crate::platform::tray::Tray>,
+    /// the panel is open under the menu-bar icon; `focused` once it took focus
+    popover: bool,
+    popover_focused: bool,
+    /// the window is shown (it hides while Clauddy lives in the menu bar)
+    shown: bool,
 }
 
 /// Working wins; otherwise the session's heat; otherwise rest.
@@ -54,7 +61,8 @@ pub fn mood_for(usage: Option<&Usage>, session_pct: Option<f64>, fire: f64) -> M
 /// The window's size at launch, from the remembered view, before any reading.
 pub fn initial_size() -> [f32; 2] {
     let view = load_view();
-    match view.size {
+    let size = if Prefs::load().menu_bar { Size::Expanded } else { view.size };
+    match size {
         Size::Compact => compact::size(1),
         Size::Expanded => expanded::size(&Snapshot::default(), &view),
         Size::PetOnly => pet_only::size(),
@@ -108,6 +116,10 @@ impl App {
             shot_sent: false,
             cursor: crate::platform::cursor::Watch::new(&cc.egui_ctx),
             passthrough: false,
+            tray: None,
+            popover: false,
+            popover_focused: false,
+            shown: !Prefs::load().menu_bar,
         }
     }
 
@@ -171,6 +183,78 @@ impl App {
         }
     }
 
+    fn show(&mut self, ctx: &Context, on: bool) {
+        if on != self.shown {
+            self.shown = on;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(on));
+        }
+    }
+
+    /// Open the panel under the menu-bar icon (`icon`: its box, physical px).
+    fn open_popover(&mut self, ctx: &Context, icon: Option<egui::Rect>) {
+        let ppp = ctx.pixels_per_point();
+        if let Some(r) = icon {
+            let x = r.center().x / ppp - self.size[0] / 2.0;
+            let y = r.bottom() / ppp + 2.0;
+            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::pos2(x.round(), y.round())));
+        }
+        self.popover = true;
+        self.popover_focused = false;
+        self.show(ctx, true);
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+    }
+
+    fn close_popover(&mut self, ctx: &Context) {
+        self.popover = false;
+        self.view.account_menu = false;
+        self.show(ctx, false);
+    }
+
+    /// Floating or in the menu bar: put the icon up or take it down, and
+    /// answer what was clicked there.
+    fn menu_bar(&mut self, ctx: &Context, session: Option<f64>) {
+        use crate::platform::tray::{Tray, TrayEvent, title};
+        let wanted = self.prefs.menu_bar;
+        if wanted && self.tray.is_none() {
+            self.tray = Tray::new(ctx);
+            if self.tray.is_some() {
+                self.close_popover(ctx);
+            }
+        } else if !wanted && self.tray.is_some() {
+            self.tray = None;
+            self.popover = false;
+            self.show(ctx, true);
+        }
+        let Some(tray) = &mut self.tray else { return };
+        tray.set_title(&title(session, self.settings.fire_threshold));
+        let events = tray.take_events();
+        let icon = tray.rect();
+        for e in events {
+            match e {
+                TrayEvent::Clicked(r) if self.popover => {
+                    let _ = r;
+                    self.close_popover(ctx);
+                }
+                TrayEvent::Clicked(r) => self.open_popover(ctx, Some(r)),
+                TrayEvent::Open => self.open_popover(ctx, icon),
+                TrayEvent::Floating => {
+                    self.prefs.menu_bar = false;
+                    self.draft.menu_bar = false;
+                    self.prefs.save();
+                }
+                TrayEvent::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            }
+        }
+        // a click anywhere else takes focus away: the popover goes
+        let focused = ctx.input(|i| i.viewport().focused);
+        if self.popover && focused == Some(true) {
+            self.popover_focused = true;
+        }
+        if self.popover && self.popover_focused && focused == Some(false) {
+            self.close_popover(ctx);
+        }
+    }
+
     fn send(&self, cmd: Command) {
         let _ = self.commands.send(cmd);
     }
@@ -207,7 +291,8 @@ impl eframe::App for App {
         let mood = self.pinned.unwrap_or_else(|| mood_for(snap.usage.as_ref(), session.map(|s| s.0), self.settings.fire_threshold));
         let f = Frame { snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
 
-        let (want, actions) = match (self.view.settings, self.view.size) {
+        let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
+        let (want, mut actions) = match (self.view.settings, size) {
             (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
             (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
             (None, Size::Expanded) => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
@@ -221,13 +306,16 @@ impl eframe::App for App {
                 (pet_only::size(), out.actions)
             }
         };
+        if self.prefs.menu_bar {
+            actions.retain(|a| !matches!(a, Action::Resize(_)));
+        }
         // just the pet: clicks off the pet fall through to what's behind
-        let through = self.view.size == Size::PetOnly && self.view.settings.is_none() && !self.cursor.inside(false) && cfg!(target_os = "macos");
+        let through = size == Size::PetOnly && self.view.settings.is_none() && !self.cursor.inside(false) && cfg!(target_os = "macos");
         if through != self.passthrough {
             self.passthrough = through;
             ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(through));
         }
-        if self.view.size != Size::PetOnly {
+        if size != Size::PetOnly {
             self.cursor.watch(None);
         }
         if want != self.size {
@@ -235,6 +323,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
         }
         self.apply(&ctx, actions);
+        self.menu_bar(&ctx, session.map(|s| s.0));
         self.shoot(&ctx);
         ctx.request_repaint_after(self.pet.next_frame(mood).min(Duration::from_secs(30)));
     }

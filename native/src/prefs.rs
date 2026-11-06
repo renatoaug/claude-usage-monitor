@@ -12,11 +12,13 @@ pub struct Prefs {
     pub near_limit: i32,
     /// the session % at which the pet catches fire
     pub fire: i32,
+    /// floating on the desktop, or in the menu bar
+    pub menu_bar: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90 }
+        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false }
     }
 }
 
@@ -38,6 +40,7 @@ impl Prefs {
             heads_up: pct(t.and_then(|a| a.first()).and_then(Value::as_i64), d.heads_up),
             near_limit: pct(t.and_then(|a| a.get(1)).and_then(Value::as_i64), d.near_limit),
             fire: pct(v["fireThreshold"].as_i64(), d.fire),
+            menu_bar: v["mode"].as_str() == Some("menubar"),
         }
         .clamped()
     }
@@ -62,6 +65,7 @@ impl Prefs {
         v["alerts"] = json!(self.alerts);
         v["alertThresholds"] = json!([self.heads_up, self.near_limit]);
         v["fireThreshold"] = json!(self.fire);
+        v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
     }
 
     pub fn save(&self) {
@@ -81,7 +85,8 @@ mod tests {
     #[test]
     fn reads_the_electron_keys_and_falls_back_to_defaults() {
         let p = Prefs::from_value(&json!({"alerts": false, "alertThresholds": [70, 90], "fireThreshold": 85}));
-        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85 });
+        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false });
+        assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
         assert_eq!(Prefs::from_value(&json!({})), Prefs::default());
     }
 
