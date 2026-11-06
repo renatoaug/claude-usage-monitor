@@ -116,7 +116,8 @@ const FIXED_CANVAS: bool = cfg!(target_os = "macos");
 const CANVAS: [f32; 2] = [292.0, 780.0];
 
 pub fn initial_size() -> [f32; 2] {
-    if FIXED_CANVAS {
+    // the menu bar's popover is an ordinary window the card's size
+    if FIXED_CANVAS && !Prefs::load().menu_bar {
         return CANVAS;
     }
     let view = load_view();
@@ -320,6 +321,10 @@ impl App {
         }
         self.popover = true;
         self.popover_focused = false;
+        if self.passthrough {
+            self.passthrough = false;
+            ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(false));
+        }
         self.entered = Instant::now();
         self.show(ctx, true);
         crate::platform::activate();
@@ -471,7 +476,8 @@ impl eframe::App for App {
         // waits on the OS resizing a window frame by frame.
         if want != self.size {
             let morph = self.size != [0.0, 0.0] && size != Size::PetOnly && self.screen.1 != Size::PetOnly && self.leaving.is_none();
-            let window = if FIXED_CANVAS {
+            let fixed = FIXED_CANVAS && !self.prefs.menu_bar;
+            let window = if fixed {
                 [CANVAS[0].max(want[0]).max(self.window[0]), CANVAS[1].max(want[1]).max(self.window[1])]
             } else if morph {
                 [self.window[0].max(want[0]), self.window[1].max(want[1])]
@@ -492,7 +498,7 @@ impl eframe::App for App {
                 self.card_now = from + (settled - from) * t;
                 if t >= 1.0 {
                     self.morph = None;
-                    if !FIXED_CANVAS && self.window != want {
+                    if !(FIXED_CANVAS && !self.prefs.menu_bar) && self.window != want {
                         self.window = want;
                         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
                     }
@@ -585,7 +591,7 @@ impl eframe::App for App {
             actions.retain(|a| !matches!(a, Action::Resize(_)));
         }
         // just the pet: clicks off the pet fall through to what's behind
-        let watching = (FIXED_CANVAS || size == Size::PetOnly) && self.shown && cfg!(target_os = "macos");
+        let watching = ((FIXED_CANVAS && !self.prefs.menu_bar) || size == Size::PetOnly) && self.shown && cfg!(target_os = "macos");
         if watching {
             let at = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
             // window points are zoomed; the screen's are not
