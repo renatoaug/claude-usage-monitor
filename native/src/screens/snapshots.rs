@@ -59,6 +59,8 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         codex_found: None,
         cursor: None,
         cursor_found: None,
+        reminders: vec![],
+        reminder_error: None,
     }
 }
 
@@ -83,7 +85,7 @@ fn render_inner(case: Case, draft: Prefs) {
     let size = |f: &Frame| match (case.view.settings, case.view.size) {
         (Some(tab), _) => settings::size(f.snap, tab, f.view),
         (None, Size::Compact) => compact::size(compact::rows(f).len()),
-        (None, Size::Expanded) => expanded::size(f.snap, f.view),
+        (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up),
         (None, Size::PetOnly) => pet_only::size(),
     };
     let mut assets: Option<(Pet, Logos)> = None;
@@ -93,14 +95,14 @@ fn render_inner(case: Case, draft: Prefs) {
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
-        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar") };
+        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0 };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let area = ctx.content_rect().shrink(super::MARGIN);
-        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar") };
+        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0 };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -405,4 +407,24 @@ fn settings_cursor_card() {
 #[test]
 fn expanded_in_the_menu_bar() {
     render(Case { name: "expanded-menu-bar", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_offering_a_reset_reminder() {
+    let mut snap = snapshot(usage(false, None), Some(limits(86.0, 68.0)));
+    snap.limits_at = Some(std::time::Instant::now());
+    render(Case { name: "expanded-reminder", snap, mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_with_a_reminder_on() {
+    let mut snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    snap.reminders = vec![crate::reminders::Reminder {
+        key: "claude:".into(),
+        provider: crate::components::logos::Provider::Claude,
+        label: "Claude · you".into(),
+        at: 0,
+        pct: 86.0,
+    }];
+    render(Case { name: "expanded-reminder-on", snap, mood: Mood::Idle, view: View::default() });
 }

@@ -18,6 +18,7 @@ use crate::components::breakdown::{self, section};
 use crate::components::heat_map::{HEAT_H, heat_map};
 use crate::components::meter::{self, meter, meter_skeleton, meters};
 use crate::components::night_sky::night_sky;
+use crate::components::reminder;
 use crate::components::pet::Mood;
 use crate::components::status::{STATUS_H, status_line};
 use crate::ui::controls::{button_row, click_area};
@@ -144,15 +145,24 @@ fn logging_in(snap: &Snapshot) -> bool {
     matches!(snap.login, Login::AwaitingCode | Login::Failed(_))
 }
 
+// the room the reset reminder takes under the session meter
+fn reminder_h(snap: &Snapshot, provider: Provider, session: Option<(f64, Option<i64>)>, heads_up: f64) -> f32 {
+    match reminder::state(snap, provider, session, heads_up) {
+        None => 0.0,
+        Some(_) => reminder::HEIGHT + if reminder::error(snap).is_some() { reminder::ERROR_H } else { 0.0 },
+    }
+}
+
 /// Window size for this content. Before the first reading, the skeleton's
 /// shape: two meters and Details as it was left.
-pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
+pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, heads_up: f64) -> [f32; 2] {
     let empty = crate::usage::Usage::empty();
     let s = service(snap, shown_in(snap, view), &empty);
+    let login = s.provider == Provider::Claude && logging_in(snap);
+    let extra = if snap.loaded && !login && !s.meters.is_empty() { reminder_h(snap, s.provider, session, heads_up) } else { 0.0 };
     let m = if snap.loaded { s.meters.len() } else { 2 };
     let tabs = if connected(snap).len() > 1 { TABS_H } else { 0.0 };
-    let login = s.provider == Provider::Claude && logging_in(snap);
-    [CARD_W + 2.0 * MARGIN, height(m, view, s.details.then_some((s.by_model.len(), s.by_project.len())), login) + tabs + 2.0 * MARGIN]
+    [CARD_W + 2.0 * MARGIN, height(m, view, s.details.then_some((s.by_model.len(), s.by_project.len())), login) + tabs + extra + 2.0 * MARGIN]
 }
 
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
@@ -235,6 +245,17 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         for (i, m) in list.iter().enumerate() {
             meter(p, left, right, y, m, i == 0, svc.accent);
             y += meter::height(i == 0);
+            // under the session: a reminder for when it resets
+            if i == 0 && let Some(on) = reminder::state(f.snap, svc.provider, f.session, f.heads_up) {
+                if reminder::button(ui, left, y + 2.0, on) {
+                    actions.push(Action::Remind(svc.provider, !on));
+                }
+                y += reminder::HEIGHT;
+                if let Some(e) = reminder::error(f.snap) {
+                    text_mid(p, left, y + 4.0, egui::Align::Min, e, text::TINY, color::FG_MUTED);
+                    y += reminder::ERROR_H;
+                }
+            }
         }
         y += 12.0;
     }

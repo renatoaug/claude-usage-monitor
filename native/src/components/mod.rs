@@ -10,6 +10,7 @@ pub mod logos;
 pub mod meter;
 pub mod night_sky;
 pub mod pet;
+pub mod reminder;
 pub mod service_row;
 pub mod sprite;
 pub mod status;

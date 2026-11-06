@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use crate::accounts::{Account, Accounts};
 use crate::alerts::{self, Scope};
+use crate::components::logos::Provider;
 use crate::prefs::Prefs;
 use crate::auth::{Auth, Limits, Profile, Ureq};
 use crate::usage::{self, Reader, now_ms};
@@ -58,6 +59,9 @@ pub struct Snapshot {
     /// Cursor, the same way: found means its app is signed in here
     pub cursor: Option<crate::cursor::CursorUsage>,
     pub cursor_found: Option<(bool, Option<String>)>,
+    /// the reset reminders armed, and why the last ask was refused
+    pub reminders: Vec<crate::reminders::Reminder>,
+    pub reminder_error: Option<(String, Instant)>,
 }
 
 /// Where a browser login stands.
@@ -83,6 +87,8 @@ pub enum Command {
     Logout,
     /// Settings were saved: the alerts follow the new thresholds
     Prefs(Prefs),
+    /// arm (or cancel) a reminder for this service's session reset
+    Remind(crate::components::logos::Provider, bool),
 }
 
 pub type Shared = Arc<Mutex<Snapshot>>;
@@ -213,6 +219,10 @@ struct Worker {
     auth_fails: u32,
     codex: crate::codex::Codex,
     cursor: crate::cursor::Cursor,
+    reminders: crate::reminders::Reminders,
+    /// the last Codex and Cursor readings, and when they were taken: their
+    /// reset countdowns count from then
+    ext: (Option<crate::codex::CodexUsage>, Option<crate::cursor::CursorUsage>, i64),
 }
 
 impl Worker {
@@ -237,6 +247,8 @@ impl Worker {
             auth_fails: 0,
             codex: crate::codex::Codex::new(None),
             cursor: crate::cursor::Cursor::new(),
+            reminders: crate::reminders::Reminders::load(&crate::auth::default_data_dir()),
+            ext: (None, None, 0),
         };
         let found = (w.codex.detect(), w.cursor.detect());
         if let Ok(mut s) = w.out.lock() {
@@ -244,6 +256,7 @@ impl Worker {
             s.cursor_found = Some(found.1);
         }
         w.bind();
+        w.publish_reminders(None);
         w
     }
 
@@ -318,6 +331,7 @@ impl Worker {
                 }
                 self.prefs = p;
             }
+            Command::Remind(provider, on) => self.remind(provider, on),
             Command::Logout => {
                 self.auth.clear();
                 self.cache = Cache::default();
@@ -406,6 +420,8 @@ impl Worker {
         let codex = if self.prefs.codex { self.codex.get_usage(now_ms()) } else { None };
         let cursor = self.prefs.cursor.then(|| self.cursor.get_usage(now_ms()));
         self.check_alerts(&reading, codex.as_ref(), cursor.as_ref());
+        self.ext = (codex.clone(), cursor.clone(), now_ms());
+        self.check_reminders();
         if let Ok(mut s) = self.out.lock() {
             s.codex = codex;
             s.cursor = cursor;
@@ -427,6 +443,94 @@ impl Worker {
             }
         }
         self.ctx.request_repaint();
+    }
+
+    /// A service's session as the reminders see it: its %, when it resets
+    /// (epoch ms), when the reading was fresh, and whether it's connected.
+    fn session_state(&mut self, provider: Provider) -> (Option<f64>, Option<i64>, Option<i64>, bool) {
+        let ext = |w: Option<&crate::codex::Window>, read_at: i64, fresh: Option<i64>, on: bool| {
+            (w.and_then(|w| w.pct), w.and_then(|w| w.reset_ms).map(|ms| read_at + ms), fresh, on)
+        };
+        match provider {
+            Provider::Claude => {
+                let at = self.cache.fetched_at;
+                let session = self.cache.limits.as_ref().map(|l| &l.session);
+                (session.map(|s| s.pct), at.zip(session.and_then(|s| s.reset_ms)).map(|(a, r)| a + r), at, self.auth.is_connected())
+            }
+            Provider::Codex => {
+                let c = self.ext.0.as_ref();
+                ext(c.and_then(|c| c.session.as_ref()), self.ext.2, c.and_then(|c| c.limits_at), self.prefs.codex)
+            }
+            Provider::Cursor => {
+                let c = self.ext.1.as_ref();
+                ext(c.and_then(|c| c.session.as_ref()), self.ext.2, c.and_then(|c| c.limits_at), self.prefs.cursor)
+            }
+        }
+    }
+
+    fn publish_reminders(&self, error: Option<&str>) {
+        if let Ok(mut s) = self.out.lock() {
+            s.reminders = self.reminders.list().to_vec();
+            s.reminder_error = error.map(|e| (e.to_string(), Instant::now()));
+        }
+        self.ctx.request_repaint();
+    }
+
+    // arm one from a fresh reading of the session, or cancel it
+    fn remind(&mut self, provider: Provider, on: bool) {
+        let now = now_ms();
+        let key = crate::reminders::key(provider, &self.accounts.active_id());
+        if !on {
+            let ok = self.reminders.cancel(&key, now);
+            return self.publish_reminders((!ok).then_some("Could not cancel the reminder. Please try again."));
+        }
+        let (pct, at, fresh, connected) = self.session_state(provider);
+        let (Some(pct), Some(at), Some(fresh), true) = (pct, at, fresh, connected) else {
+            return self.publish_reminders(Some("Wait for a fresh usage reading before setting a reminder."));
+        };
+        if now - fresh > 15 * 60_000 {
+            return self.publish_reminders(Some("Wait for a fresh usage reading before setting a reminder."));
+        }
+        let label = match provider {
+            Provider::Claude => format!("Claude · {}", self.accounts.active().label.unwrap_or_else(|| "your account".into())),
+            p => p.name().into(),
+        };
+        let r = crate::reminders::Reminder { key, provider, label, at, pct };
+        let ok = self.reminders.arm(r, now);
+        self.publish_reminders((!ok).then_some("This reset time has passed. Wait for a fresh reading."));
+    }
+
+    // drop the ones whose service went away; deliver the due ones
+    fn check_reminders(&mut self) {
+        let now = now_ms();
+        let gone: Vec<String> = self
+            .reminders
+            .list()
+            .iter()
+            .filter(|r| match r.provider {
+                Provider::Claude => {
+                    let id = r.key.trim_start_matches("claude:");
+                    !self.accounts.list().iter().any(|a| a.id == id) || !self.accounts.data_dir_of(id).join("auth.json").exists()
+                }
+                Provider::Codex => !self.prefs.codex,
+                Provider::Cursor => !self.prefs.cursor,
+            })
+            .map(|r| r.key.clone())
+            .collect();
+        for key in &gone {
+            self.reminders.cancel(key, now);
+        }
+        let due = self.reminders.take_due(now);
+        let active = crate::reminders::key(Provider::Claude, &self.accounts.active_id());
+        for r in &due {
+            let current = r.provider != Provider::Claude || r.key == active;
+            let (pct, _, fresh, _) = self.session_state(r.provider);
+            let confirmed = current && fresh.is_some_and(|f| f >= r.at) && pct.is_some_and(|p| p < r.pct);
+            alerts::send(&crate::reminders::note(r, confirmed));
+        }
+        if !gone.is_empty() || !due.is_empty() || self.out.lock().is_ok_and(|s| s.reminders.len() != self.reminders.list().len()) {
+            self.publish_reminders(None);
+        }
     }
 
     /// The token is dead: forget it, say so once, and ask for a login.

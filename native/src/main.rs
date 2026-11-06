@@ -16,6 +16,7 @@ mod format;
 mod platform;
 mod poller;
 mod prefs;
+mod reminders;
 mod screens;
 mod ui;
 mod usage;

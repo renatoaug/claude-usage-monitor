@@ -72,6 +72,7 @@ pub enum Action {
     SelectProvider(Provider),
     SetCodex(bool),
     SetCursor(bool),
+    Remind(Provider, bool),
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -94,6 +95,8 @@ pub struct Frame<'a> {
     pub logos: &'a Logos,
     /// the panel is the menu bar's popover: no minimize, no pet-only
     pub menu_bar: bool,
+    /// the lowest alert threshold: from here a reset reminder is offered
+    pub heads_up: f64,
 }
 
 /// The card sits this far inside the window, all round.
