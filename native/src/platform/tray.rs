@@ -64,6 +64,8 @@ impl Tray {
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(true)
             .with_tooltip("Clauddy")
+            // macOS keeps where the icon was dragged to across launches
+            .with_autosave_name("clauddy")
             .build()
             .ok()?;
         let (q, c) = (events.clone(), ctx.clone());
