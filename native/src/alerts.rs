@@ -135,10 +135,12 @@ pub fn send(note: &Note) {
 }
 
 #[cfg(target_os = "macos")]
+#[allow(deprecated)] // NSUserNotification: what macOS still allows a bundle unasked
 mod mac {
     use block2::RcBlock;
     use objc2::runtime::Bool;
-    use objc2_foundation::{NSBundle, NSError, NSString};
+    #[allow(deprecated)]
+    use objc2_foundation::{NSBundle, NSError, NSString, NSUserNotification, NSUserNotificationCenter, NSUserNotificationDefaultSoundName};
     use objc2_user_notifications::{
         UNAuthorizationOptions, UNMutableNotificationContent, UNNotificationRequest, UNNotificationSound, UNUserNotificationCenter,
     };
@@ -153,7 +155,26 @@ mod mac {
         NSBundle::mainBundle().bundleIdentifier().is_some()
     }
 
+    /// As the Electron app does: NSUserNotificationCenter. For a signed
+    /// bundle macOS allows it without asking, so alerts just arrive.
     pub fn send(note: &Note) {
+        if !bundled() {
+            return;
+        }
+        let n = NSUserNotification::new();
+        n.setTitle(Some(&NSString::from_str(&note.title)));
+        n.setInformativeText(Some(&NSString::from_str(&note.body)));
+        if note.sound {
+            // SAFETY: a constant string the framework exports
+            n.setSoundName(Some(unsafe { NSUserNotificationDefaultSoundName }));
+        }
+        NSUserNotificationCenter::defaultUserNotificationCenter().deliverNotification(&n);
+    }
+
+    /// The current API: asks for permission the first time. Kept for when
+    /// the legacy one goes away.
+    #[allow(dead_code)]
+    pub fn send_current(note: &Note) {
         if !bundled() {
             return;
         }
