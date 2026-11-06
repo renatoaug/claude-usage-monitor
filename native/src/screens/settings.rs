@@ -350,7 +350,10 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
         actions.push(Action::EditPrefs(Prefs { menu_bar: i == 1, ..draft.clone() }));
     }
     row_label(&p, left, rows[1], "Zoom", false);
-    stepper(ui, right - 10.0, rows[1], "zoom", 100, "%", false);
+    // applied as you step it, so the widget shows the size at once
+    if let Some(d) = stepper(ui, right - 10.0, rows[1], "zoom", draft.zoom, "%", true) {
+        actions.push(Action::EditPrefs(Prefs { zoom: draft.zoom + 25 * d, ..draft.clone() }.clamped()));
+    }
 
     let gy = group_label(&p, left, gy + 2.0 * row + GAP, "voice");
     let rows = group(&p, left, right, gy, 2);

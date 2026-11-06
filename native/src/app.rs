@@ -50,6 +50,8 @@ pub struct App {
     leaving: Option<Instant>,
     /// the window as asked of the OS (larger than `size` while the card morphs)
     window: [f32; 2],
+    /// the pixels per point the window was last sized at
+    sized_at: f32,
     /// the card's size as it shows now, and the morph under way (from, started)
     card_now: Vec2,
     morph: Option<(Vec2, Instant)>,
@@ -157,7 +159,8 @@ impl App {
             screen: (None, Size::Expanded),
             entered: Instant::now(),
             leaving: None,
-            window: [0.0, 0.0],
+            window: initial_size(),
+            sized_at: 0.0,
             card_now: Vec2::ZERO,
             morph: None,
         }
@@ -387,6 +390,18 @@ impl eframe::App for App {
             .unwrap_or_else(|| mood_across(&snap, session, self.settings.fire_threshold));
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
         let screen = (self.view.settings, size);
+        // the zoom: the draft's while Settings is open, so a step shows at once
+        let zoom = if self.view.settings.is_some() { self.draft.zoom } else { self.prefs.zoom } as f32 / 100.0;
+        if ctx.zoom_factor() != zoom {
+            ctx.set_zoom_factor(zoom);
+        }
+        // it takes hold a frame later; then the window, sized in points, is
+        // asked for again in the new pixels
+        let ppp = ctx.pixels_per_point();
+        if self.sized_at != ppp {
+            self.sized_at = ppp;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.window.into()));
+        }
 
         // the settled window for this screen
         let want = match screen {
@@ -495,7 +510,9 @@ impl eframe::App for App {
         let watching = (FIXED_CANVAS || size == Size::PetOnly) && self.shown && cfg!(target_os = "macos");
         if watching {
             let at = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
-            self.cursor.watch(Some(hot.iter().map(|r| r.translate(at)).collect()));
+            // window points are zoomed; the screen's are not
+            let z = ctx.zoom_factor();
+            self.cursor.watch(Some(hot.iter().map(|r| r.translate(at) * z).collect()));
         } else {
             self.cursor.watch(None);
         }

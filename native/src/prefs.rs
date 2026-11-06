@@ -18,11 +18,13 @@ pub struct Prefs {
     pub codex: bool,
     /// Cursor tracked alongside Claude
     pub cursor: bool,
+    /// the widget's scale, 100-200 %
+    pub zoom: i32,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false, codex: false, cursor: false }
+        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false, codex: false, cursor: false, zoom: 100 }
     }
 }
 
@@ -47,6 +49,7 @@ impl Prefs {
             menu_bar: v["mode"].as_str() == Some("menubar"),
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
+            zoom: v["zoom"].as_f64().map(|z| z.round() as i32).unwrap_or(d.zoom),
         }
         .clamped()
     }
@@ -60,6 +63,7 @@ impl Prefs {
         self.heads_up = self.heads_up.clamp(1, 100);
         self.near_limit = self.near_limit.clamp(1, 100);
         self.fire = self.fire.clamp(1, 99);
+        self.zoom = self.zoom.clamp(100, 200);
         self
     }
 
@@ -71,6 +75,7 @@ impl Prefs {
         v["alerts"] = json!(self.alerts);
         v["alertThresholds"] = json!([self.heads_up, self.near_limit]);
         v["fireThreshold"] = json!(self.fire);
+        v["zoom"] = json!(self.zoom);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
             if !v[key].is_object() {
@@ -97,10 +102,12 @@ mod tests {
     #[test]
     fn reads_the_electron_keys_and_falls_back_to_defaults() {
         let p = Prefs::from_value(&json!({"alerts": false, "alertThresholds": [70, 90], "fireThreshold": 85}));
-        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false, codex: false, cursor: false });
+        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false, codex: false, cursor: false, zoom: 100 });
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
+        assert_eq!(Prefs::from_value(&json!({"zoom": 150})).zoom, 150);
+        assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 200);
         assert_eq!(Prefs::from_value(&json!({})), Prefs::default());
     }
 
