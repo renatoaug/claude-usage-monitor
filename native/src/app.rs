@@ -39,6 +39,15 @@ pub fn mood_for(usage: Option<&Usage>, session_pct: Option<f64>, fire: f64) -> M
     }
 }
 
+/// The window's size at launch, from the remembered view, before any reading.
+pub fn initial_size() -> [f32; 2] {
+    let view = load_view();
+    match view.size {
+        Size::Compact => compact::size(1),
+        Size::Expanded => expanded::size(&Snapshot::default(), &view),
+    }
+}
+
 fn view_path() -> std::path::PathBuf {
     crate::auth::default_data_dir().join("native-ui.json")
 }
@@ -130,7 +139,7 @@ impl eframe::App for App {
 
         let (want, actions) = match self.view.size {
             Size::Compact => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
-            Size::Expanded => (expanded::size(&f), expanded::draw(ui, &ctx, &f)),
+            Size::Expanded => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f)),
         };
         if want != self.size {
             self.size = want;

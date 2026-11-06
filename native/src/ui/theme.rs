@@ -67,14 +67,9 @@ mod palette {
     pub const DOT_2: Color32 = rgb(0xc8a475);
     pub const DOT_3: Color32 = rgb(0x807769);
     pub const DOT_N: Color32 = rgb(0xb1967c);
-    // the pet's own art
-    pub const PET_BODY: Color32 = rgb(0xd57658);
-    pub const PET_EYE: Color32 = rgb(0x221b16);
-    pub const PET_SWEAT: Color32 = rgb(0x8ec9f0);
-    pub const FLAME_1: Color32 = rgb(0xed6430);
-    pub const FLAME_2: Color32 = rgb(0xf39135);
-    pub const FLAME_3: Color32 = rgb(0xed6830);
-    pub const FLAME_4: Color32 = rgb(0xefa140);
+    // the night sky behind the expanded pet
+    pub const NIGHT_CLOUD: Color32 = rgb(0x3a3a3a);
+    pub const NIGHT_STAR: Color32 = rgb(0xd8d8d8);
 }
 
 /// Semantic colours: what a colour is for, not what it looks like.
@@ -91,6 +86,8 @@ pub mod color {
     pub const HAIR: Color32 = rgba(19, 19, 19, 19);
     pub const WASH: Color32 = white(3);
     pub const WASH_EDGE: Color32 = white(10);
+    /// a placeholder while the first reading loads
+    pub const SKELETON: Color32 = white(12);
 
     // text
     pub const FG: Color32 = SAND_50;
@@ -154,11 +151,10 @@ pub mod color {
     pub const HEAT: [Color32; 5] = [rgba(13, 13, 13, 13), HEAT_1, HEAT_2, HEAT_3, HEAT_4];
     pub const DOTS: [Color32; 4] = [CORAL_500, DOT_2, DOT_3, DOT_N];
 
-    // the pet's art
-    pub const PET_BODY: Color32 = palette::PET_BODY;
-    pub const PET_EYE: Color32 = palette::PET_EYE;
-    pub const PET_SWEAT: Color32 = palette::PET_SWEAT;
-    pub const FLAMES: [Color32; 4] = [FLAME_1, FLAME_2, FLAME_3, FLAME_4];
+    // the night sky
+    pub const SKY_DOT: Color32 = white(217);
+    pub const CLOUD: Color32 = NIGHT_CLOUD;
+    pub const STAR: Color32 = NIGHT_STAR;
 }
 
 /// Text sizes, by role.
@@ -169,6 +165,7 @@ pub mod text {
     pub const BODY: f32 = 11.0; // labels, the status line
     pub const VALUE: f32 = 12.0; // a meter's %
     pub const DISPLAY: f32 = 15.0; // a compact row's %
+    pub const HERO: f32 = 27.0; // the session's %
 }
 
 /// Corners, by role. No other radius.
@@ -183,7 +180,10 @@ pub mod radius {
 pub fn install_font(ctx: &egui::Context) {
     let Ok(bytes) = std::fs::read("/System/Library/Fonts/SFNS.ttf") else { return };
     let mut fonts = egui::FontDefinitions::default();
-    fonts.font_data.insert("system".into(), std::sync::Arc::new(egui::FontData::from_owned(bytes)));
+    // egui sizes a font by its whole line (ascent to descent), CSS by its em:
+    // SF's line is 1.19 em, so scale it up to read at the Electron sizes
+    let data = egui::FontData::from_owned(bytes).tweak(egui::FontTweak { scale: 1.19, ..Default::default() });
+    fonts.font_data.insert("system".into(), std::sync::Arc::new(data));
     fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "system".into());
     ctx.set_fonts(fonts);
 }

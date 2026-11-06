@@ -50,6 +50,7 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         limits_at: None,
         profile: Some(Profile { email: Some("you@example.com".into()), name: Some("Re".into()), plan: Some("Max".into()) }),
         error: None,
+        loaded: true,
     }
 }
 
@@ -65,7 +66,7 @@ fn render(case: Case) {
     let session = case.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None));
     let size = |f: &Frame| match case.view.size {
         Size::Compact => compact::size(compact::rows(f).len()),
-        Size::Expanded => expanded::size(f),
+        Size::Expanded => expanded::size(f.snap, f.view),
     };
     let mut assets: Option<(Pet, Logos)> = None;
     // first pass measures the window, as the app does
@@ -153,4 +154,15 @@ fn expanded_connected_without_a_reading() {
     let mut snap = snapshot(usage(false, None), None);
     snap.connected = true; // throttled, or the first read hasn't landed
     render(Case { name: "expanded-waiting", snap, mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn compact_loading() {
+    let snap = Snapshot::default(); // the first poll hasn't landed
+    render(Case { name: "compact-loading", snap, mood: Mood::Idle, view: compact_view() });
+}
+
+#[test]
+fn expanded_loading() {
+    render(Case { name: "expanded-loading", snap: Snapshot::default(), mood: Mood::Idle, view: View::default() });
 }

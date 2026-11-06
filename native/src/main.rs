@@ -50,7 +50,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Clauddy")
-            .with_inner_size([292.0, 400.0])
+            .with_inner_size(app::initial_size())
             .with_transparent(true)
             .with_decorations(false)
             .with_has_shadow(false)

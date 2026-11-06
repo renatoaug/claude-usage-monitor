@@ -5,6 +5,7 @@ use eframe::egui::{Align2, Color32, Context, FontId, Painter, Pos2, Rect, Vec2};
 use super::logos::{Logos, Provider};
 use super::pet::Mood;
 use crate::format::tokens;
+use crate::ui::skeleton::sk_line;
 use crate::ui::tag::{TagStyle, tag};
 use crate::ui::text::{bold, width};
 use crate::ui::theme::{color, text};
@@ -37,6 +38,10 @@ pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activ
     let (dot, word_color) = mood_colors(mood);
     p.circle_filled(Pos2::new(left + 3.5, y), 3.5, dot);
     let r = bold(p, Pos2::new(left + 13.0, y), Align2::LEFT_CENTER, &status_word(mood, activity), text::BODY, word_color);
+    if today.is_none() {
+        // still loading: hold the tokens' place
+        sk_line(p, r.right() + 10.0, y, 110.0, 8.0);
+    }
     if let Some(n) = today {
         let sep = p.text(Pos2::new(r.right() + 6.0, y), Align2::LEFT_CENTER, "·", FontId::proportional(text::BODY), color::FG_MUTED.gamma_multiply(0.5));
         p.text(Pos2::new(sep.right() + 6.0, y), Align2::LEFT_CENTER, format!("{} tokens today", tokens(n)), FontId::proportional(text::SMALL), color::FG_MUTED);

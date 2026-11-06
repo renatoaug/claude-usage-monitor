@@ -4,6 +4,7 @@
 pub mod bar;
 pub mod controls;
 pub mod icon;
+pub mod skeleton;
 pub mod surface;
 pub mod tag;
 pub mod text;

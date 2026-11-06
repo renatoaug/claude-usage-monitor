@@ -43,6 +43,8 @@ pub struct Snapshot {
     pub connected: bool,
     pub profile: Option<Profile>,
     pub error: Option<String>,
+    /// the first poll has finished: until then the screens show skeletons
+    pub loaded: bool,
 }
 
 pub type Shared = Arc<Mutex<Snapshot>>;
@@ -86,6 +88,7 @@ fn run(ctx: egui::Context, settings: Settings, out: Shared) {
         }
         if let Ok(mut s) = out.lock() {
             s.usage = Some(reading);
+            s.loaded = true;
             s.connected = connected;
             if let Some(l) = fresh {
                 s.limits = Some(l);

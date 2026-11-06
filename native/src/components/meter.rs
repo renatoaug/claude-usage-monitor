@@ -7,11 +7,19 @@ use std::time::Instant;
 use crate::auth::{Limits, Window};
 use crate::format::{reset_in, tokens};
 use crate::ui::bar::bar;
+use crate::ui::skeleton::sk_line;
 use crate::ui::text::bold;
 use crate::ui::theme::{color, text};
 use crate::usage::Usage;
 
 pub const METER_H: f32 = 54.0;
+// the session's meter leads with a big number
+pub const HERO_H: f32 = 70.0;
+
+/// The meter's height: the first one (the session) is the hero.
+pub fn height(first: bool) -> f32 {
+    if first { HERO_H } else { METER_H }
+}
 
 pub struct Meter {
     pub label: String,
@@ -94,16 +102,35 @@ pub fn meters(limits: Option<&Limits>, at: Option<Instant>, usage: Option<&Usage
     out
 }
 
-/// Draw `m` between `left` and `right`, starting at `y`.
-pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter) {
-    let top = y + 19.0;
-    p.text(Pos2::new(left, top), Align2::LEFT_CENTER, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+/// Draw `m` between `left` and `right`, starting at `y`. The hero (the
+/// session) has a 27 px number on the label's baseline and a thicker bar.
+pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter, hero: bool) {
     let (fill, num) = level(m.pct.unwrap_or(0.0));
     let value = m.pct.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into());
-    bold(p, Pos2::new(right, top), Align2::RIGHT_CENTER, &value, text::VALUE, num);
-    let track = Rect::from_min_size(Pos2::new(left, top + 14.0), Vec2::new(right - left, 4.0));
+    let (track_y, track_h) = if hero {
+        let base = y + 8.0 + 30.0;
+        p.text(Pos2::new(left, base), Align2::LEFT_BOTTOM, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+        p.text(Pos2::new(right, base + 4.0), Align2::RIGHT_BOTTOM, &value, FontId::proportional(text::HERO), num);
+        (base + 9.0, 5.0)
+    } else {
+        let top = y + 19.0;
+        p.text(Pos2::new(left, top), Align2::LEFT_CENTER, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+        bold(p, Pos2::new(right, top), Align2::RIGHT_CENTER, &value, text::VALUE, num);
+        (top + 14.0, 4.0)
+    };
+    let track = Rect::from_min_size(Pos2::new(left, track_y), Vec2::new(right - left, track_h));
     bar(p, track, m.pct.map(|v| (v / 100.0) as f32), fill, color::TRACK);
     p.text(Pos2::new(left, track.bottom() + 5.0), Align2::LEFT_TOP, &m.sub, FontId::proportional(text::SMALL), color::FG_SUB);
+}
+
+/// A meter's placeholder while the first reading loads.
+pub fn meter_skeleton(p: &Painter, left: f32, right: f32, y: f32, hero: bool) {
+    let (label_y, value_w, value_h, track_y, track_h) =
+        if hero { (y + 30.0, 46.0, 20.0, y + 47.0, 5.0) } else { (y + 19.0, 26.0, 10.0, y + 33.0, 4.0) };
+    sk_line(p, left, label_y, 86.0, 9.0);
+    sk_line(p, right - value_w, label_y - (value_h - 9.0) / 2.0, value_w, value_h);
+    bar(p, Rect::from_min_size(Pos2::new(left, track_y), Vec2::new(right - left, track_h)), None, color::TRACK, color::TRACK);
+    sk_line(p, left, track_y + track_h + 11.0, 170.0, 8.0);
 }
 
 #[cfg(test)]

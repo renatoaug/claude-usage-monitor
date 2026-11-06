@@ -4,10 +4,12 @@
 use eframe::egui::{Align2, Context, CornerRadius, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
 
 use super::{Action, Frame, MARGIN, Size, View};
+use crate::poller::Snapshot;
 use crate::components::account::account;
 use crate::components::breakdown::{self, section};
 use crate::components::heat_map::{HEAT_H, heat_map};
-use crate::components::meter::{METER_H, meter, meters};
+use crate::components::meter::{self, meter, meter_skeleton, meters};
+use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::status::{STATUS_H, status_line};
 use crate::ui::controls::button_row;
@@ -25,9 +27,13 @@ const MODEL_ROWS: usize = 4;
 const PROJECT_ROWS: usize = 6;
 const PAD_BOTTOM: f32 = 14.0;
 
+fn meters_h(count: usize) -> f32 {
+    (0..count).map(|i| meter::height(i == 0)).sum()
+}
+
 fn height(meter_count: usize, view: &View, models: usize, projects: usize) -> f32 {
     let mut h = STAGE_TOP + STAGE_H + STATUS_H;
-    h += if meter_count > 0 { meter_count as f32 * METER_H + 12.0 } else { CONNECT_H };
+    h += if meter_count > 0 { meters_h(meter_count) + 12.0 } else { CONNECT_H };
     h += TOGGLE_H;
     if view.details {
         h += breakdown::height(models.min(MODEL_ROWS), view.models) + breakdown::height(projects.min(PROJECT_ROWS), view.projects) + HEAT_H;
@@ -35,13 +41,14 @@ fn height(meter_count: usize, view: &View, models: usize, projects: usize) -> f3
     h + PAD_BOTTOM
 }
 
-/// Window size for this frame's content.
-pub fn size(f: &Frame) -> [f32; 2] {
-    let usage = f.snap.usage.as_ref();
-    let m = meters(f.snap.limits.as_ref(), f.snap.limits_at, usage, f.snap.connected).len();
+/// Window size for this content. Before the first reading, the skeleton's
+/// shape: two meters and Details as it was left.
+pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
+    let usage = snap.usage.as_ref();
+    let m = if snap.loaded { meters(snap.limits.as_ref(), snap.limits_at, usage, snap.connected).len() } else { 2 };
     let models = usage.map(|u| u.by_model.len()).unwrap_or(0);
     let projects = usage.map(|u| u.by_project.len()).unwrap_or(0);
-    [CARD_W + 2.0 * MARGIN, height(m, f.view, models, projects) + 2.0 * MARGIN]
+    [CARD_W + 2.0 * MARGIN, height(m, view, models, projects) + 2.0 * MARGIN]
 }
 
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
@@ -72,10 +79,11 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let stage = Rect::from_min_size(Pos2::new(left, rect.top() + STAGE_TOP), Vec2::new(right - left, STAGE_H));
     pane(p, stage);
     let inside = p.with_clip_rect(stage);
+    night_sky(&inside, stage);
     let pet_area = if f.mood == Mood::Working {
         Rect::from_min_max(Pos2::new(stage.left() + 14.0, stage.top() + 8.0), Pos2::new(stage.left() + 144.0, stage.bottom() - 2.0))
     } else {
-        let cell = 7.0;
+        let cell = 8.5;
         Rect::from_min_max(
             Pos2::new(stage.left() + 26.0 - cell, stage.bottom() - 3.0 - 9.0 * cell),
             Pos2::new(stage.left() + 26.0 + 11.0 * cell, stage.bottom() - 3.0 + cell),
@@ -85,22 +93,29 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     // status line
     let activity = usage.and_then(|u| u.activity.as_deref());
-    status_line(p, left, right, stage.bottom() + 17.0, f.mood, activity, usage.map(|u| u.today_tokens), f.snap.limits.is_some());
+    let today = if f.snap.loaded { usage.map(|u| u.today_tokens) } else { None };
+    status_line(p, left, right, stage.bottom() + 17.0, f.mood, activity, today, f.snap.limits.is_some());
     let mut y = stage.bottom() + STATUS_H;
     hairline(p, left, right, y);
 
     // the meters, or the way in when no account is connected
     let list = meters(f.snap.limits.as_ref(), f.snap.limits_at, usage, f.snap.connected);
-    if list.is_empty() {
+    if !f.snap.loaded {
+        for i in 0..2 {
+            meter_skeleton(p, left, right, y, i == 0);
+            y += meter::height(i == 0);
+        }
+        y += 12.0;
+    } else if list.is_empty() {
         let r = Rect::from_min_size(Pos2::new(left, y + 12.0), Vec2::new(right - left, CONNECT_H - 24.0));
         p.rect(r, CornerRadius::same(radius::CONTROL), color::WASH, Stroke::new(1.0, color::WASH_EDGE), StrokeKind::Inside);
         p.text(r.center() - Vec2::new(0.0, 6.0), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
         p.text(r.center() + Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, "to see the real session and week %", FontId::proportional(text::SMALL), color::FG_MUTED);
         y += CONNECT_H;
     } else {
-        for m in &list {
-            meter(p, left, right, y, m);
-            y += METER_H;
+        for (i, m) in list.iter().enumerate() {
+            meter(p, left, right, y, m, i == 0);
+            y += meter::height(i == 0);
         }
         y += 12.0;
     }

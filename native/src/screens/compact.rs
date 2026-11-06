@@ -8,7 +8,7 @@ use super::{Action, Frame, MARGIN, Size};
 use crate::components::account::account;
 use crate::components::logos::Provider;
 use crate::components::pet::Mood;
-use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row};
+use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
 use crate::components::status::caption;
 use crate::format::clock;
 use crate::ui::controls::button_row;
@@ -70,7 +70,12 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let col_left = content.left() + STAGE.x + 8.0;
     let mut y = content.center().y - rows_h(rows.len()) / 2.0;
     for (i, row) in rows.iter().enumerate() {
-        service_row(p, f.logos, Pos2::new(col_left, y), content.right() - col_left, row, i == 0);
+        let at = Pos2::new(col_left, y);
+        if f.snap.loaded {
+            service_row(p, f.logos, at, content.right() - col_left, row, i == 0);
+        } else {
+            service_row_skeleton(p, f.logos, at, content.right() - col_left, row.provider);
+        }
         y += ROW_H + ROW_GAP;
     }
     if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {

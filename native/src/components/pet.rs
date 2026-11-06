@@ -1,32 +1,12 @@
-// The pet: the classic sprite for idle, sleeping, on fire and maxed out, and
-// the desk sprite sheet while working. It only asks for a repaint when the
-// next visible change is due, so a resting pet costs nothing between blinks.
+// The pet: Clauddy in its moods, from the sprite sheets. While working it
+// sits at its desk; otherwise it stands alone, idle, asleep, on fire or
+// maxed out. It only asks for a repaint when its next frame is due, so a
+// resting pet costs nothing between frames.
 
-use eframe::egui::{self, Color32, Pos2, Rect, Shape, Stroke, TextureHandle, Vec2, epaint::QuadraticBezierShape};
-
-use crate::ui::theme::color;
+use eframe::egui::{self, Painter, Pos2, Rect, Vec2};
 use std::time::{Duration, Instant};
 
-use super::sprite;
-
-const SPRITE: [&str; 9] = [
-    ".########.",
-    ".########.",
-    "##########",
-    "###o##o###",
-    "##########",
-    ".########.",
-    ".########.",
-    ".#.#..#.#.",
-    ".#.#..#.#.",
-];
-const PIXEL: Color32 = color::PET_BODY;
-const EYE: Color32 = color::PET_EYE;
-const SWEAT: Color32 = color::PET_SWEAT;
-
-// pixel art doesn't need 60 fps: the motion is a few device pixels at most
-const ANIM_FPS: f32 = 12.0;
-const BLINK_PERIOD: f32 = 5.5;
+use super::sprite::{self, Seq, Sheet};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Mood {
@@ -49,28 +29,40 @@ impl Mood {
             _ => return None,
         })
     }
-    // idle and tired stay still between blinks
-    fn animates(self) -> bool {
-        matches!(self, Mood::Fire | Mood::Sleeping)
+
+    fn seq(self) -> Seq {
+        match self {
+            Mood::Working => sprite::WORKING,
+            Mood::Idle => sprite::IDLE,
+            Mood::Sleeping => sprite::SLEEPING,
+            Mood::Fire => sprite::FIRE,
+            Mood::Tired => sprite::TIRED,
+        }
     }
 }
 
 pub struct Pet {
     start: Instant,
-    sheet: TextureHandle,
+    working: Sheet,
+    moods: Sheet,
     /// a fixed moment, for snapshots
     frozen: Option<f32>,
 }
 
 impl Pet {
     pub fn new(ctx: &egui::Context) -> Self {
-        Pet { start: Instant::now(), sheet: sprite::load(ctx), frozen: None }
+        Pet {
+            start: Instant::now(),
+            working: Sheet::load(ctx, "working-sheet", sprite::WORKING_SHEET, 4, 2),
+            moods: Sheet::load(ctx, "moods-sheet", sprite::MOODS_SHEET, 4, 4),
+            frozen: None,
+        }
     }
 
     /// A pet held at `t` seconds into its loops, so snapshots are stable.
     #[cfg(test)]
     pub fn frozen(ctx: &egui::Context, t: f32) -> Self {
-        Pet { start: Instant::now(), sheet: sprite::load(ctx), frozen: Some(t) }
+        Pet { frozen: Some(t), ..Pet::new(ctx) }
     }
 
     fn t(&self) -> f32 {
@@ -79,96 +71,25 @@ impl Pet {
 
     /// How long until the next visible change.
     pub fn next_frame(&self, mood: Mood) -> Duration {
+        Duration::from_secs_f32(sprite::at(mood.seq(), self.t()).1.max(1.0 / 60.0))
+    }
+
+    /// Draw the pet in `area`. The desk scene fills the area's width and sits
+    /// on its bottom; the standing pet is sized so its body spans about 3/4
+    /// of the area's width, feet on the bottom edge less a tenth of its height.
+    pub fn draw(&self, painter: &Painter, area: Rect, mood: Mood) {
+        let frame = sprite::at(mood.seq(), self.t()).0;
         if mood == Mood::Working {
-            return Duration::from_secs_f32(sprite::at(self.t()).1);
-        }
-        if mood.animates() {
-            return Duration::from_secs_f32(1.0 / ANIM_FPS);
-        }
-        let phase = self.t() % BLINK_PERIOD / BLINK_PERIOD;
-        if phase < 0.92 {
-            Duration::from_secs_f32((0.92 - phase) * BLINK_PERIOD)
+            // the art fills the lower ~80% of each frame: let the frame
+            // overflow the top so the desk, not empty sky, sets the size
+            let side = area.width().min(area.height() * 1.2);
+            let rect = Rect::from_min_size(Pos2::new(area.center().x - side / 2.0, area.bottom() - side * 0.92), Vec2::splat(side));
+            self.working.draw(painter, rect, frame);
         } else {
-            Duration::from_secs_f32(1.0 / ANIM_FPS)
+            let side = area.width() * 1.12;
+            let feet = area.bottom() - area.height() * 0.1;
+            let rect = Rect::from_min_size(Pos2::new(area.center().x - side / 2.0, feet - side * 0.79), Vec2::splat(side));
+            self.moods.draw(painter, rect, frame);
         }
-    }
-
-    pub fn draw(&self, painter: &egui::Painter, area: Rect, mood: Mood) {
-        let t = self.t();
-        if mood == Mood::Working {
-            sprite::draw(painter, area, &self.sheet, sprite::at(t).0);
-            return;
-        }
-        let cell = (area.width().min(area.height() * 1.1) / 12.0).floor();
-        let size = Vec2::new(cell * 10.0, cell * 9.0);
-        let mut origin = Pos2::new((area.center().x - size.x / 2.0).round(), area.bottom() - size.y - cell);
-
-        // mood offsets, snapped to whole pixels like the sprite itself
-        let wave = |period: f32| (t * std::f32::consts::TAU / period).sin();
-        match mood {
-            Mood::Fire => origin.x += (wave(0.3) * cell * 0.1).round(),
-            Mood::Sleeping => origin.y -= ((wave(5.6) + 1.0) * cell * 0.15).round(),
-            Mood::Tired => origin.y += (cell * 0.3).round(), // slumped
-            _ => {}
-        }
-        if mood == Mood::Fire {
-            draw_flames(painter, area, t);
-        }
-
-        let phase = t % BLINK_PERIOD / BLINK_PERIOD;
-        let eye_h = match mood {
-            Mood::Sleeping => 0.15,
-            _ if (0.92..0.98).contains(&phase) => 0.1,
-            Mood::Tired => 0.4,
-            _ => 1.0,
-        };
-        for (r, row) in SPRITE.iter().enumerate() {
-            for (c, ch) in row.chars().enumerate() {
-                if ch == '.' {
-                    continue;
-                }
-                let min = origin + Vec2::new(c as f32 * cell, r as f32 * cell);
-                painter.rect_filled(Rect::from_min_size(min, Vec2::splat(cell)), 0.0, PIXEL);
-                if ch == 'o' {
-                    let h = (cell * eye_h).max(1.0).round();
-                    // tired eyes droop to the bottom of the cell
-                    let y = if mood == Mood::Tired { cell - h } else { (cell - h) / 2.0 };
-                    painter.rect_filled(Rect::from_min_size(min + Vec2::new(0.0, y), Vec2::new(cell, h)), 0.0, EYE);
-                }
-            }
-        }
-        if mood == Mood::Tired {
-            let drop = origin + Vec2::new(cell * 9.6, cell * 0.6);
-            painter.circle_filled(drop + Vec2::new(0.0, cell * 0.35), cell * 0.32, SWEAT);
-            painter.add(Shape::convex_polygon(
-                vec![drop, drop + Vec2::new(cell * 0.3, cell * 0.3), drop + Vec2::new(-cell * 0.3, cell * 0.3)],
-                SWEAT,
-                Stroke::NONE,
-            ));
-        }
-    }
-}
-
-// The four flame tongues from the Electron sprite (viewBox 0 0 100 110), swaying.
-fn draw_flames(painter: &egui::Painter, area: Rect, t: f32) {
-    let tongues: [(&[[f32; 2]], Color32, f32); 4] = [
-        (&[[12., 106.], [-5., 84.], [13., 35.], [9., 70.], [26., 80.], [40., 102.], [12., 106.]], color::FLAMES[0], 0.0),
-        (&[[28., 108.], [7., 75.], [37., 12.], [29., 48.], [47., 62.], [65., 86.], [47., 108.]], color::FLAMES[1], 0.2),
-        (&[[48., 108.], [35., 76.], [68., 16.], [62., 51.], [79., 68.], [98., 91.], [77., 108.]], color::FLAMES[2], 0.4),
-        (&[[77., 108.], [66., 86.], [91., 36.], [85., 74.], [96., 87.], [103., 101.], [89., 108.]], color::FLAMES[3], 0.6),
-    ];
-    let side = area.width().min(area.height());
-    let left = area.center().x - side / 2.0;
-    let scale = side / 100.0;
-    for (pts, color, delay) in tongues {
-        let k = ((t + delay) * std::f32::consts::TAU / 1.7).sin();
-        let sy = 0.95 + 0.08 * k;
-        let base = area.bottom();
-        let p = |i: usize| Pos2::new(left + pts[i][0] * scale, base - (110.0 - pts[i][1]) * scale * sy);
-        for seg in 0..3 {
-            let (a, c, b) = (p(seg * 2), p(seg * 2 + 1), p(seg * 2 + 2));
-            painter.add(Shape::QuadraticBezier(QuadraticBezierShape::from_points_stroke([a, c, b], true, color, Stroke::NONE)));
-        }
-        painter.add(Shape::convex_polygon(vec![p(0), p(2), p(4), p(6)], color, Stroke::NONE));
     }
 }
