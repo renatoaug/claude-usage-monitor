@@ -65,8 +65,10 @@ pub fn load(ctx: &egui::Context) -> TextureHandle {
 
 /// Draw `frame` as large as fits in `area`, sitting on its bottom edge.
 pub fn draw(painter: &egui::Painter, area: Rect, tex: &TextureHandle, frame: usize) {
-    let side = area.width().min(area.height());
-    let rect = Rect::from_min_size(Pos2::new(area.center().x - side / 2.0, area.bottom() - side), Vec2::splat(side));
+    // the art fills the lower ~80% of each frame: let the frame overflow the
+    // top of the area so the desk, not empty sky, sets the size
+    let side = area.width().min(area.height() * 1.2);
+    let rect = Rect::from_min_size(Pos2::new(area.center().x - side / 2.0, area.bottom() - side * 0.92), Vec2::splat(side));
     let (c, r) = ((frame % COLS) as f32, (frame / COLS) as f32);
     let uv = Rect::from_min_size(
         Pos2::new(c / COLS as f32, r / ROWS as f32),
