@@ -11,6 +11,7 @@ mod app;
 mod auth;
 mod codex;
 mod components;
+mod cursor;
 mod format;
 mod platform;
 mod poller;
@@ -38,6 +39,15 @@ fn main() -> eframe::Result {
     // `clauddy --codex`: one reading of Codex's logs as JSON (dev aid; no live read)
     if std::env::args().any(|a| a == "--codex") {
         let mut c = codex::Codex::new(None);
+        let u = c.get_usage(usage::now_ms());
+        println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
+    // `clauddy --cursor`: Cursor's sign-in, limits and activity as JSON (dev aid)
+    if std::env::args().any(|a| a == "--cursor") {
+        let mut c = cursor::Cursor::new();
+        eprintln!("detect {:?}", c.detect());
+        c.refresh_blocking(usage::now_ms());
         let u = c.get_usage(usage::now_ms());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
         return Ok(());

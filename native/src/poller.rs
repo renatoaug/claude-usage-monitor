@@ -55,6 +55,9 @@ pub struct Snapshot {
     /// Codex at all (and on what plan)
     pub codex: Option<crate::codex::CodexUsage>,
     pub codex_found: Option<(bool, Option<String>)>,
+    /// Cursor, the same way: found means its app is signed in here
+    pub cursor: Option<crate::cursor::CursorUsage>,
+    pub cursor_found: Option<(bool, Option<String>)>,
 }
 
 /// Where a browser login stands.
@@ -209,6 +212,7 @@ struct Worker {
     /// consecutive 401s: one can be a refresh racing another, two is a dead token
     auth_fails: u32,
     codex: crate::codex::Codex,
+    cursor: crate::cursor::Cursor,
 }
 
 impl Worker {
@@ -232,10 +236,12 @@ impl Worker {
             prefs: Prefs::load(),
             auth_fails: 0,
             codex: crate::codex::Codex::new(None),
+            cursor: crate::cursor::Cursor::new(),
         };
-        let found = w.codex.detect();
+        let found = (w.codex.detect(), w.cursor.detect());
         if let Ok(mut s) = w.out.lock() {
-            s.codex_found = Some(found);
+            s.codex_found = Some(found.0);
+            s.cursor_found = Some(found.1);
         }
         w.bind();
         w
@@ -302,6 +308,12 @@ impl Worker {
                     let found = self.codex.detect();
                     if let Ok(mut s) = self.out.lock() {
                         s.codex_found = Some(found);
+                    }
+                }
+                if p.cursor && !self.prefs.cursor {
+                    let found = self.cursor.detect();
+                    if let Ok(mut s) = self.out.lock() {
+                        s.cursor_found = Some(found);
                     }
                 }
                 self.prefs = p;
@@ -392,9 +404,11 @@ impl Worker {
             save_cache(&self.dir, &self.cache);
         }
         let codex = if self.prefs.codex { self.codex.get_usage(now_ms()) } else { None };
-        self.check_alerts(&reading, codex.as_ref());
+        let cursor = self.prefs.cursor.then(|| self.cursor.get_usage(now_ms()));
+        self.check_alerts(&reading, codex.as_ref(), cursor.as_ref());
         if let Ok(mut s) = self.out.lock() {
             s.codex = codex;
+            s.cursor = cursor;
             s.usage = Some(reading);
             s.loaded = true;
             s.connected = connected;
@@ -458,19 +472,29 @@ impl Worker {
         }
     }
 
-    fn check_alerts(&mut self, reading: &usage::Usage, codex: Option<&crate::codex::CodexUsage>) {
+    fn check_alerts(
+        &mut self,
+        reading: &usage::Usage,
+        codex: Option<&crate::codex::CodexUsage>,
+        cursor: Option<&crate::cursor::CursorUsage>,
+    ) {
         let mut scopes = self.scopes(reading);
         let claude_session = scopes.first().and_then(|s| s.pct);
+        let scope = |label: &str, w: &Option<crate::codex::Window>, session: bool| Scope {
+            label: label.into(),
+            pct: w.as_ref().and_then(|w| w.pct),
+            reset_ms: w.as_ref().and_then(|w| w.reset_ms),
+            session,
+        };
         // Codex has its own windows, so its own keys ("Codex session:80")
         if let Some(c) = codex {
-            let scope = |label: &str, w: &Option<crate::codex::Window>, session: bool| Scope {
-                label: label.into(),
-                pct: w.as_ref().and_then(|w| w.pct),
-                reset_ms: w.as_ref().and_then(|w| w.reset_ms),
-                session,
-            };
             scopes.push(scope(if c.weekly_only { "Codex weekly" } else { "Codex session" }, &c.session, true));
             scopes.push(scope("Codex weekly", &c.weekly, false));
+        }
+        // Cursor's budget is the billing cycle; its API-model pool fills on its own
+        if let Some(c) = cursor {
+            scopes.push(scope("Cursor usage", &c.session, false));
+            scopes.push(scope("Cursor API models", &c.api, false));
         }
         let thresholds = [self.prefs.heads_up, self.prefs.near_limit];
         let (notes, dirty) = self.alerts.check(self.prefs.alerts, &thresholds, &scopes);

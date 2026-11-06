@@ -24,6 +24,7 @@ mod palette {
 
     pub const CLAY_900: Color32 = rgb(0x221913);
     pub const MOSS_900: Color32 = rgb(0x1b211c);
+    pub const STEEL_900: Color32 = rgb(0x1a1d23);
     pub const MOSS_HEAT_1: Color32 = rgb(0x3a503b);
     pub const MOSS_HEAT_2: Color32 = rgb(0x5b7655);
     pub const MOSS_HEAT_3: Color32 = rgb(0x8d9f72);
@@ -105,6 +106,9 @@ pub mod color {
     /// the panel while it shows Codex: a green-grey shade and a sage glow
     pub const SURFACE_CODEX: Color32 = MOSS_900;
     pub const SURFACE_WARM_CODEX: Color32 = rgba(0x0c, 0x0f, 0x0b, 0x1c);
+    /// the panel while it shows Cursor: a steel-blue shade and glow
+    pub const SURFACE_CURSOR: Color32 = STEEL_900;
+    pub const SURFACE_WARM_CURSOR: Color32 = rgba(0x0a, 0x0c, 0x0f, 0x1c);
     pub const BORDER: Color32 = CLAY_EDGE;
     pub const PANE: Color32 = NIGHT_900;
     pub const PANE_EDGE: Color32 = white(6);
@@ -167,6 +171,7 @@ pub mod color {
     // a connection card: the service's avatar, its caption, the way out
     pub const AVATAR_CLAUDE: Color32 = rgba(0x14, 0x0b, 0x08, 0x18);
     pub const AVATAR_CODEX: Color32 = rgba(0x0d, 0x0e, 0x0c, 0x14);
+    pub const AVATAR_CURSOR: Color32 = rgba(0x0c, 0x0d, 0x10, 0x14);
     pub const CAPTION: Color32 = SAND_550;
     pub const REMOVE: Color32 = SAND_525;
     pub const REMOVE_HOVER: Color32 = CORAL_100;
@@ -227,6 +232,8 @@ pub mod color {
     pub const TAB_CLAUDE_EDGE: Color32 = rgba(0x46, 0x31, 0x24, 0x51);
     pub const TAB_CODEX: Color32 = rgba(0x12, 0x14, 0x11, 0x1c);
     pub const TAB_CODEX_EDGE: Color32 = rgba(0x32, 0x38, 0x30, 0x4d);
+    pub const TAB_CURSOR: Color32 = rgba(0x11, 0x13, 0x17, 0x1c);
+    pub const TAB_CURSOR_EDGE: Color32 = rgba(0x30, 0x34, 0x3c, 0x4d);
     pub const DOTS: [Color32; 4] = [CORAL_500, DOT_2, DOT_3, DOT_N];
 
     // the night sky

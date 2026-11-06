@@ -30,6 +30,15 @@ impl Provider {
             Provider::Cursor => color::CURSOR,
         }
     }
+    /// The panel's shade while it shows this service.
+    pub fn surface(self) -> crate::ui::surface::Tint {
+        use crate::ui::surface::Tint;
+        match self {
+            Provider::Claude => Tint::Claude,
+            Provider::Codex => Tint::Codex,
+            Provider::Cursor => Tint::Cursor,
+        }
+    }
     /// One letter for the menu bar's "C 64% · X 28%".
     pub fn initial(self) -> &'static str {
         match self {

@@ -71,6 +71,7 @@ pub enum Action {
     ToggleSettings,
     SelectProvider(Provider),
     SetCodex(bool),
+    SetCursor(bool),
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -91,6 +92,8 @@ pub struct Frame<'a> {
     pub view: &'a View,
     pub pet: &'a Pet,
     pub logos: &'a Logos,
+    /// the panel is the menu bar's popover: no minimize, no pet-only
+    pub menu_bar: bool,
 }
 
 /// The card sits this far inside the window, all round.
@@ -101,6 +104,41 @@ pub fn connected(snap: &Snapshot) -> Vec<Provider> {
     let mut v = vec![Provider::Claude];
     if snap.codex.is_some() {
         v.push(Provider::Codex);
+    }
+    if snap.cursor.is_some() {
+        v.push(Provider::Cursor);
+    }
+    v
+}
+
+/// Each connected service's session (Cursor's is its billing month): the %
+/// still in force and the ms to its reset. `claude` is Claude's live window.
+pub fn sessions(snap: &Snapshot, claude: Option<(f64, Option<i64>)>) -> Vec<(Provider, Option<f64>, Option<i64>)> {
+    let ext = |w: &Option<crate::codex::Window>| (codex_pct(w), w.as_ref().and_then(|w| w.reset_ms));
+    connected(snap)
+        .into_iter()
+        .map(|p| {
+            let (pct, reset) = match p {
+                Provider::Claude => (claude.map(|s| s.0), claude.and_then(|s| s.1)),
+                Provider::Codex => ext(&snap.codex.as_ref().and_then(|c| c.session.clone())),
+                Provider::Cursor => ext(&snap.cursor.as_ref().and_then(|c| c.session.clone())),
+            };
+            (p, pct, reset)
+        })
+        .collect()
+}
+
+/// The services working right now.
+pub fn workers(snap: &Snapshot) -> Vec<Provider> {
+    let mut v = vec![];
+    if snap.usage.as_ref().is_some_and(|u| u.active) {
+        v.push(Provider::Claude);
+    }
+    if snap.codex.as_ref().is_some_and(|c| c.active) {
+        v.push(Provider::Codex);
+    }
+    if snap.cursor.as_ref().is_some_and(|c| c.active) {
+        v.push(Provider::Cursor);
     }
     v
 }

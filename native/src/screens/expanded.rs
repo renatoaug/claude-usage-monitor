@@ -5,8 +5,8 @@ use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stro
 
 use super::{Action, Frame, MARGIN, Size, View, connected, shown};
 use crate::components::logos::Provider;
-use crate::components::meter::{Meter, codex_meters};
-use crate::ui::surface::{Tint, card_tinted};
+use crate::components::meter::{Meter, codex_meters, cursor_meters};
+use crate::ui::surface::card_tinted;
 use crate::ui::text::text_mid;
 use crate::usage::Labeled;
 use crate::poller::Snapshot;
@@ -48,6 +48,10 @@ struct Service<'a> {
     today: Option<u64>,
     live: bool,
     working: bool,
+    /// what it's doing, when its logs say
+    activity: Option<&'a str>,
+    /// tokens by model and project, and the map: Cursor has none
+    details: bool,
     by_model: &'a [Labeled],
     by_project: &'a [Labeled],
     days30: &'a [u64],
@@ -55,8 +59,24 @@ struct Service<'a> {
 }
 
 fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::Usage) -> Service<'a> {
-    match (provider, &snap.codex) {
-        (Provider::Codex, Some(c)) => Service {
+    match provider {
+        Provider::Cursor if let Some(c) = &snap.cursor => Service {
+            provider,
+            meters: cursor_meters(c),
+            accent: color::CURSOR_BAR,
+            bar: color::CURSOR_BAR,
+            heat: &color::HEAT,
+            today: None,
+            live: false,
+            working: c.active,
+            activity: c.activity,
+            details: false,
+            by_model: &[],
+            by_project: &[],
+            days30: &[],
+            month: 0,
+        },
+        Provider::Codex if let Some(c) = &snap.codex => Service {
             provider,
             meters: codex_meters(c),
             accent: color::CODEX_BAR,
@@ -65,6 +85,8 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
             today: Some(c.tokens_today),
             live: false, // logs, not a live feed
             working: c.active,
+            activity: None,
+            details: true,
             by_model: &c.by_model,
             by_project: &c.by_project,
             days30: &c.days30,
@@ -81,6 +103,8 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
                 today: snap.loaded.then_some(u.today_tokens),
                 live: snap.limits.is_some(),
                 working: u.active,
+                activity: u.activity.as_deref(),
+                details: true,
                 by_model: &u.by_model,
                 by_project: &u.by_project,
                 days30: &u.days30,
@@ -99,7 +123,7 @@ fn meters_h(count: usize) -> f32 {
     (0..count).map(|i| meter::height(i == 0)).sum()
 }
 
-fn height(meter_count: usize, view: &View, models: usize, projects: usize, logging_in: bool) -> f32 {
+fn height(meter_count: usize, view: &View, details: Option<(usize, usize)>, logging_in: bool) -> f32 {
     let mut h = STAGE_TOP + STAGE_H + STATUS_H;
     h += if logging_in {
         LOGIN_H
@@ -108,6 +132,7 @@ fn height(meter_count: usize, view: &View, models: usize, projects: usize, loggi
     } else {
         CONNECT_H
     };
+    let Some((models, projects)) = details else { return h + PAD_BOTTOM - 12.0 };
     h += TOGGLE_H;
     if view.details {
         h += breakdown::height(models.min(MODEL_ROWS), view.models) + breakdown::height(projects.min(PROJECT_ROWS), view.projects) + HEAT_H;
@@ -127,7 +152,7 @@ pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
     let m = if snap.loaded { s.meters.len() } else { 2 };
     let tabs = if connected(snap).len() > 1 { TABS_H } else { 0.0 };
     let login = s.provider == Provider::Claude && logging_in(snap);
-    [CARD_W + 2.0 * MARGIN, height(m, view, s.by_model.len(), s.by_project.len(), login) + tabs + 2.0 * MARGIN]
+    [CARD_W + 2.0 * MARGIN, height(m, view, s.details.then_some((s.by_model.len(), s.by_project.len())), login) + tabs + 2.0 * MARGIN]
 }
 
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
@@ -135,7 +160,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     let empty = crate::usage::Usage::empty();
     let svc = service(f.snap, shown(f), &empty);
     let rect = f.area;
-    card_tinted(ui, ctx, f.card, if svc.provider == Provider::Codex { Tint::Codex } else { Tint::Claude });
+    card_tinted(ui, ctx, f.card, svc.provider.surface());
     let (left, right) = (rect.left() + SIDE, rect.right() - SIDE);
     let p = ui.painter().clone();
     let p = &p;
@@ -159,7 +184,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     f.pet.draw(&inside, pet_area, f.mood);
 
     // status line: the shown service's state and tokens
-    let activity = if svc.provider == Provider::Claude { f.snap.usage.as_ref().and_then(|u| u.activity.as_deref()) } else { None };
+    let activity = svc.activity;
     let mood = match (svc.working, f.mood) {
         (true, _) => Mood::Working,
         (false, Mood::Working) => Mood::Idle, // the other service is the one working
@@ -215,6 +240,10 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     }
 
     // Details
+    if !svc.details {
+        account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
+        return actions;
+    }
     hairline(p, left, right, y);
     let toggle = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, TOGGLE_H));
     let resp = click_area(ui, toggle, "details");
@@ -250,20 +279,17 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
     if click_area(ui, chip, "account-chip").clicked() {
         actions.push(Action::ToggleAccountMenu);
     }
-    let buttons = [
-        ("close", icon::CLOSE),
-        ("minimize", icon::MINIMIZE),
-        ("pet-only", icon::PET),
-        ("usage", icon::EXTERNAL),
-        ("settings", icon::GEAR),
-    ];
-    match button_row(ui, rect.right() - 8.0, rect.top() + 19.0, &buttons) {
-        Some(0) => actions.push(Action::Close),
-        Some(1) => actions.push(Action::Resize(Size::Compact)),
-        Some(3) => actions.push(Action::OpenUsagePage),
-        Some(2) => actions.push(Action::Resize(Size::PetOnly)),
-        Some(4) => actions.push(Action::ToggleSettings),
-        _ => {}
+    // in the menu bar the popover is the only size: no minimize, no pet-only
+    let mut buttons = vec![("close", icon::CLOSE, Action::Close)];
+    if !f.menu_bar {
+        buttons.push(("minimize", icon::MINIMIZE, Action::Resize(Size::Compact)));
+        buttons.push(("pet-only", icon::PET, Action::Resize(Size::PetOnly)));
+    }
+    buttons.push(("usage", icon::EXTERNAL, Action::OpenUsagePage));
+    buttons.push(("settings", icon::GEAR, Action::ToggleSettings));
+    let glyphs: Vec<_> = buttons.iter().map(|b| (b.0, b.1)).collect();
+    if let Some(i) = button_row(ui, rect.right() - 8.0, rect.top() + 19.0, &glyphs) {
+        actions.push(buttons.swap_remove(i).2);
     }
     chip
 }
@@ -320,21 +346,30 @@ fn service_tabs(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, services: &[P
         let on = prov == chosen;
         let (bg, edge) = match (on, prov) {
             (true, Provider::Codex) => (color::TAB_CODEX, color::TAB_CODEX_EDGE),
+            (true, Provider::Cursor) => (color::TAB_CURSOR, color::TAB_CURSOR_EDGE),
             (true, _) => (color::TAB_CLAUDE, color::TAB_CLAUDE_EDGE),
             (false, _) => (color::WASH, if resp.hovered() { color::CONTROL_HOVER.gamma_multiply(0.7) } else { color::TAB_EDGE }),
         };
         p.rect(r, CornerRadius::same(radius::CONTROL), bg, Stroke::new(1.0, edge), StrokeKind::Inside);
         let fg = if on || resp.hovered() { color::FG } else { color::FG_MUTED };
         let mid = r.center().y;
-        f.logos.draw(p, prov, Rect::from_center_size(Pos2::new(r.left() + 14.0, mid), Vec2::splat(12.0)), prov.tint().gamma_multiply(if on { 1.0 } else { 0.65 }));
-        text_mid(p, r.left() + 25.0, mid, egui::Align::Min, prov.name(), text::BODY, fg);
-        let pct = match prov {
-            Provider::Codex => f.snap.codex.as_ref().and_then(|c| super::codex_pct(&c.session)),
-            _ => f.session.map(|s| s.0),
-        };
+        let pct = super::sessions(f.snap, f.session).into_iter().find(|s| s.0 == prov).and_then(|s| s.1);
         let urgent = pct.is_some_and(|v| v >= 80.0);
         let value = pct.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into());
-        text_mid(p, r.right() - 8.0, mid, egui::Align::Max, &value, text::SMALL, if urgent { color::URGENT } else { fg });
+        let value_fg = if urgent { color::URGENT } else { fg };
+        let tint = prov.tint().gamma_multiply(if on { 1.0 } else { 0.65 });
+        if services.len() > 2 {
+            // three across: no room for names, so logo and % sit centred
+            let gap = 6.0;
+            let value_w = p.layout_no_wrap(value.clone(), FontId::proportional(text::SMALL), value_fg).size().x;
+            let x = r.center().x - (12.0 + gap + value_w) / 2.0;
+            f.logos.draw(p, prov, Rect::from_center_size(Pos2::new(x + 6.0, mid), Vec2::splat(12.0)), tint);
+            text_mid(p, x + 12.0 + gap, mid, egui::Align::Min, &value, text::SMALL, value_fg);
+        } else {
+            f.logos.draw(p, prov, Rect::from_center_size(Pos2::new(r.left() + 14.0, mid), Vec2::splat(12.0)), tint);
+            text_mid(p, r.left() + 25.0, mid, egui::Align::Min, prov.name(), text::BODY, fg);
+            text_mid(p, r.right() - 8.0, mid, egui::Align::Max, &value, text::SMALL, value_fg);
+        }
         if resp.clicked() && !on {
             pick = Some(prov);
         }
@@ -351,8 +386,8 @@ mod tests {
         let closed = View { details: false, ..View::default() };
         let open = View { details: true, ..View::default() };
         let folded = View { details: true, models: false, projects: false, ..View::default() };
-        assert!(height(2, &open, 3, 5, false) > height(2, &closed, 3, 5, false));
+        assert!(height(2, &open, Some((3, 5)), false) > height(2, &closed, Some((3, 5)), false));
         let _ = TABS_H;
-        assert!(height(2, &folded, 3, 5, false) < height(2, &open, 3, 5, false));
+        assert!(height(2, &folded, Some((3, 5)), false) < height(2, &open, Some((3, 5)), false));
     }
 }

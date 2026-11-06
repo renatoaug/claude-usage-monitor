@@ -54,12 +54,13 @@ pub fn level(pct: f64, accent: Color32) -> (Color32, Color32) {
 // a reading older than this says how old it is instead of its tokens
 const STALE_MS: i64 = 15 * 60_000;
 
-// a Codex window's subtitle: its reset and tokens; how old it is when the
-// reading is stale; waiting when the window passed with no fresh reading
-fn ext_sub(w: &Option<crate::codex::Window>, tokens: Option<u64>, stale: Option<i64>) -> String {
+// a Codex or Cursor window's subtitle: its reset and tokens (Cursor has
+// none); how old it is when the reading is stale; waiting when the window
+// passed with no fresh reading; `empty` before any reading
+fn ext_sub(w: &Option<crate::codex::Window>, tokens: Option<u64>, stale: Option<i64>, empty: &str) -> String {
     let t = tokens.map(|n| format!("{} tokens", crate::format::tokens(n)));
     let join = |parts: Vec<Option<String>>| parts.into_iter().flatten().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
-    let Some(w) = w else { return join(vec![Some("limits not recorded yet".into()), t]) };
+    let Some(w) = w else { return join(vec![Some(empty.into()), t]) };
     if w.pct.is_none() {
         return join(vec![Some("waiting for a fresh reading".into()), t]);
     }
@@ -80,12 +81,27 @@ pub fn codex_meters(c: &crate::codex::CodexUsage) -> Vec<Meter> {
     let mut v = vec![Meter {
         label: if c.weekly_only { "weekly · all models".into() } else { "current session".into() },
         pct: pct(&c.session),
-        sub: ext_sub(&c.session, Some(if c.weekly_only { c.tokens_week } else { c.tokens_5h }), stale),
+        sub: ext_sub(&c.session, Some(if c.weekly_only { c.tokens_week } else { c.tokens_5h }), stale, NOT_YET),
     }];
     if !c.weekly_only {
-        v.push(Meter { label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale) });
+        v.push(Meter { label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale, NOT_YET) });
     }
     v
+}
+
+const NOT_YET: &str = "limits not recorded yet";
+
+/// Cursor's meters: the plan's monthly budget and the API-models pool
+/// beside it. No tokens: Cursor's dashboard doesn't give them.
+pub fn cursor_meters(c: &crate::cursor::CursorUsage) -> Vec<Meter> {
+    let now = crate::usage::now_ms();
+    let stale = c.limits_at.map(|at| now - at).filter(|&age| age > STALE_MS);
+    let pct = |w: &Option<crate::codex::Window>| w.as_ref().and_then(|w| w.pct);
+    let empty = if c.signed_out { "sign in to the Cursor app" } else { "no reading yet" };
+    vec![
+        Meter { label: "this month · included".into(), pct: pct(&c.session), sub: ext_sub(&c.session, None, stale, empty) },
+        Meter { label: "API models · this month".into(), pct: pct(&c.api), sub: ext_sub(&c.api, None, stale, "—") },
+    ]
 }
 
 /// The session, the week, and any per-model weekly limits. Connected but not
@@ -209,10 +225,10 @@ mod codex_tests {
     #[test]
     fn a_codex_window_says_reset_tokens_or_how_old_it_is() {
         let w = Some(Window { pct: Some(20.0), reset_ms: Some(2 * 3_600_000), expired: false });
-        assert!(ext_sub(&w, Some(5_000), None).starts_with("resets in 2h 0m ("));
-        assert!(ext_sub(&w, Some(5_000), Some(20 * 60_000)).ends_with("read 20m ago"));
+        assert!(ext_sub(&w, Some(5_000), None, NOT_YET).starts_with("resets in 2h 0m ("));
+        assert!(ext_sub(&w, Some(5_000), Some(20 * 60_000), NOT_YET).ends_with("read 20m ago"));
         let gone = Some(Window { pct: None, reset_ms: None, expired: true });
-        assert_eq!(ext_sub(&gone, None, None), "waiting for a fresh reading");
-        assert_eq!(ext_sub(&None, None, None), "limits not recorded yet");
+        assert_eq!(ext_sub(&gone, None, None, NOT_YET), "waiting for a fresh reading");
+        assert_eq!(ext_sub(&None, None, None, NOT_YET), "limits not recorded yet");
     }
 }

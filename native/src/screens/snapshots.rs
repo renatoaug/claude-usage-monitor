@@ -57,6 +57,8 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         login: Default::default(),
         codex: None,
         codex_found: None,
+        cursor: None,
+        cursor_found: None,
     }
 }
 
@@ -91,14 +93,14 @@ fn render_inner(case: Case, draft: Prefs) {
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
-        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos };
+        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar") };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let area = ctx.content_rect().shrink(super::MARGIN);
-        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos };
+        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar") };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -350,4 +352,57 @@ fn pet_only_glance_with_codex() {
         mood: Mood::Idle,
         view: pet_only_view(),
     });
+}
+
+fn with_cursor(mut snap: Snapshot, working: bool) -> Snapshot {
+    use crate::codex::Window;
+    snap.cursor = Some(crate::cursor::CursorUsage {
+        active: working,
+        activity: working.then_some("editing"),
+        last_seen: Some(0),
+        plan: Some("pro".into()),
+        session: Some(Window { pct: Some(57.0), reset_ms: Some(12 * 24 * H), expired: false }),
+        api: Some(Window { pct: Some(23.0), reset_ms: Some(12 * 24 * H), expired: false }),
+        limits_at: None,
+        signed_out: false,
+    });
+    snap.cursor_found = Some((true, Some("pro".into())));
+    snap
+}
+
+#[test]
+fn compact_with_all_three() {
+    render(Case {
+        name: "compact-trio",
+        snap: with_cursor(with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false), true),
+        mood: Mood::Working,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn expanded_showing_cursor() {
+    use crate::components::logos::Provider;
+    render(Case {
+        name: "expanded-cursor-tab",
+        snap: with_cursor(with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false), true),
+        mood: Mood::Working,
+        view: View { provider: Provider::Cursor, details: true, ..View::default() },
+    });
+}
+
+#[test]
+fn settings_cursor_card() {
+    use crate::components::logos::Provider;
+    render(Case {
+        name: "settings-cursor",
+        snap: with_cursor(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false),
+        mood: Mood::Idle,
+        view: View { provider: Provider::Cursor, settings: Some(settings::Tab::Accounts), ..View::default() },
+    });
+}
+
+#[test]
+fn expanded_in_the_menu_bar() {
+    render(Case { name: "expanded-menu-bar", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
 }

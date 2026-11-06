@@ -69,15 +69,15 @@ pub fn mood_for(usage: Option<&Usage>, session_pct: Option<f64>, fire: f64) -> M
 }
 
 /// The mood across every connected service: any of them working wins; with
-/// none working, the hottest session sets it (an expired Codex reading
-/// doesn't count). Claude's logs alone say when it's asleep.
-pub fn mood_across(usage: Option<&Usage>, claude_pct: Option<f64>, codex: Option<&crate::codex::CodexUsage>, fire: f64) -> Mood {
-    if codex.is_some_and(|c| c.active) {
+/// none working, the hottest session sets it (an expired Codex or Cursor
+/// reading doesn't count; Cursor's session is its billing month). Claude's
+/// logs alone say when it's asleep.
+pub fn mood_across(snap: &Snapshot, claude: Option<(f64, Option<i64>)>, fire: f64) -> Mood {
+    if !crate::screens::workers(snap).is_empty() {
         return Mood::Working;
     }
-    let codex_pct = codex.and_then(|c| crate::screens::codex_pct(&c.session));
-    let hottest = [claude_pct, codex_pct].into_iter().flatten().fold(None, |m: Option<f64>, p| Some(m.map_or(p, |m| m.max(p))));
-    mood_for(usage, hottest, fire)
+    let hottest = crate::screens::sessions(snap, claude).into_iter().filter_map(|s| s.1).fold(None, |m: Option<f64>, p| Some(m.map_or(p, |m| m.max(p))));
+    mood_for(snap.usage.as_ref(), hottest, fire)
 }
 
 /// The window's size at launch, from the remembered view, before any reading.
@@ -229,6 +229,15 @@ impl App {
                         self.view.provider = crate::components::logos::Provider::Codex;
                     }
                 }
+                Action::SetCursor(on) => {
+                    self.prefs.cursor = on;
+                    self.draft.cursor = on;
+                    self.prefs.save();
+                    self.send(Command::Prefs(self.prefs.clone()));
+                    if on {
+                        self.view.provider = crate::components::logos::Provider::Cursor;
+                    }
+                }
                 Action::SubmitCode => {
                     let code = std::mem::take(&mut self.code);
                     self.send(Command::CompleteLogin(code));
@@ -284,12 +293,9 @@ impl App {
         }
         let Some(tray) = &mut self.tray else { return };
         // one service: its %; several: "C 64% · X 28%"; 🔥 when one is past the fire threshold
-        let codex_pct = snap.codex.as_ref().and_then(|c| crate::screens::codex_pct(&c.session));
-        let text = if snap.codex.is_some() {
-            crate::platform::tray::title_many(
-                &[(crate::components::logos::Provider::Claude, session.map(|s| s.0)), (crate::components::logos::Provider::Codex, codex_pct)],
-                self.settings.fire_threshold,
-            )
+        let services: Vec<_> = crate::screens::sessions(snap, session).into_iter().map(|s| (s.0, s.1)).collect();
+        let text = if services.len() > 1 {
+            crate::platform::tray::title_many(&services, self.settings.fire_threshold)
         } else {
             title(session.map(|s| s.0), self.settings.fire_threshold)
         };
@@ -303,6 +309,22 @@ impl App {
                 let w = live(&crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms }, snap.limits_at);
                 lines.push(line(&format!("{} weekly", sc.label), w.map(|w| w.0), w.and_then(|w| w.1)));
             }
+        }
+        // the other services, each with its own windows
+        let ext = |w: &Option<crate::codex::Window>| (w.as_ref().and_then(|w| w.pct), w.as_ref().and_then(|w| w.reset_ms));
+        if let Some(c) = &snap.codex {
+            let (p, r) = ext(&c.session);
+            lines.push(line(if c.weekly_only { "Codex weekly" } else { "Codex session" }, p, r));
+            if !c.weekly_only {
+                let (p, r) = ext(&c.weekly);
+                lines.push(line("Codex weekly", p, r));
+            }
+        }
+        if let Some(c) = &snap.cursor {
+            let (p, r) = ext(&c.session);
+            lines.push(line("Cursor usage", p, r));
+            let (p, r) = ext(&c.api);
+            lines.push(line("Cursor API", p, r));
         }
         tray.set_lines(lines);
         let events = tray.take_events();
@@ -363,7 +385,7 @@ impl eframe::App for App {
         let session = snap.limits.as_ref().and_then(|l| live(&l.session, snap.limits_at));
         let mood = self
             .pinned
-            .unwrap_or_else(|| mood_across(snap.usage.as_ref(), session.map(|s| s.0), snap.codex.as_ref(), self.settings.fire_threshold));
+            .unwrap_or_else(|| mood_across(&snap, session, self.settings.fire_threshold));
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
         let screen = (self.view.settings, size);
 
@@ -433,12 +455,13 @@ impl eframe::App for App {
         let card = egui::Rect::from_min_size(origin, self.card_now);
         // the card stays solid while its content fades: never a see-through moment
         if size != Size::PetOnly && self.leaving.is_none() {
-            // Codex's shade when the expanded panel shows it
-            let codex_shown = size == Size::Expanded
-                && self.view.settings.is_none()
-                && self.view.provider == crate::components::logos::Provider::Codex
-                && snap.codex.is_some();
-            let tint = if codex_shown { crate::ui::surface::Tint::Codex } else { crate::ui::surface::Tint::Claude };
+            // the shown service's shade in the expanded panel
+            let shown = self.view.provider;
+            let tint = if size == Size::Expanded && self.view.settings.is_none() && crate::screens::connected(&snap).contains(&shown) {
+                shown.surface()
+            } else {
+                crate::ui::surface::Tint::Claude
+            };
             crate::ui::surface::card_backdrop(ui.painter(), card, tint);
         }
         if fade < 1.0 {
@@ -449,7 +472,7 @@ impl eframe::App for App {
             // the content shows only inside the card as it opens or closes
             ui.set_clip_rect(card.expand(1.0));
         }
-        let f = Frame { area, card, snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
+        let f = Frame { area, card, snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos, menu_bar: self.prefs.menu_bar };
 
         // the areas that take the pointer; clicks anywhere else fall through
         let mut hot = vec![card];

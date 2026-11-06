@@ -10,19 +10,29 @@ pub fn card(ui: &Ui, ctx: &Context, rect: Rect) {
     card_tinted(ui, ctx, rect, Tint::Claude);
 }
 
-/// The panel's shade: warm for Claude, green-grey while it shows Codex.
+/// The panel's shade: warm for Claude, green-grey while it shows Codex,
+/// steel blue for Cursor.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Tint {
     Claude,
     Codex,
+    Cursor,
 }
 
 impl Tint {
     pub fn surface(self) -> Color32 {
-        if self == Tint::Codex { color::SURFACE_CODEX } else { color::SURFACE }
+        match self {
+            Tint::Claude => color::SURFACE,
+            Tint::Codex => color::SURFACE_CODEX,
+            Tint::Cursor => color::SURFACE_CURSOR,
+        }
     }
     fn glow(self) -> Color32 {
-        if self == Tint::Codex { color::SURFACE_WARM_CODEX } else { color::SURFACE_WARM }
+        match self {
+            Tint::Claude => color::SURFACE_WARM,
+            Tint::Codex => color::SURFACE_WARM_CODEX,
+            Tint::Cursor => color::SURFACE_WARM_CURSOR,
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use eframe::egui::{Align, Context, Pos2, Rect, Ui, Vec2};
 
 use crate::ui::text::text_mid;
 
-use super::{Action, Frame, MARGIN, Size, codex_pct, shown};
+use super::{Action, Frame, MARGIN, Size, sessions, shown};
 use crate::ui::controls::click_area;
 use crate::components::account::account;
 use crate::components::logos::Provider;
@@ -37,23 +37,12 @@ pub fn size(rows: usize) -> [f32; 2] {
 
 /// One row per connected service.
 pub fn rows(f: &Frame) -> Vec<ServiceRow> {
-    let mut v = vec![ServiceRow { provider: Provider::Claude, pct: f.session.map(|s| s.0), reset_ms: f.session.and_then(|s| s.1) }];
-    if let Some(c) = &f.snap.codex {
-        v.push(ServiceRow { provider: Provider::Codex, pct: codex_pct(&c.session), reset_ms: c.session.as_ref().and_then(|w| w.reset_ms) });
-    }
-    v
+    sessions(f.snap, f.session).into_iter().map(|(provider, pct, reset_ms)| ServiceRow { provider, pct, reset_ms }).collect()
 }
 
 /// The services working right now, for the logos under the pet.
 pub fn workers(f: &Frame) -> Vec<Provider> {
-    let mut v = vec![];
-    if f.snap.usage.as_ref().is_some_and(|u| u.active) {
-        v.push(Provider::Claude);
-    }
-    if f.snap.codex.as_ref().is_some_and(|c| c.active) {
-        v.push(Provider::Codex);
-    }
-    v
+    super::workers(f.snap)
 }
 
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
