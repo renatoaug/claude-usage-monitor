@@ -1,3 +1,6 @@
+// no console window behind the widget on Windows
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 // Clauddy, native: a transparent, always-on-top widget with the pet and the
 // account's real usage. CLAUDDY_STATE pins a mood (idle | working | fire |
 // tired | sleeping) for development.
