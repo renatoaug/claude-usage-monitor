@@ -5,7 +5,7 @@
 use eframe::egui;
 use egui_kittest::Harness;
 
-use super::{Frame, Size, View, compact, expanded, settings};
+use super::{Frame, Size, View, compact, expanded, pet_only, settings};
 use crate::prefs::Prefs;
 use crate::auth::{Limits, Profile, Scoped, Window};
 use crate::components::logos::Logos;
@@ -80,6 +80,7 @@ fn render_inner(case: Case, draft: Prefs) {
         (Some(tab), _) => settings::size(f.snap, tab),
         (None, Size::Compact) => compact::size(compact::rows(f).len()),
         (None, Size::Expanded) => expanded::size(f.snap, f.view),
+        (None, Size::PetOnly) => pet_only::size(),
     };
     let mut assets: Option<(Pet, Logos)> = None;
     // first pass measures the window, as the app does
@@ -98,6 +99,7 @@ fn render_inner(case: Case, draft: Prefs) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
             (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut String::new()),
+            (None, Size::PetOnly) => pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance"))),
         };
     });
     harness.run();
@@ -250,4 +252,28 @@ fn settings_alerts_with_an_unsaved_edit() {
 fn settings_appearance() {
     let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
     render(Case { name: "settings-appearance", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Appearance) });
+}
+
+fn pet_only_view() -> View {
+    View { size: Size::PetOnly, ..View::default() }
+}
+
+#[test]
+fn pet_only() {
+    render(Case { name: "pet-only", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn pet_only_with_its_glance() {
+    render(Case { name: "pet-only-glance", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn pet_only_working_with_its_glance() {
+    render(Case {
+        name: "pet-only-working-glance",
+        snap: snapshot(usage(true, Some("running")), Some(limits(86.0, 68.0))),
+        mood: Mood::Working,
+        view: pet_only_view(),
+    });
 }

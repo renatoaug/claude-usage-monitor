@@ -5,6 +5,7 @@
 
 pub mod compact;
 pub mod expanded;
+pub mod pet_only;
 pub mod settings;
 #[cfg(test)]
 mod snapshots;
@@ -18,6 +19,9 @@ use crate::poller::Snapshot;
 pub enum Size {
     Expanded,
     Compact,
+    /// just the pet, floating; hovering shows a usage glance
+    #[serde(rename = "pet-only")]
+    PetOnly,
 }
 
 /// What the widget remembers between runs: its size and which parts of the

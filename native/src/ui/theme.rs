@@ -40,6 +40,9 @@ mod palette {
     pub const CLAY_700: Color32 = rgb(0x30251e);
     pub const CORAL_350: Color32 = rgb(0xcb8a67);
     pub const CORAL_250: Color32 = rgb(0xce926d);
+    pub const PAPER_50: Color32 = rgb(0xf1e9dd);
+    pub const LEAF_500: Color32 = rgb(0x3f9f5a);
+    pub const BRICK_600: Color32 = rgb(0xc0392b);
     pub const CLAY_800: Color32 = rgb(0x261a12);
     pub const CLAY_850: Color32 = rgb(0x271d16);
     pub const TAN_200: Color32 = rgb(0xcdb49b);
@@ -76,6 +79,7 @@ mod palette {
     pub const DOT_N: Color32 = rgb(0xb1967c);
     // the night sky behind the expanded pet
     pub const NIGHT_CLOUD: Color32 = rgb(0x3a3a3a);
+    pub const PET_INK: Color32 = rgb(0x221b16);
     pub const NIGHT_STAR: Color32 = rgb(0xd8d8d8);
 }
 
@@ -144,6 +148,15 @@ pub mod color {
     pub const TILE: Color32 = white(3);
     pub const TILE_ON: Color32 = white(10);
     pub const TILE_EDGE_ON: Color32 = white(56);
+
+    // the pet's speech bubble (the pet-only glance)
+    pub const PAPER: Color32 = PAPER_50;
+    pub const INK: Color32 = palette::PET_INK;
+    pub const INK_FAINT: Color32 = rgba(0x07, 0x06, 0x05, 0x22);
+    pub const INK_SEP: Color32 = rgba(0x07, 0x06, 0x05, 0x33);
+    pub const BUBBLE_SHADOW: Color32 = rgba(0, 0, 0, 0x66);
+    pub const GLANCE_BAR: Color32 = LEAF_500;
+    pub const INK_URGENT: Color32 = BRICK_600;
 
     // tags
     pub const PLAN: Color32 = TAN_300;

@@ -52,7 +52,8 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
         Some(0) => actions.push(Action::Close),
         Some(1) => actions.push(Action::Resize(Size::Expanded)),
-        _ => {} // pet-only: next
+        Some(2) => actions.push(Action::Resize(Size::PetOnly)),
+        _ => {}
     }
 
     // the content: the pet's column on the left, the rows on the right, and

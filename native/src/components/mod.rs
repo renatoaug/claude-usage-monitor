@@ -3,6 +3,7 @@
 pub mod account;
 pub mod account_menu;
 pub mod breakdown;
+pub mod glance;
 pub mod heat_map;
 pub mod login;
 pub mod logos;

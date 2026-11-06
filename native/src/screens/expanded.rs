@@ -183,8 +183,9 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
         Some(0) => actions.push(Action::Close),
         Some(1) => actions.push(Action::Resize(Size::Compact)),
         Some(3) => actions.push(Action::OpenUsagePage),
+        Some(2) => actions.push(Action::Resize(Size::PetOnly)),
         Some(4) => actions.push(Action::ToggleSettings),
-        _ => {} // pet-only: next
+        _ => {}
     }
     chip
 }

@@ -12,7 +12,7 @@ use crate::components::pet::{Mood, Pet};
 use crate::poller::{self, Command, Settings, Shared, Snapshot};
 use std::sync::mpsc::Sender;
 use crate::prefs::Prefs;
-use crate::screens::{Action, Frame, Size, View, compact, expanded, settings};
+use crate::screens::{Action, Frame, Size, View, compact, expanded, pet_only, settings};
 use crate::ui::theme;
 use crate::usage::Usage;
 
@@ -53,6 +53,7 @@ pub fn initial_size() -> [f32; 2] {
     match view.size {
         Size::Compact => compact::size(1),
         Size::Expanded => expanded::size(&Snapshot::default(), &view),
+        Size::PetOnly => pet_only::size(),
     }
 }
 
@@ -204,6 +205,7 @@ impl eframe::App for App {
             (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
             (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
             (None, Size::Expanded) => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
+            (None, Size::PetOnly) => (pet_only::size(), pet_only::draw(ui, &ctx, &f, None)),
         };
         if want != self.size {
             self.size = want;
