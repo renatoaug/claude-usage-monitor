@@ -7,6 +7,7 @@ use eframe::egui::{Align2, FontId, Pos2, Rect, Ui, Vec2};
 use crate::format::tokens;
 use crate::ui::bar::bar;
 use crate::ui::controls::click_area;
+use crate::ui::skeleton::sk_line;
 use crate::ui::icon;
 use crate::ui::surface::hairline;
 use crate::ui::theme::{color, text};
@@ -19,7 +20,7 @@ pub fn height(rows: usize, open: bool) -> f32 {
 }
 
 /// Draw the section at `y`; true when its head was clicked (fold or unfold).
-pub fn section(ui: &Ui, left: f32, right: f32, y: f32, id: &str, title: &str, rows: &[Labeled], open: bool) -> bool {
+pub fn section(ui: &Ui, left: f32, right: f32, y: f32, id: &str, title: &str, rows: &[Labeled], open: bool, loading: bool) -> bool {
     let p = ui.painter();
     hairline(p, left, right, y);
     let head = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, 22.0));
@@ -34,7 +35,10 @@ pub fn section(ui: &Ui, left: f32, right: f32, y: f32, id: &str, title: &str, ro
     }
     let max = rows.iter().map(|r| r.tokens).max().unwrap_or(1).max(1);
     let mut cy = y + 22.0 + 13.0;
-    if rows.is_empty() {
+    if rows.is_empty() && loading {
+        sk_line(p, left + 8.0, cy, 120.0, 8.0);
+        sk_line(p, right - 30.0, cy, 30.0, 8.0);
+    } else if rows.is_empty() {
         p.text(Pos2::new(left, cy), Align2::LEFT_CENTER, "no activity", FontId::proportional(text::SMALL), color::FG_MUTED.gamma_multiply(0.5));
     }
     // columns: name (takes the slack) · 40 px bar · 44 px value, 7 px apart

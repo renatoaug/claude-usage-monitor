@@ -147,9 +147,8 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     }
     y += TOGGLE_H;
     if f.view.details {
-        if let Some(u) = usage {
-            details(ui, p, left, right, y, u, f, &mut actions);
-        }
+        let empty = crate::usage::Usage::empty();
+        details(ui, p, left, right, y, usage.unwrap_or(&empty), f, &mut actions);
     }
 
     account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
@@ -218,11 +217,11 @@ pub fn account_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip:
 fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, u: &crate::usage::Usage, f: &Frame, actions: &mut Vec<Action>) {
     let models = &u.by_model[..u.by_model.len().min(MODEL_ROWS)];
     let projects = &u.by_project[..u.by_project.len().min(PROJECT_ROWS)];
-    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models) {
+    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded) {
         actions.push(Action::ToggleModels);
     }
     y += breakdown::height(models.len(), f.view.models);
-    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects) {
+    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded) {
         actions.push(Action::ToggleProjects);
     }
     y += breakdown::height(projects.len(), f.view.projects);

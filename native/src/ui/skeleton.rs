@@ -5,9 +5,12 @@ use eframe::egui::{CornerRadius, Painter, Pos2, Rect, Vec2};
 
 use super::theme::{color, radius};
 
-/// A placeholder block.
+/// A placeholder block. It breathes gently, so a load reads as under way.
 pub fn sk(p: &Painter, rect: Rect) {
-    p.rect_filled(rect, CornerRadius::same(radius::TAG), color::SKELETON);
+    let t = p.ctx().input(|i| i.time) as f32;
+    let breath = 0.7 + 0.3 * (t * std::f32::consts::TAU / 1.4).cos();
+    p.rect_filled(rect, CornerRadius::same(radius::TAG), color::SKELETON.gamma_multiply(breath));
+    p.ctx().request_repaint_after(std::time::Duration::from_millis(60));
 }
 
 /// A line of text's placeholder, `w` wide and `h` tall, centred on `y`.

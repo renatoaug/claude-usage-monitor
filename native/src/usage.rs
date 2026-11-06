@@ -89,6 +89,28 @@ pub struct Usage {
     pub ts: i64,
 }
 
+impl Usage {
+    /// Nothing read yet: zeros, for screens that hold their shape while the
+    /// first poll is under way.
+    pub fn empty() -> Self {
+        Usage {
+            session: Session::default(),
+            week: Week::default(),
+            today_tokens: 0,
+            by_model: vec![],
+            by_project: vec![],
+            days30: vec![0; DAYS],
+            month_tokens: 0,
+            tokens_per_min: 0,
+            active: false,
+            sleeping: false,
+            activity: None,
+            last_activity_ms: None,
+            ts: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Entry {
     ts: i64,

@@ -177,7 +177,9 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
         tag(&p, name.right() + 7.0, card.top() + 18.0, Align::Min, &plan.to_lowercase(), &style);
     }
     let caption_y = card.top() + 35.0;
-    if f.snap.connected {
+    if !f.snap.loaded && !f.snap.connected {
+        crate::ui::skeleton::sk_line(&p, x, caption_y, 120.0, 8.0);
+    } else if f.snap.connected {
         text_mid(&p, x, caption_y, Align::Min, "Connected", text::SMALL, color::SIGNED_IN);
         let out = Rect::from_center_size(Pos2::new(card.right() - 20.0, card.center().y), Vec2::splat(22.0));
         let resp = click_area(ui, out, "logout");

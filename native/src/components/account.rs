@@ -6,6 +6,7 @@ use eframe::egui::{Align, Painter, Pos2, Rect, Vec2};
 
 use crate::auth::Profile;
 use crate::ui::icon;
+use crate::ui::skeleton::sk_line;
 use crate::ui::tag::{TagStyle, tag};
 use crate::ui::text::{ellipsis, text_mid};
 use crate::ui::theme::{color, text};
@@ -15,9 +16,14 @@ fn plan_tag(p: &Painter, x: f32, y: f32, plan: &str) -> Rect {
     tag(p, x, y, Align::Min, &plan.to_lowercase(), &style)
 }
 
-/// Compact: the name (or email) and the plan.
-pub fn account(p: &Painter, left: f32, y: f32, profile: Option<&Profile>) {
-    let Some(pr) = profile else { return };
+/// Compact: the name (or email) and the plan; a placeholder while loading.
+pub fn account(p: &Painter, left: f32, y: f32, profile: Option<&Profile>, loading: bool) {
+    let Some(pr) = profile else {
+        if loading {
+            sk_line(p, left, y, 54.0, 9.0);
+        }
+        return;
+    };
     let who = pr.name.as_deref().or(pr.email.as_deref()).map(|n| ellipsis(n, 18)).unwrap_or_default();
     let r = text_mid(p, left, y, Align::Min, &who, text::SMALL, color::FG_MUTED);
     if let Some(plan) = pr.plan.as_deref() {
@@ -28,6 +34,12 @@ pub fn account(p: &Painter, left: f32, y: f32, profile: Option<&Profile>) {
 /// Expanded: the chip; returns the area that opens the account menu.
 pub fn account_chip(p: &Painter, left: f32, y: f32, label: Option<&str>, plan: Option<&str>, hovered: bool, open: f32) -> Rect {
     let fg = if hovered { color::FG } else { color::FG_MUTED };
+    // no one to name yet: hold the place
+    if label.is_none() && plan.is_none() {
+        p.circle_filled(Pos2::new(left + 2.0, y), 2.0, color::SKELETON);
+        sk_line(p, left + 9.0, y, 110.0, 9.0);
+        return Rect::from_min_max(Pos2::new(left - 2.0, y - 9.0), Pos2::new(left + 122.0, y + 9.0));
+    }
     let who = label.map(|n| ellipsis(n, 14)).unwrap_or_else(|| "Claude".into());
     let r = text_mid(p, left + 9.0, y, Align::Min, &who, text::SMALL, fg);
     p.circle_filled(Pos2::new(left + 2.0, y), 2.0, color::SIGNED_IN);

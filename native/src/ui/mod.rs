@@ -5,6 +5,7 @@ pub mod bar;
 pub mod controls;
 pub mod group;
 pub mod icon;
+pub mod motion;
 pub mod segmented;
 pub mod skeleton;
 pub mod stepper;

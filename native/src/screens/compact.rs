@@ -48,7 +48,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     // title band: the account, then pet-only, expand and close
     let band_y = rect.top() + 15.5;
-    account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref());
+    account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref(), !f.snap.loaded);
     match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
         Some(0) => actions.push(Action::Close),
         Some(1) => actions.push(Action::Resize(Size::Expanded)),
@@ -80,7 +80,9 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         }
         y += ROW_H + ROW_GAP;
     }
-    if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {
+    if !f.snap.loaded {
+        crate::ui::skeleton::sk_line(p, content.right() - 62.0, line_y, 62.0, 7.0);
+    } else if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {
         text_mid(p, content.right(), line_y, Align::Max, &format!("resets {}", clock(ms)), text::TINY, color::FG_RESET);
     }
     actions

@@ -13,7 +13,7 @@ use crate::poller::{self, Command, Settings, Shared, Snapshot};
 use std::sync::mpsc::Sender;
 use crate::prefs::Prefs;
 use crate::screens::{Action, Frame, Size, View, compact, expanded, pet_only, settings};
-use crate::ui::theme;
+use crate::ui::{motion, theme};
 use crate::usage::Usage;
 
 pub struct App {
@@ -43,6 +43,14 @@ pub struct App {
     popover_focused: bool,
     /// the window is shown (it hides while Clauddy lives in the menu bar)
     shown: bool,
+    /// the screen on show (Settings tab, size) and when it came in, to fade it in
+    screen: (Option<settings::Tab>, Size),
+    entered: Instant,
+    /// the window's size as it eases toward `size`: (from, started)
+    resize: Option<([f32; 2], Instant)>,
+    current: [f32; 2],
+    /// the panel fading away on its way to the menu bar
+    leaving: Option<Instant>,
 }
 
 /// Working wins; otherwise the session's heat; otherwise rest.
@@ -120,6 +128,11 @@ impl App {
             popover: false,
             popover_focused: false,
             shown: !Prefs::load().menu_bar,
+            screen: (None, Size::Expanded),
+            entered: Instant::now(),
+            resize: None,
+            current: [0.0, 0.0],
+            leaving: None,
         }
     }
 
@@ -167,6 +180,10 @@ impl App {
                 Action::SettingsTab(t) => self.view.settings = Some(t),
                 Action::EditPrefs(p) => self.draft = p,
                 Action::SaveSettings => {
+                    // moving to the menu bar: let the panel fade out first
+                    if self.draft.menu_bar && !self.prefs.menu_bar {
+                        self.leaving = Some(Instant::now());
+                    }
                     self.draft.save();
                     self.prefs = self.draft.clone();
                     self.settings.fire_threshold = self.prefs.fire as f64;
@@ -200,6 +217,7 @@ impl App {
         }
         self.popover = true;
         self.popover_focused = false;
+        self.entered = Instant::now();
         self.show(ctx, true);
         crate::platform::activate();
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
@@ -215,7 +233,7 @@ impl App {
     /// answer what was clicked there.
     fn menu_bar(&mut self, ctx: &Context, snap: &Snapshot, session: Option<(f64, Option<i64>)>) {
         use crate::platform::tray::{Tray, TrayEvent, line, title};
-        let wanted = self.prefs.menu_bar;
+        let wanted = self.prefs.menu_bar && self.leaving.is_none();
         if wanted && self.tray.is_none() {
             self.tray = Tray::new(ctx);
             if self.tray.is_some() {
@@ -299,6 +317,25 @@ impl eframe::App for App {
         let f = Frame { snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
 
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
+
+        // a new screen (Settings, a tab, a size) fades in; the panel fades
+        // out on its way to the menu bar
+        if (self.view.settings, size) != self.screen {
+            self.screen = (self.view.settings, size);
+            self.entered = Instant::now();
+        }
+        let mut fade = motion::progress(self.entered, motion::ENTER_S);
+        if let Some(t) = self.leaving {
+            fade = 1.0 - motion::progress(t, motion::LEAVE_S);
+            if fade <= 0.0 {
+                self.leaving = None;
+            }
+        }
+        if fade < 1.0 {
+            ui.multiply_opacity(fade);
+            ctx.request_repaint();
+        }
+
         let (want, mut actions) = match (self.view.settings, size) {
             (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
             (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
@@ -325,9 +362,25 @@ impl eframe::App for App {
         if size != Size::PetOnly {
             self.cursor.watch(None);
         }
+        // the window eases to its new size rather than jumping
         if want != self.size {
+            let first = self.current == [0.0, 0.0];
             self.size = want;
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
+            self.resize = (!first).then(|| (self.current, Instant::now()));
+            if first {
+                self.current = want;
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
+            }
+        }
+        if let Some((from, start)) = self.resize {
+            let t = motion::progress(start, motion::RESIZE_S);
+            self.current = motion::lerp_size(from, self.size, t);
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.current.into()));
+            if t >= 1.0 {
+                self.resize = None;
+            } else {
+                ctx.request_repaint();
+            }
         }
         self.apply(&ctx, actions);
         self.menu_bar(&ctx, &snap, session);
