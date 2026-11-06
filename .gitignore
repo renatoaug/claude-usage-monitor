@@ -15,3 +15,6 @@ tools/showcase/tmp/
 tools/showcase/.hyperframes/
 tools/showcase/assets/clips/
 tools/showcase/assets/music.wav
+
+# native (Rust) build output
+native/target/
