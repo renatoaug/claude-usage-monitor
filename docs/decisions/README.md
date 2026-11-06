@@ -52,7 +52,7 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-005](ADR-005-burn-rate-on-tokens.md) | The burn rate is fitted on tokens and anchored on the account % | Accepted |
 | [ADR-006](ADR-006-working-means-an-open-turn.md) | Working means an open turn, not a recent write | Accepted |
 | [ADR-007](ADR-007-a-deadline-is-not-a-new-budget.md) | A reset deadline alone does not prove a new budget | Accepted |
-| [ADR-008](ADR-008-pets-drawn-in-code.md) | Pets are drawn in code and ship inside the app | Accepted |
+| [ADR-008](ADR-008-pets-drawn-in-code.md) | Pets are drawn in code and ship inside the app | Superseded by ADR-013 |
 | [ADR-009](ADR-009-holiday-pet-by-hash.md) | The holiday pet is picked by a hash of the year | Accepted |
 | [ADR-010](ADR-010-build-on-each-platform.md) | Each platform builds on its own runner | Accepted |
 | [ADR-011](ADR-011-codex-limits-from-the-app-server.md) | Codex limits come from its app-server | Accepted |
