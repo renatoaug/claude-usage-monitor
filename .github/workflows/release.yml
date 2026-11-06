@@ -6,8 +6,9 @@ name: Release
 # GitHub Release with all the artifacts. No version commit is pushed back to
 # main (tag only).
 #
-# Three stages, because Windows/Linux artifacts can't be cross-built from macOS:
+# Three stages, because each platform's app is built on its own runner:
 #   version -> build (matrix, stamps the version) -> publish (attaches them all)
+# The app is the native one in native/ (Rust); see ADR-012.
 on:
   push:
     branches: [main]
@@ -68,37 +69,33 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            dist: dist
             artifact: clauddy-macos
           - os: windows-latest
-            dist: dist:win
             artifact: clauddy-windows
           - os: ubuntu-latest
-            dist: dist:linux
             artifact: clauddy-linux
     runs-on: ${{ matrix.os }}
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: "false" # unsigned build, skip signing
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/setup-node@v7
+      - uses: Swatinem/rust-cache@v2
         with:
-          node-version-file: .nvmrc
+          workspaces: native
 
-      - run: bun install --frozen-lockfile
+      # the tray and its menu build against GTK on Linux
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libxdo-dev libayatana-appindicator3-dev
 
-      # electron-builder names artifacts from package.json — stamp the version
-      # semantic-release is about to publish so the filenames match the release.
-      - name: Stamp version
-        run: node scripts/set-version.js ${{ needs.version.outputs.version }}
-
-      - name: Build
-        run: bun run ${{ matrix.dist }}
+      # builds the app with the version semantic-release is about to publish,
+      # so the file names and the update check match the release
+      - name: Build and pack
+        shell: bash
+        run: native/scripts/package.sh ${{ needs.version.outputs.version }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -106,7 +103,6 @@ jobs:
           path: |
             dist/*.zip
             dist/*.tar.gz
-            dist/*.AppImage
           if-no-files-found: error
 
   publish:

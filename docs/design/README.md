@@ -11,3 +11,4 @@ How Clauddy is built, in reading order. Each note describes the code as it is to
 | [05-alerts.md](05-alerts.md) | The notifications, the reminder at a session reset and the rules that keep them from repeating |
 | [06-pets.md](06-pets.md) | The pets and their packs, how a pet is drawn and moves, the holiday rule and how to add a pet |
 | [07-releases.md](07-releases.md) | How a merge becomes a release: the version, the builds on each platform and what is published |
+| [08-native.md](08-native.md) | The native app: its threads and screens, the window on macOS, notifications, login, updates and its files |

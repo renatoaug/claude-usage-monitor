@@ -17,7 +17,7 @@ Pull requests are squash-merged, so the PR title is the commit semantic-release 
 
 ## The pipeline
 
-electron-builder cannot reliably build Windows and Linux apps from macOS, so each platform builds on its own runner ([ADR-010](../decisions/ADR-010-build-on-each-platform.md)), in three stages:
+The app is the native one in `native/` ([ADR-012](../decisions/ADR-012-the-native-app-replaces-electron.md)), and each platform builds on its own runner ([ADR-010](../decisions/ADR-010-build-on-each-platform.md)), in three stages:
 
 ```mermaid
 flowchart LR
@@ -26,24 +26,28 @@ flowchart LR
     v --> b3["build · Linux"]
     b1 -- "zip" --> p["publish<br/>semantic-release"]
     b2 -- "zip" --> p
-    b3 -- "AppImage, tar.gz" --> p
+    b3 -- "tar.gz" --> p
     p --> gh["GitHub Release"]
     p --> npm["npm: clauddy"]
 ```
 
 1. **version**: lints, then runs semantic-release as a dry run to compute the next version. With nothing to ship the pipeline stops here.
-2. **build**: one job per platform stamps that version into `package.json` (`scripts/set-version.js`), so the file names are right, and runs `bun run dist`, `dist:win` or `dist:linux`.
+2. **build**: one job per platform installs the Rust toolchain (and GTK on Linux, for the tray) and runs `native/scripts/package.sh <version>`, which stamps the version into `native/Cargo.toml`, builds the app and packs it into `dist/`.
 3. **publish**: downloads every artifact and runs semantic-release for real: the tag `vX.Y.Z`, the GitHub Release with the macOS, Windows and Linux files attached, and `clauddy` on npm for `bunx clauddy`.
 
 ## What ships
 
 | Platform | File | Installed by |
 |---|---|---|
-| macOS (Apple Silicon) | `Clauddy-<version>-arm64-mac.zip` | `install.sh` and the in-app update |
-| Windows (x64) | `Clauddy-<version>-win-x64.zip` | Unzipping it |
-| Linux (x64) | `Clauddy-<version>-linux-x86_64.AppImage`, `Clauddy-<version>-linux-x64.tar.gz` | Running the AppImage |
-| Any | `clauddy` on npm | `bunx clauddy`, `npx clauddy` |
+| macOS (Apple Silicon) | `Clauddy-<version>-arm64-mac.zip`: `Clauddy.app` | `install.sh` and the in-app update |
+| Windows (x64) | `Clauddy-<version>-win-x64.zip`: `Clauddy.exe` | Unzipping it |
+| Linux (x64) | `Clauddy-<version>-linux-x64.tar.gz`: `Clauddy/clauddy` and its icon | Unpacking it |
+| Any | `clauddy` on npm (still the Electron app) | `bunx clauddy`, `npx clauddy` |
 
-The macOS bundle is ad-hoc signed with the real app id after packing (`scripts/adhoc-sign.js`), which keeps notifications working; it is not notarized, which is why `install.sh` exists ([setup](03-setup.md#macos)).
+The macOS bundle is built by `native/scripts/bundle.sh` and ad-hoc signed under the real app id, `app.clauddy`, which keeps notifications working; it is not notarized, which is why `install.sh` exists ([setup](03-setup.md#macos)). A development bundle uses `app.clauddy.dev`, so it never mixes with the installed app.
 
-Locally, `bun run pack` builds `dist/mac-arm64/Clauddy.app` to check that the app still builds and launches.
+The app checks the latest release 8 seconds after launch and every 6 hours, marking the gear when one is newer; Settings > Check for updates asks at once. On macOS, updating runs `install.sh` and quits so it can replace the app; on Windows and Linux it opens the release page.
+
+Pull requests build the native app on all three platforms, check its formatting, and run its tests (with the snapshot gallery) on macOS.
+
+Locally, `native/scripts/bundle.sh` builds `native/target/Clauddy.app`, and `native/scripts/package.sh <version>` the artifact a release would ship.

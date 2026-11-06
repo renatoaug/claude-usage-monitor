@@ -47,18 +47,18 @@ bun run test:coverage
 
 `./pet <state>` states: `fire`, `sleeping`, `working`, `tired`, `idle`, `poke`, `celebrate`, `say`, `auto`, plus the activity scenes `reading`, `editing`, `running`, `planning`, `researching`, `delegating`, `waiting`.
 
-> Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't reliably cross-build them from macOS. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs semantic-release for real). Details in [`docs/design/07-releases.md`](docs/design/07-releases.md) and [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md).
+> Each platform's app is built on its own runner. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each running `native/scripts/package.sh` with the computed version) → `publish` (downloads every artifact and runs semantic-release for real). The `bun run dist*` scripts build the Electron app, which is no longer released. Details in [`docs/design/07-releases.md`](docs/design/07-releases.md), [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md) and [ADR-012](docs/decisions/ADR-012-the-native-app-replaces-electron.md).
 
 ## Native app (Rust)
 
-`native/` is the Rust rewrite (eframe/egui, no webview), on the `feat/native-rust` branch until it reaches parity. `cargo test --release` and `cargo build --release` run from `native/`.
+`native/` is the app that ships (eframe/egui, no webview; [ADR-012](docs/decisions/ADR-012-the-native-app-replaces-electron.md), [design/08-native.md](docs/design/08-native.md)); the Electron code at the root is no longer released. `cargo test --release` and `cargo build --release` run from `native/`; `cargo fmt` follows `native/rustfmt.toml`, and pull requests check it.
 
 - **Layout**: `src/ui/` holds generic pieces that know nothing about Clauddy (theme, icon, controls, surface, bar, tag, text); `src/components/` holds Clauddy's own pieces (pet, logos, account, service row, meter, status, breakdown, heat map); `src/screens/` holds the compact and expanded layouts; `src/app.rs` is the shell; `src/format.rs` is how numbers and times read. Data: `usage.rs`, `auth.rs`, `accounts.rs`, `poller.rs`. Look in `ui/` and `components/` before writing a piece: it usually exists.
 - **Tokens**: `src/ui/theme.rs`. The raw palette is private to that file; everything else uses `color::*`, `text::*` and `radius::*`. Corners come in three sizes by role: `radius::TAG` (badges), `radius::CONTROL` (buttons, bars, boxes inside the card) and `radius::CARD`; no other radius. A test fails on a raw colour (`Color32::from_*`, `WHITE`, `BLACK`) anywhere else.
 - **Screens** draw only from the `Frame` they get and return `Action`s for the app to apply. They never read the poller, the disk or the clock on their own (`format::now` is pinned in tests).
 - **Snapshots**: `src/screens/snapshots.rs` renders every screen state from fixtures into `native/tests/snapshots/*.png`, and the tests fail when a render drifts. They are the gallery: a new state gets a new case. After an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
 - **Icon**: `native/assets/icon.png` (1024 px, on the macOS template, generated in the pet's art style); `native/scripts/icon.sh` turns it into `native/assets/icon.icns`.
-- **Bundle**: `native/scripts/bundle.sh` builds `native/target/Clauddy.app` (Info.plist, icon, no Dock icon, ad-hoc signed as `app.clauddy.dev` until it takes over `app.clauddy`). Notifications go through UNUserNotificationCenter, as the Electron app's do: at launch the app comes to the front and asks for permission, which macOS shows as its Allow / Don't Allow prompt until answered. The loose binary can't notify, so test them with `open native/target/Clauddy.app`. Never send through NSUserNotificationCenter as well: macOS refuses a bundle id that mixes the two APIs.
+- **Bundle**: `native/scripts/bundle.sh` builds `native/target/Clauddy.app` (Info.plist, icon, no Dock icon, ad-hoc signed as `app.clauddy.dev`, so a development build never mixes with the installed app). `native/scripts/package.sh <version>` builds what a release ships on the current OS, as `app.clauddy`. Notifications go through UNUserNotificationCenter, as the Electron app's do: at launch the app comes to the front and asks for permission, which macOS shows as its Allow / Don't Allow prompt until answered. The loose binary can't notify, so test them with `open native/target/Clauddy.app`. Never send through NSUserNotificationCenter as well: macOS refuses a bundle id that mixes the two APIs.
 - **Art**: new pet art is generated (Codex `gpt-6-astra`), not drawn in code; Clauddy stays square and blocky like the classic sprite.
 
 ## Tests
@@ -142,8 +142,9 @@ Claude Code as the product Clauddy tracks is fine to name. PR descriptions and c
 1. `bun run check` is clean.
 2. `bun run test:coverage` passes.
 3. `bun run pack` builds successfully (the app still launches).
-4. The design note it touches is updated, and a structural decision has its record.
-5. Commit follows the convention above.
+4. For `native/`: `cargo fmt --check` and `cargo test --release` pass, and `native/scripts/bundle.sh` builds an app that launches.
+5. The design note it touches is updated, and a structural decision has its record.
+6. Commit follows the convention above.
 
 ## Companion behavior
 
