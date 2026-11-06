@@ -80,8 +80,9 @@ impl Tray {
             } else {
                 return;
             };
-            // a hidden window gets no frames: show it so the next one answers
-            crate::platform::wake();
+            // a hidden window gets no frames: show it so the next one
+            // answers, once the menu has closed
+            crate::platform::wake_after_menu(c.clone());
             if let Ok(mut v) = q.lock() {
                 v.push(ev);
             }

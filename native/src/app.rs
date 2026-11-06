@@ -260,6 +260,7 @@ impl App {
                     }
                 }
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
+                Action::HidePopover => self.close_popover(ctx),
                 Action::DismissBubble => {
                     if let Some(s) = &mut self.said {
                         s.until = s.until.min(Instant::now());

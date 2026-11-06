@@ -75,6 +75,8 @@ pub enum Action {
     Remind(Provider, bool),
     /// the speech bubble was clicked away
     DismissBubble,
+    /// the menu bar's popover goes back into the bar
+    HidePopover,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,

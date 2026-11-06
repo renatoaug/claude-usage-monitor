@@ -8,7 +8,37 @@ pub mod tray;
 pub fn activate() {
     #[cfg(target_os = "macos")]
     if let Some(mtm) = objc2::MainThreadMarker::new() {
-        objc2_app_kit::NSApplication::sharedApplication(mtm).activate();
+        force_activate(&objc2_app_kit::NSApplication::sharedApplication(mtm));
+    }
+}
+
+/// `activate()` only asks since macOS 14, and a menu-bar app asking from its
+/// own menu is turned down: the window shows as key, but the first click on
+/// it hands focus back to the app before. The old call still takes it.
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+fn force_activate(app: &objc2_app_kit::NSApplication) {
+    app.activateIgnoringOtherApps(true);
+}
+
+/// `wake` once the menu-bar menu has closed. Shown while the menu is still
+/// closing, the window looks focused but macOS hands the next click to the
+/// app that was in front, and the click is lost. A timer in the default run
+/// loop mode doesn't fire during menu tracking, so it waits for the menu.
+pub fn wake_after_menu(ctx: eframe::egui::Context) {
+    #[cfg(target_os = "macos")]
+    {
+        let block = block2::RcBlock::new(move |_: std::ptr::NonNull<objc2_foundation::NSTimer>| {
+            wake();
+            ctx.request_repaint();
+        });
+        // SAFETY: the block only touches the main thread's app and a Send context
+        let _ = unsafe { objc2_foundation::NSTimer::scheduledTimerWithTimeInterval_repeats_block(0.05, false, &block) };
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        wake();
+        ctx.request_repaint();
     }
 }
 
@@ -22,6 +52,6 @@ pub fn wake() {
         for w in app.windows().iter() {
             w.orderFrontRegardless();
         }
-        app.activate();
+        force_activate(&app);
     }
 }

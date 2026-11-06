@@ -307,8 +307,9 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
     if click_area(ui, chip, "account-chip").clicked() {
         actions.push(Action::ToggleAccountMenu);
     }
-    // in the menu bar the popover is the only size: no minimize, no pet-only
-    let mut buttons = vec![("close", icon::CLOSE, Action::Close)];
+    // in the menu bar the popover is the only size: minimize tucks it back
+    // into the bar (quitting is in the bar's menu), and there's no pet-only
+    let mut buttons = vec![if f.menu_bar { ("minimize", icon::MINIMIZE, Action::HidePopover) } else { ("close", icon::CLOSE, Action::Close) }];
     if !f.menu_bar {
         buttons.push(("minimize", icon::MINIMIZE, Action::Resize(Size::Compact)));
         buttons.push(("pet-only", icon::PET, Action::Resize(Size::PetOnly)));
