@@ -145,9 +145,7 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
     for sc in &l.scoped {
         let Some((pct, reset)) = live(&Window { pct: sc.pct, reset_ms: sc.reset_ms }, at) else { continue };
         let key = sc.label.to_lowercase();
-        let family: u64 = usage
-            .map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum())
-            .unwrap_or(0);
+        let family: u64 = usage.map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum()).unwrap_or(0);
         out.push(Meter {
             label: format!("weekly · {key}"),
             pct: Some(pct),
@@ -183,8 +181,7 @@ pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter, hero: bool, 
 
 /// A meter's placeholder while the first reading loads.
 pub fn meter_skeleton(p: &Painter, left: f32, right: f32, y: f32, hero: bool) {
-    let (label_y, value_w, value_h, track_y, track_h) =
-        if hero { (y + 30.0, 46.0, 20.0, y + 47.0, 5.0) } else { (y + 19.0, 26.0, 10.0, y + 33.0, 4.0) };
+    let (label_y, value_w, value_h, track_y, track_h) = if hero { (y + 30.0, 46.0, 20.0, y + 47.0, 5.0) } else { (y + 19.0, 26.0, 10.0, y + 33.0, 4.0) };
     sk_line(p, left, label_y, 86.0, 9.0);
     sk_line(p, right - value_w, label_y - (value_h - 9.0) / 2.0, value_w, value_h);
     bar(p, Rect::from_min_size(Pos2::new(left, track_y), Vec2::new(right - left, track_h)), None, color::TRACK, color::TRACK);

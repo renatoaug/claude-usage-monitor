@@ -6,11 +6,11 @@ use eframe::egui;
 use egui_kittest::Harness;
 
 use super::{Frame, Size, View, compact, expanded, pet_only, settings};
-use crate::prefs::Prefs;
 use crate::auth::{Limits, Profile, Scoped, Window};
 use crate::components::logos::Logos;
 use crate::components::pet::{Mood, Pet};
 use crate::poller::Snapshot;
+use crate::prefs::Prefs;
 use crate::usage::{Labeled, Reader, Usage};
 
 const H: i64 = 3_600_000;
@@ -96,14 +96,48 @@ fn render_inner(case: Case, draft: Prefs) {
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
-        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)), mute: case.name.ends_with("-talking").then_some(false), update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() } };
+        let f = Frame {
+            area: full,
+            card: full,
+            snap: &case.snap,
+            mood: case.mood,
+            session,
+            view: &case.view,
+            pet: &pet,
+            logos: &logos,
+            menu_bar: case.name.ends_with("menu-bar"),
+            heads_up: 80.0,
+            bubble: case
+                .name
+                .ends_with("-talking")
+                .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
+            mute: case.name.ends_with("-talking").then_some(false),
+            update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
+        };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let area = ctx.content_rect().shrink(super::MARGIN);
-        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)), mute: case.name.ends_with("-talking").then_some(false), update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() } };
+        let f = Frame {
+            area,
+            card: area,
+            snap: &case.snap,
+            mood: case.mood,
+            session,
+            view: &case.view,
+            pet,
+            logos,
+            menu_bar: case.name.ends_with("menu-bar"),
+            heads_up: 80.0,
+            bubble: case
+                .name
+                .ends_with("-talking")
+                .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
+            mute: case.name.ends_with("-talking").then_some(false),
+            update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
+        };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -126,12 +160,7 @@ fn compact_idle() {
 
 #[test]
 fn compact_working() {
-    render(Case {
-        name: "compact-working",
-        snap: snapshot(usage(true, Some("running")), Some(limits(42.0, 68.0))),
-        mood: Mood::Working,
-        view: compact_view(),
-    });
+    render(Case { name: "compact-working", snap: snapshot(usage(true, Some("running")), Some(limits(42.0, 68.0))), mood: Mood::Working, view: compact_view() });
 }
 
 #[test]
@@ -211,12 +240,7 @@ fn expanded_account_menu() {
 #[test]
 fn expanded_account_menu_confirming_a_removal() {
     let view = View { account_menu: true, pending_remove: Some("acct-2".into()), ..View::default() };
-    render(Case {
-        name: "expanded-account-menu-remove",
-        snap: two_accounts(snapshot(usage(false, None), Some(limits(42.0, 68.0)))),
-        mood: Mood::Idle,
-        view,
-    });
+    render(Case { name: "expanded-account-menu-remove", snap: two_accounts(snapshot(usage(false, None), Some(limits(42.0, 68.0)))), mood: Mood::Idle, view });
 }
 
 #[test]
@@ -322,7 +346,12 @@ fn compact_with_codex() {
 
 #[test]
 fn expanded_with_codex_on_claude() {
-    render(Case { name: "expanded-codex-claude-tab", snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false), mood: Mood::Idle, view: View::default() });
+    render(Case {
+        name: "expanded-codex-claude-tab",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false),
+        mood: Mood::Idle,
+        view: View::default(),
+    });
 }
 
 #[test]

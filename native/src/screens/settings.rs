@@ -144,7 +144,13 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
         }
         None => false,
     };
-    let fg = if act.is_none() { color::FG_MUTED } else if hovered { color::FG } else { color::ADD };
+    let fg = if act.is_none() {
+        color::FG_MUTED
+    } else if hovered {
+        color::FG
+    } else {
+        color::ADD
+    };
     text_mid(&p, right, vy, Align::Max, &label, text::CAPTION, fg);
 
     account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
@@ -206,7 +212,13 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
             Provider::Codex => saved.codex,
             Provider::Cursor => saved.cursor,
         };
-        let fade = if !ready { 0.4 } else if linked || on { 1.0 } else { 0.7 };
+        let fade = if !ready {
+            0.4
+        } else if linked || on {
+            1.0
+        } else {
+            0.7
+        };
         let logo = Rect::from_center_size(Pos2::new(tile.center().x, tile.top() + 19.0), Vec2::splat(18.0));
         f.logos.draw(&p, provider, logo, if ready && (linked || on) { provider.tint() } else { color::FG_MUTED.gamma_multiply(fade) });
         text_mid(&p, tile.center().x, tile.top() + 38.0, Align::Center, provider.name(), text::SMALL, color::FG.gamma_multiply(fade));

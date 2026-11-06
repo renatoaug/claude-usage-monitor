@@ -15,11 +15,8 @@ pub fn bold(p: &Painter, pos: Pos2, align: Align2, text: &str, size: f32, color:
 /// `h` anchors `x` at the text's left, centre or right. Returns its box.
 pub fn text_mid(p: &Painter, x: f32, mid: f32, h: Align, text: &str, size: f32, color: Color32) -> Rect {
     let galley = p.layout_no_wrap(text.into(), FontId::proportional(size), color);
-    let (baseline, ascent) = galley
-        .rows
-        .first()
-        .and_then(|r| r.glyphs.first().map(|g| (r.pos.y + g.pos.y, g.font_ascent)))
-        .unwrap_or((galley.size().y * 0.78, size * 0.8));
+    let (baseline, ascent) =
+        galley.rows.first().and_then(|r| r.glyphs.first().map(|g| (r.pos.y + g.pos.y, g.font_ascent))).unwrap_or((galley.size().y * 0.78, size * 0.8));
     // the x-height is about 0.56 of the ascent in both SF and egui's font
     let x_height = ascent * 0.56;
     let w = galley.size().x;

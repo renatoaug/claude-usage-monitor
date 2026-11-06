@@ -31,8 +31,7 @@ fn main() -> eframe::Result {
     // `clauddy --usage`: print one reading of the local logs as JSON (dev aid)
     if std::env::args().any(|a| a == "--usage") {
         let path = std::env::home_dir().unwrap_or_default().join(".claude-usage-monitor/config.json");
-        let cfg: usage::Config =
-            std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+        let cfg: usage::Config = std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
         let mut reader = usage::Reader::new(None);
         let t = Instant::now();
         let u = reader.get_usage(&cfg);
@@ -101,9 +100,5 @@ fn main() -> eframe::Result {
             .with_resizable(false),
         ..Default::default()
     };
-    eframe::run_native(
-        "Clauddy",
-        options,
-        Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
-    )
+    eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

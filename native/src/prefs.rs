@@ -30,7 +30,19 @@ pub struct Prefs {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false, codex: false, cursor: false, zoom: 100, talk: true, sound: false, muted_until: 0 }
+        Prefs {
+            alerts: true,
+            heads_up: 80,
+            near_limit: 95,
+            fire: 90,
+            menu_bar: false,
+            codex: false,
+            cursor: false,
+            zoom: 100,
+            talk: true,
+            sound: false,
+            muted_until: 0,
+        }
     }
 }
 
@@ -114,7 +126,22 @@ mod tests {
     #[test]
     fn reads_the_electron_keys_and_falls_back_to_defaults() {
         let p = Prefs::from_value(&json!({"alerts": false, "alertThresholds": [70, 90], "fireThreshold": 85}));
-        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false, codex: false, cursor: false, zoom: 100, talk: true, sound: false, muted_until: 0 });
+        assert_eq!(
+            p,
+            Prefs {
+                alerts: false,
+                heads_up: 70,
+                near_limit: 90,
+                fire: 85,
+                menu_bar: false,
+                codex: false,
+                cursor: false,
+                zoom: 100,
+                talk: true,
+                sound: false,
+                muted_until: 0
+            }
+        );
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);

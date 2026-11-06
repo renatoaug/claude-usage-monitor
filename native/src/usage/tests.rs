@@ -213,10 +213,7 @@ fn aggregates_weekly_tokens_per_label() {
     let mut fx = Fx::new();
     let m = |tokens, model| line(L { tokens, model: Some(model), ..Default::default() });
     fx.write_log(&[m(100, "claude-opus-5"), m(50, "claude-opus-5"), m(20, "claude-sonnet-5")]);
-    assert_eq!(
-        fx.usage(&budget()).by_model,
-        vec![Labeled { label: "Opus 5".into(), tokens: 150 }, Labeled { label: "Sonnet 5".into(), tokens: 20 }]
-    );
+    assert_eq!(fx.usage(&budget()).by_model, vec![Labeled { label: "Opus 5".into(), tokens: 150 }, Labeled { label: "Sonnet 5".into(), tokens: 20 }]);
 }
 
 // ---- project labels ----
@@ -269,10 +266,7 @@ fn aggregates_weekly_tokens_per_project_directory() {
     let b = fx.real_dir("beta");
     fx.write_log_in(&[tok(100), tok(50)], "session.jsonl", &enc(&a));
     fx.write_log_in(&[tok(20)], "session.jsonl", &enc(&b));
-    assert_eq!(
-        fx.usage(&budget()).by_project,
-        vec![Labeled { label: "alpha".into(), tokens: 150 }, Labeled { label: "beta".into(), tokens: 20 }]
-    );
+    assert_eq!(fx.usage(&budget()).by_project, vec![Labeled { label: "alpha".into(), tokens: 150 }, Labeled { label: "beta".into(), tokens: 20 }]);
 }
 
 #[test]
@@ -442,15 +436,13 @@ fn prompt(text: &str) -> String {
     json!({"type": "user", "message": {"role": "user", "content": text}}).to_string()
 }
 fn call(name: &str) -> String {
-    json!({"type": "assistant", "message": {"stop_reason": "tool_use", "content": [{"type": "tool_use", "name": name}]}})
-        .to_string()
+    json!({"type": "assistant", "message": {"stop_reason": "tool_use", "content": [{"type": "tool_use", "name": name}]}}).to_string()
 }
 fn result() -> String {
     json!({"type": "user", "message": {"content": [{"type": "tool_result"}]}}).to_string()
 }
 fn answer() -> String {
-    json!({"type": "assistant", "message": {"stop_reason": "end_turn", "content": [{"type": "text", "text": "done"}]}})
-        .to_string()
+    json!({"type": "assistant", "message": {"stop_reason": "end_turn", "content": [{"type": "text", "text": "done"}]}}).to_string()
 }
 fn duration() -> String {
     json!({"type": "system", "subtype": "turn_duration"}).to_string()

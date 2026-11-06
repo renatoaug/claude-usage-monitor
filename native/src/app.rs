@@ -10,11 +10,11 @@ use crate::components::logos::Logos;
 use crate::components::meter::live;
 use crate::components::pet::{Mood, Pet};
 use crate::poller::{self, Command, Settings, Shared, Snapshot};
-use std::sync::mpsc::Sender;
 use crate::prefs::Prefs;
 use crate::screens::{Action, Frame, MARGIN, Size, View, compact, expanded, pet_only, settings};
 use crate::ui::{motion, theme};
 use crate::usage::Usage;
+use std::sync::mpsc::Sender;
 
 pub struct App {
     pet: Pet,
@@ -455,9 +455,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         let snap: Snapshot = self.data.lock().map(|s| s.clone()).unwrap_or_default();
         let session = snap.limits.as_ref().and_then(|l| live(&l.session, snap.limits_at));
-        let mood = self
-            .pinned
-            .unwrap_or_else(|| mood_across(&snap, session, self.settings.fire_threshold));
+        let mood = self.pinned.unwrap_or_else(|| mood_across(&snap, session, self.settings.fire_threshold));
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
         let screen = (self.view.settings, size);
         // the zoom: the draft's while Settings is open, so a step shows at once

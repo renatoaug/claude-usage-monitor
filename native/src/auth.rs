@@ -69,11 +69,7 @@ pub struct Ureq(ureq::Agent);
 
 impl Default for Ureq {
     fn default() -> Self {
-        let agent = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .timeout_global(Some(Duration::from_secs(20)))
-            .build()
-            .new_agent();
+        let agent = ureq::Agent::config_builder().http_status_as_error(false).timeout_global(Some(Duration::from_secs(20))).build().new_agent();
         Ureq(agent)
     }
 }
@@ -81,11 +77,7 @@ impl Default for Ureq {
 fn read(res: std::result::Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> Result<Response> {
     // a network failure is transient: status 0, retry later
     let mut res = res.map_err(|e| AuthError::new(0, e.to_string()))?;
-    let headers = res
-        .headers()
-        .iter()
-        .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
-        .collect();
+    let headers = res.headers().iter().map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string())).collect();
     let status = res.status().as_u16();
     let body = res.body_mut().read_to_string().unwrap_or_default();
     Ok(Response { status, body, headers })
@@ -246,7 +238,6 @@ impl Auth {
         self.unreadable = false;
     }
 
-
     fn load(&mut self) -> Option<&Tokens> {
         if self.tokens.is_none() {
             let raw = match fs::read_to_string(&self.token_path) {
@@ -312,11 +303,7 @@ impl Auth {
     pub fn complete(&mut self, pasted: &str) -> Result<()> {
         let raw = pasted.trim();
         if !raw.contains('#') {
-            self.save(Tokens {
-                access_token: raw.into(),
-                refresh_token: None,
-                expires_at: Some(now_ms() + 365 * 86_400_000),
-            });
+            self.save(Tokens { access_token: raw.into(), refresh_token: None, expires_at: Some(now_ms() + 365 * 86_400_000) });
             self.pending = None;
             return Ok(());
         }
@@ -378,11 +365,7 @@ impl Auth {
             !has && self.unreadable
         };
         let Some(t) = self.load().cloned() else {
-            return Err(if unreadable {
-                AuthError::new(0, "token unreadable")
-            } else {
-                AuthError::new(401, "not connected")
-            });
+            return Err(if unreadable { AuthError::new(0, "token unreadable") } else { AuthError::new(401, "not connected") });
         };
         if t.expires_at.is_none_or(|at| at - now_ms() < 60_000) {
             self.refresh()?;
@@ -393,17 +376,8 @@ impl Auth {
     fn api_get(&mut self, url: &str) -> Result<Response> {
         let token = self.valid_token()?;
         let bearer = format!("Bearer {token}");
-        self.http.get(
-            url,
-            &[
-                ("Authorization", &bearer),
-                ("anthropic-beta", "oauth-2025-04-20"),
-                ("anthropic-version", "2023-06-01"),
-                ("User-Agent", UA),
-            ],
-        )
+        self.http.get(url, &[("Authorization", &bearer), ("anthropic-beta", "oauth-2025-04-20"), ("anthropic-version", "2023-06-01"), ("User-Agent", UA)])
     }
-
 
     /// Step 3: the authoritative usage.
     pub fn fetch_usage(&mut self) -> Result<Limits> {
@@ -412,11 +386,8 @@ impl Auth {
             let snippet: String = res.body.chars().take(150).collect();
             return Err(AuthError::new(res.status, format!("usage {}: {snippet}", res.status)));
         }
-        let rl: Vec<(String, String)> = res
-            .headers
-            .iter()
-            .filter_map(|(k, v)| k.strip_prefix("anthropic-ratelimit-").map(|k| (k.to_string(), v.clone())))
-            .collect();
+        let rl: Vec<(String, String)> =
+            res.headers.iter().filter_map(|(k, v)| k.strip_prefix("anthropic-ratelimit-").map(|k| (k.to_string(), v.clone()))).collect();
         if !rl.is_empty() {
             self.rate_limit = rl;
         }

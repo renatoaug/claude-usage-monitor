@@ -27,17 +27,19 @@ impl Watch {
             let (t, ctx) = (w.clone(), ctx.clone());
             std::thread::Builder::new()
                 .name("cursor".into())
-                .spawn(move || loop {
-                    if !t.on.load(Ordering::Relaxed) {
-                        std::thread::sleep(Duration::from_millis(200));
-                        continue;
+                .spawn(move || {
+                    loop {
+                        if !t.on.load(Ordering::Relaxed) {
+                            std::thread::sleep(Duration::from_millis(200));
+                            continue;
+                        }
+                        let at = mac::cursor(height);
+                        let inside = t.hot.lock().map(|h| h.iter().any(|r| r.contains(at))).unwrap_or(false);
+                        if t.inside.swap(inside, Ordering::Relaxed) != inside {
+                            ctx.request_repaint();
+                        }
+                        std::thread::sleep(Duration::from_millis(40));
                     }
-                    let at = mac::cursor(height);
-                    let inside = t.hot.lock().map(|h| h.iter().any(|r| r.contains(at))).unwrap_or(false);
-                    if t.inside.swap(inside, Ordering::Relaxed) != inside {
-                        ctx.request_repaint();
-                    }
-                    std::thread::sleep(Duration::from_millis(40));
                 })
                 .expect("cursor thread");
         }
@@ -70,10 +72,7 @@ mod mac {
     /// The primary screen's height: AppKit counts y up from its bottom edge,
     /// windows (and egui) count down from its top.
     pub fn primary_height() -> f64 {
-        MainThreadMarker::new()
-            .and_then(|mtm| NSScreen::screens(mtm).firstObject())
-            .map(|s| s.frame().size.height)
-            .unwrap_or(0.0)
+        MainThreadMarker::new().and_then(|mtm| NSScreen::screens(mtm).firstObject()).map(|s| s.frame().size.height).unwrap_or(0.0)
     }
 
     pub fn cursor(height: f64) -> Pos2 {
@@ -81,4 +80,3 @@ mod mac {
         Pos2::new(p.x as f32, (height - p.y) as f32)
     }
 }
-

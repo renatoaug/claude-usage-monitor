@@ -21,7 +21,13 @@ pub fn login_panel(ui: &mut Ui, left: f32, right: f32, y: f32, code: &mut String
     let x = boxr.left() + 10.0;
     p.text(Pos2::new(x, boxr.top() + 14.0), Align2::LEFT_CENTER, "Finish logging in", FontId::proportional(text::BODY), color::FG);
     let hint = error.unwrap_or("Paste the code the browser shows");
-    p.text(Pos2::new(x, boxr.top() + 30.0), Align2::LEFT_CENTER, hint, FontId::proportional(text::SMALL), if error.is_some() { color::ERROR } else { color::FG_MUTED });
+    p.text(
+        Pos2::new(x, boxr.top() + 30.0),
+        Align2::LEFT_CENTER,
+        hint,
+        FontId::proportional(text::SMALL),
+        if error.is_some() { color::ERROR } else { color::FG_MUTED },
+    );
 
     // the field and the button share a row
     let field = Rect::from_min_size(Pos2::new(x, boxr.top() + 42.0), Vec2::new(boxr.width() - 20.0 - 70.0, 24.0));

@@ -23,7 +23,6 @@ pub fn progress(start: Instant, secs: f32) -> f32 {
     ease_out(start.elapsed().as_secs_f32() / secs)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

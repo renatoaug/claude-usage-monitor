@@ -4,8 +4,8 @@
 use eframe::egui::{Align, CornerRadius, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
 use super::controls::click_area;
-use super::text::text_mid;
 use super::motion;
+use super::text::text_mid;
 use super::theme::{color, radius};
 
 /// Options spread evenly across `rect`; returns the index clicked. Options

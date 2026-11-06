@@ -46,7 +46,8 @@ impl Reminders {
         let path = dir.join("reset-reminders.json");
         let file: File = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
         // a row that doesn't parse is dropped, as the Electron app does
-        let pending = file.pending.into_iter().filter_map(|v| serde_json::from_value::<Reminder>(v).ok()).filter(|r| r.at.is_positive() && r.pct.is_finite()).collect();
+        let pending =
+            file.pending.into_iter().filter_map(|v| serde_json::from_value::<Reminder>(v).ok()).filter(|r| r.at.is_positive() && r.pct.is_finite()).collect();
         let delivered = file.delivered.into_iter().filter_map(|(k, v)| Some((k, v.as_f64()? as i64))).collect();
         Reminders { path, pending, delivered }
     }

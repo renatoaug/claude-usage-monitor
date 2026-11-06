@@ -48,7 +48,16 @@ pub struct View {
 
 impl Default for View {
     fn default() -> Self {
-        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None, settings: None, provider: Provider::Claude }
+        View {
+            size: Size::Expanded,
+            details: false,
+            models: true,
+            projects: true,
+            account_menu: false,
+            pending_remove: None,
+            settings: None,
+            provider: Provider::Claude,
+        }
     }
 }
 

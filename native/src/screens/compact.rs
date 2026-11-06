@@ -7,13 +7,13 @@ use eframe::egui::{Align, Context, Pos2, Rect, Ui, Vec2};
 use crate::ui::text::text_mid;
 
 use super::{Action, Frame, MARGIN, Size, sessions, shown};
-use crate::ui::controls::click_area;
 use crate::components::account::account;
 use crate::components::logos::Provider;
 use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
 use crate::components::status::caption;
 use crate::format::clock;
 use crate::ui::controls::button_row;
+use crate::ui::controls::click_area;
 use crate::ui::icon;
 use crate::ui::surface::{card, halo};
 use crate::ui::theme::{color, text};

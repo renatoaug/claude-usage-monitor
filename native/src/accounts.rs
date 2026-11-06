@@ -74,11 +74,7 @@ impl Accounts {
     // re-read on every call: a handful of rows, read only when the list is
     // shown or changed, and a stale cache would poll a token it thinks it has
     fn load(&self) -> State {
-        fs::read(self.file())
-            .ok()
-            .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-            .map(|j| sane(&j))
-            .unwrap_or_else(defaults)
+        fs::read(self.file()).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).map(|j| sane(&j)).unwrap_or_else(defaults)
     }
 
     fn save(&self, s: &State) {

@@ -42,11 +42,7 @@ impl Mock {
         self.calls().iter().filter(|c| c.url.contains(frag)).count()
     }
     fn answer(&self, url: &str, headers: &[(&str, &str)], body: Value) -> Result<Response> {
-        self.calls.lock().unwrap().push(Call {
-            url: url.into(),
-            headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
-            body,
-        });
+        self.calls.lock().unwrap().push(Call { url: url.into(), headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(), body });
         let routes = self.routes.lock().unwrap();
         let (_, r) = routes.iter().find(|(f, _)| url.contains(f.as_str())).unwrap_or_else(|| panic!("unrouted fetch: {url}"));
         Ok(Response { status: r.status, body: r.body.clone(), headers: vec![] })
@@ -401,19 +397,14 @@ fn with_account(f: &mut Fx, account: Value) {
 fn maps_the_account_identity() {
     let mut f = fx();
     with_account(&mut f, json!({"email": "a@b.com", "display_name": "Ana", "has_claude_max": true}));
-    assert_eq!(
-        f.auth.fetch_profile().unwrap(),
-        Profile { email: Some("a@b.com".into()), name: Some("Ana".into()), plan: Some("Max".into()) }
-    );
+    assert_eq!(f.auth.fetch_profile().unwrap(), Profile { email: Some("a@b.com".into()), name: Some("Ana".into()), plan: Some("Max".into()) });
 }
 
 #[test]
 fn plan_tiers() {
-    for (flags, plan) in [
-        (json!({"has_claude_max": true, "has_claude_pro": true}), Some("Max")),
-        (json!({"has_claude_pro": true}), Some("Pro")),
-        (json!({}), None),
-    ] {
+    for (flags, plan) in
+        [(json!({"has_claude_max": true, "has_claude_pro": true}), Some("Max")), (json!({"has_claude_pro": true}), Some("Pro")), (json!({}), None)]
+    {
         let mut f = fx();
         with_account(&mut f, flags.clone());
         assert_eq!(f.auth.fetch_profile().unwrap().plan.as_deref(), plan, "{flags}");

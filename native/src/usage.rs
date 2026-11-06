@@ -153,20 +153,12 @@ pub fn now_ms() -> i64 {
 }
 
 fn mtime_ms(meta: &fs::Metadata) -> i64 {
-    meta.modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 impl Reader {
     pub fn new(claude_dir: Option<PathBuf>) -> Self {
-        Reader {
-            claude_dir: claude_dir.unwrap_or_else(default_claude_dir),
-            files: HashMap::new(),
-            labels: HashMap::new(),
-        }
+        Reader { claude_dir: claude_dir.unwrap_or_else(default_claude_dir), files: HashMap::new(), labels: HashMap::new() }
     }
 
     /// Point the reader at another account's logs (None = the default dir).
@@ -303,10 +295,7 @@ impl Reader {
         let mut by_project: Vec<Labeled> = ranked.iter().take(TOP_PROJECTS).cloned().collect();
         let rest = &ranked[ranked.len().min(TOP_PROJECTS)..];
         if !rest.is_empty() {
-            by_project.push(Labeled {
-                label: format!("other · {}", rest.len()),
-                tokens: rest.iter().map(|p| p.tokens).sum(),
-            });
+            by_project.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum() });
         }
 
         Usage {
@@ -353,11 +342,7 @@ impl Tally {
 
 pub fn local_midnight(now: i64) -> i64 {
     let date = Local.timestamp_millis_opt(now).single().map(|d| d.date_naive()).unwrap_or_default();
-    Local
-        .from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap_or_default())
-        .earliest()
-        .map(|d| d.timestamp_millis())
-        .unwrap_or(now - now.rem_euclid(DAY_MS))
+    Local.from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap_or_default()).earliest().map(|d| d.timestamp_millis()).unwrap_or(now - now.rem_euclid(DAY_MS))
 }
 
 /// ISO dates as Date.parse reads them: with a zone, or local time without one.
@@ -493,18 +478,11 @@ fn project_label(cache: &mut HashMap<String, String>, dir_name: &str) -> String 
     }
     let (full, consumed) = resolve_project_path(dir_name);
     let label = match full {
-        Some(p) => p
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| p.to_string_lossy().into_owned()),
+        Some(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.to_string_lossy().into_owned()),
         None => {
             let raw = consumed.as_deref().unwrap_or(dir_name).trim_start_matches('-');
             let chars: Vec<char> = raw.chars().collect();
-            if chars.len() > LABEL_MAX {
-                format!("…{}", chars[chars.len() - (LABEL_MAX - 1)..].iter().collect::<String>())
-            } else {
-                raw.to_string()
-            }
+            if chars.len() > LABEL_MAX { format!("…{}", chars[chars.len() - (LABEL_MAX - 1)..].iter().collect::<String>()) } else { raw.to_string() }
         }
     };
     cache.insert(dir_name.to_string(), label.clone());
@@ -594,8 +572,7 @@ fn nonempty<'a>(s: &'a Option<Cow<'a, str>>) -> Option<&'a str> {
     s.as_deref().filter(|s| !s.is_empty())
 }
 
-static USAGE_KEY: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
-    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"\"usage\""));
+static USAGE_KEY: std::sync::LazyLock<memchr::memmem::Finder<'static>> = std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"\"usage\""));
 
 fn ingest_line(entries: &mut Vec<Entry>, line: &[u8]) {
     // most lines are tool results and prompts: skip them without a parse
@@ -619,17 +596,9 @@ fn ingest_line(entries: &mut Vec<Entry>, line: &[u8]) {
     if ts == 0 {
         return;
     }
-    let tokens = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens]
-        .iter()
-        .map(|t| t.unwrap_or(0))
-        .sum();
+    let tokens = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens].iter().map(|t| t.unwrap_or(0)).sum();
     let req = nonempty(&obj.request_id).or_else(|| nonempty(&obj.uuid)).unwrap_or("");
-    entries.push(Entry {
-        ts,
-        model: model.map(str::to_string),
-        tokens,
-        key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req),
-    });
+    entries.push(Entry { ts, model: model.map(str::to_string), tokens, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
 }
 
 // Session logs only grow, and a long one passes 500 MB: a poll reads just the
@@ -707,10 +676,8 @@ pub fn detect_activity(path: &Path) -> Option<String> {
         let Ok(o) = serde_json::from_str::<Value>(line) else { continue };
         let kind = o.get("type").and_then(Value::as_str);
         if perm_mode.is_none() && matches!(kind, Some("permission-mode" | "mode")) {
-            perm_mode = ["mode", "permissionMode", "value"]
-                .iter()
-                .find_map(|k| o.get(*k).filter(|v| truthy(Some(v))))
-                .and_then(|v| v.as_str().map(str::to_string));
+            perm_mode =
+                ["mode", "permissionMode", "value"].iter().find_map(|k| o.get(*k).filter(|v| truthy(Some(v)))).and_then(|v| v.as_str().map(str::to_string));
         }
         if activity.is_none() && kind == Some("assistant") {
             if let Some(blocks) = o.pointer("/message/content").and_then(Value::as_array) {
@@ -732,14 +699,7 @@ pub fn detect_activity(path: &Path) -> Option<String> {
 
 // User lines that open no turn: slash commands and their output, `!` shell
 // input, background-task notices, the compaction summary
-const NO_TURN: [&str; 6] = [
-    "<command-name>",
-    "<command-message>",
-    "<local-command-",
-    "<bash-",
-    "<task-notification>",
-    "This session is being continued",
-];
+const NO_TURN: [&str; 6] = ["<command-name>", "<command-message>", "<local-command-", "<bash-", "<task-notification>", "This session is being continued"];
 
 fn truthy(v: Option<&Value>) -> bool {
     match v {
@@ -755,13 +715,7 @@ fn text_of(content: Option<&Value>) -> String {
         Some(Value::String(s)) => s.clone(),
         Some(Value::Array(blocks)) => blocks
             .iter()
-            .map(|b| {
-                if b.get("type").and_then(Value::as_str) == Some("text") {
-                    b.get("text").and_then(Value::as_str).unwrap_or("")
-                } else {
-                    ""
-                }
-            })
+            .map(|b| if b.get("type").and_then(Value::as_str) == Some("text") { b.get("text").and_then(Value::as_str).unwrap_or("") } else { "" })
             .collect::<Vec<_>>()
             .join(" "),
         _ => String::new(),

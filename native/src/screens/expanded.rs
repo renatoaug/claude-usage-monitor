@@ -4,27 +4,27 @@
 use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
 use super::{Action, Frame, MARGIN, Size, View, connected, shown};
-use crate::components::logos::Provider;
-use crate::components::meter::{Meter, codex_meters, cursor_meters};
-use crate::ui::surface::card_tinted;
-use crate::ui::text::text_mid;
-use crate::usage::Labeled;
-use crate::poller::Snapshot;
 use crate::components::account::account_chip;
 use crate::components::account_menu::{MenuPick, account_label, account_menu, menu_rect};
-use crate::components::login::{LOGIN_H, LoginPick, login_panel};
-use crate::poller::Login;
 use crate::components::breakdown::{self, section};
 use crate::components::heat_map::{HEAT_H, heat_map};
+use crate::components::login::{LOGIN_H, LoginPick, login_panel};
+use crate::components::logos::Provider;
 use crate::components::meter::{self, meter, meter_skeleton, meters};
+use crate::components::meter::{Meter, codex_meters, cursor_meters};
 use crate::components::night_sky::night_sky;
-use crate::components::reminder;
 use crate::components::pet::Mood;
+use crate::components::reminder;
 use crate::components::status::{STATUS_H, status_line};
+use crate::poller::Login;
+use crate::poller::Snapshot;
 use crate::ui::controls::{button_row, click_area};
 use crate::ui::icon;
+use crate::ui::surface::card_tinted;
 use crate::ui::surface::{hairline, pane};
+use crate::ui::text::text_mid;
 use crate::ui::theme::{color, radius, text};
+use crate::usage::Labeled;
 
 const CARD_W: f32 = 280.0;
 const SIDE: f32 = 18.0;
@@ -243,7 +243,13 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         let r = Rect::from_min_size(Pos2::new(left, y + 12.0), Vec2::new(right - left, CONNECT_H - 24.0));
         p.rect(r, CornerRadius::same(radius::CONTROL), color::WASH, Stroke::new(1.0, color::WASH_EDGE), StrokeKind::Inside);
         p.text(r.center() - Vec2::new(0.0, 6.0), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
-        p.text(r.center() + Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, "to see the real session and week %", FontId::proportional(text::SMALL), color::FG_MUTED);
+        p.text(
+            r.center() + Vec2::new(0.0, 8.0),
+            Align2::CENTER_CENTER,
+            "to see the real session and week %",
+            FontId::proportional(text::SMALL),
+            color::FG_MUTED,
+        );
         if click_area(ui, r, "connect").clicked() {
             actions.push(Action::BeginLogin);
         }
@@ -253,7 +259,9 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
             meter(p, left, right, y, m, i == 0, svc.accent);
             y += meter::height(i == 0);
             // under the session: a reminder for when it resets
-            if i == 0 && let Some(on) = reminder::state(f.snap, svc.provider, f.session, f.heads_up) {
+            if i == 0
+                && let Some(on) = reminder::state(f.snap, svc.provider, f.session, f.heads_up)
+            {
                 if reminder::button(ui, left, y + 2.0, on) {
                     actions.push(Action::Remind(svc.provider, !on));
                 }

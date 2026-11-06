@@ -56,7 +56,8 @@ impl Tray {
     /// Put the icon in the menu bar. Call on the main thread.
     pub fn new(ctx: &Context) -> Option<Self> {
         let events: Arc<Mutex<Vec<TrayEvent>>> = Arc::default();
-        let (open, floating, quit) = (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit Clauddy", true, None));
+        let (open, floating, quit) =
+            (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit Clauddy", true, None));
         let menu = build_menu(&[], &open, &floating, &quit)?;
         let icon = TrayIconBuilder::new()
             .with_icon_templated(decode(ICON)?)
@@ -104,9 +105,7 @@ impl Tray {
 
     /// The icon's box, in physical pixels, where the OS says.
     pub fn rect(&self) -> Option<Rect> {
-        self.icon.rect().map(|r| {
-            Rect::from_min_size(Pos2::new(r.position.x as f32, r.position.y as f32), Vec2::new(r.size.width as f32, r.size.height as f32))
-        })
+        self.icon.rect().map(|r| Rect::from_min_size(Pos2::new(r.position.x as f32, r.position.y as f32), Vec2::new(r.size.width as f32, r.size.height as f32)))
     }
 
     pub fn take_events(&self) -> Vec<TrayEvent> {

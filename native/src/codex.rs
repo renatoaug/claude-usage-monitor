@@ -100,10 +100,7 @@ struct Summary {
 fn find_bin() -> PathBuf {
     let home = std::env::home_dir().unwrap_or_default();
     for dir in [PathBuf::from("/Applications"), home.join("Applications")] {
-        for f in [
-            "ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
-            "Codex.app/Contents/Resources/codex",
-        ] {
+        for f in ["ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "Codex.app/Contents/Resources/codex"] {
             let p = dir.join(f);
             if p.exists() {
                 return p;
@@ -157,14 +154,8 @@ fn limits_from_live(result: &Value, ts: i64) -> Option<Limits> {
 
 /// One `account/rateLimits/read` over the app-server's stdio JSON-RPC.
 fn read_live(bin: &Path, codex_home: &Path, ts: i64) -> Option<Limits> {
-    let mut child = Command::new(bin)
-        .arg("app-server")
-        .env("CODEX_HOME", codex_home)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
+    let mut child =
+        Command::new(bin).arg("app-server").env("CODEX_HOME", codex_home).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
     let mut stdin = child.stdin.take()?;
     let stdout = child.stdout.take()?;
     let (tx, rx) = mpsc::channel();

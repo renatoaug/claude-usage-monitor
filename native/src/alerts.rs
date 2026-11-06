@@ -96,8 +96,11 @@ impl State {
     pub fn window_reset(&mut self, enabled: bool, pct: Option<f64>) -> (Option<Note>, bool) {
         let Some(pct) = pct else { return (None, false) };
         let was = self.last_session_pct.replace(pct);
-        let note = (enabled && was.is_some_and(|w| w >= RESET_FROM) && pct <= RESET_TO)
-            .then(|| Note { title: "Session window reset".into(), body: "full budget again".into(), sound: false });
+        let note = (enabled && was.is_some_and(|w| w >= RESET_FROM) && pct <= RESET_TO).then(|| Note {
+            title: "Session window reset".into(),
+            body: "full budget again".into(),
+            sound: false,
+        });
         let dirty = was.is_none_or(|w| w.round() != pct.round());
         (note, dirty)
     }

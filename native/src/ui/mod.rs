@@ -12,5 +12,5 @@ pub mod stepper;
 pub mod surface;
 pub mod tag;
 pub mod text;
-pub mod toggle;
 pub mod theme;
+pub mod toggle;

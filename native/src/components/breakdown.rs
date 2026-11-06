@@ -7,8 +7,8 @@ use eframe::egui::{Align2, FontId, Pos2, Rect, Ui, Vec2};
 use crate::format::tokens;
 use crate::ui::bar::bar;
 use crate::ui::controls::click_area;
-use crate::ui::skeleton::sk_line;
 use crate::ui::icon;
+use crate::ui::skeleton::sk_line;
 use crate::ui::surface::hairline;
 use crate::ui::theme::{color, text};
 use crate::usage::Labeled;
@@ -20,7 +20,18 @@ pub fn height(rows: usize, open: bool) -> f32 {
 }
 
 /// Draw the section at `y`; true when its head was clicked (fold or unfold).
-pub fn section(ui: &Ui, left: f32, right: f32, y: f32, id: &str, title: &str, rows: &[Labeled], open: bool, loading: bool, bar_color: eframe::egui::Color32) -> bool {
+pub fn section(
+    ui: &Ui,
+    left: f32,
+    right: f32,
+    y: f32,
+    id: &str,
+    title: &str,
+    rows: &[Labeled],
+    open: bool,
+    loading: bool,
+    bar_color: eframe::egui::Color32,
+) -> bool {
     let p = ui.painter();
     hairline(p, left, right, y);
     let head = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, 22.0));

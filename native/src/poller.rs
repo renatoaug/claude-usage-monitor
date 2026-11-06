@@ -10,11 +10,10 @@ use std::time::{Duration, Instant};
 
 use crate::accounts::{Account, Accounts};
 use crate::alerts::{self, Scope};
+use crate::auth::{Auth, Limits, Profile, Ureq};
 use crate::components::logos::Provider;
 use crate::prefs::Prefs;
-use crate::auth::{Auth, Limits, Profile, Ureq};
 use crate::usage::{self, Reader, now_ms};
-
 
 #[derive(Clone, Debug, Default)]
 pub struct Settings {
@@ -99,10 +98,7 @@ pub fn spawn(ctx: egui::Context, settings: Settings) -> (Shared, Sender<Command>
     let shared: Shared = Arc::default();
     let out = shared.clone();
     let (tx, rx) = mpsc::channel();
-    std::thread::Builder::new()
-        .name("poller".into())
-        .spawn(move || Worker::new(ctx, settings, out).run(rx))
-        .expect("poll thread");
+    std::thread::Builder::new().name("poller".into()).spawn(move || Worker::new(ctx, settings, out).run(rx)).expect("poll thread");
     (shared, tx)
 }
 
@@ -579,12 +575,7 @@ impl Worker {
         }
     }
 
-    fn check_alerts(
-        &mut self,
-        reading: &usage::Usage,
-        codex: Option<&crate::codex::CodexUsage>,
-        cursor: Option<&crate::cursor::CursorUsage>,
-    ) {
+    fn check_alerts(&mut self, reading: &usage::Usage, codex: Option<&crate::codex::CodexUsage>, cursor: Option<&crate::cursor::CursorUsage>) {
         let mut scopes = self.scopes(reading);
         let claude_session = scopes.first().and_then(|s| s.pct);
         let scope = |label: &str, w: &Option<crate::codex::Window>, session: bool| Scope {

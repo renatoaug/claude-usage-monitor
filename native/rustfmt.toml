@@ -1,0 +1,4 @@
+# the code reads wide: one statement a line where it fits
+edition = "2024"
+max_width = 160
+use_small_heuristics = "Max"
