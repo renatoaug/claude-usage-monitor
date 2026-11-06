@@ -20,6 +20,11 @@ fn now() -> chrono::DateTime<chrono::FixedOffset> {
     chrono::Local::now().fixed_offset()
 }
 
+/// An epoch-ms instant on the local clock.
+pub fn local(ms: i64) -> chrono::DateTime<chrono::Local> {
+    chrono::DateTime::from_timestamp_millis(ms).unwrap_or_default().with_timezone(&chrono::Local)
+}
+
 #[cfg(test)]
 pub static FROZEN: std::sync::OnceLock<chrono::DateTime<chrono::FixedOffset>> = std::sync::OnceLock::new();
 

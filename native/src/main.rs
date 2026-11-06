@@ -18,8 +18,10 @@ mod poller;
 mod prefs;
 mod reminders;
 mod screens;
+mod talk;
 mod ui;
 mod usage;
+mod voice;
 
 fn main() -> eframe::Result {
     // `clauddy --usage`: print one reading of the local logs as JSON (dev aid)
@@ -51,6 +53,12 @@ fn main() -> eframe::Result {
         c.refresh_blocking(usage::now_ms());
         let u = c.get_usage(usage::now_ms());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
+    // `clauddy --say`: play a line's chiptune blips (dev aid: checks the sound)
+    if std::env::args().any(|a| a == "--say") {
+        voice::play("Getting warm, 91% already.", voice::Tone::Fire);
+        std::thread::sleep(std::time::Duration::from_secs(3));
         return Ok(());
     }
     // `clauddy --notify`: send a sample alert (dev aid: checks permission and look)

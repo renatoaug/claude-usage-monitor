@@ -73,6 +73,8 @@ pub enum Action {
     SetCodex(bool),
     SetCursor(bool),
     Remind(Provider, bool),
+    /// the speech bubble was clicked away
+    DismissBubble,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -97,6 +99,8 @@ pub struct Frame<'a> {
     pub menu_bar: bool,
     /// the lowest alert threshold: from here a reset reminder is offered
     pub heads_up: f64,
+    /// what the pet is saying, and how far it has appeared (0..1)
+    pub bubble: Option<(&'a str, f32)>,
 }
 
 /// The card sits this far inside the window, all round.

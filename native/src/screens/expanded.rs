@@ -192,6 +192,13 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         )
     };
     f.pet.draw(&inside, pet_area, f.mood);
+    // a remark floats over the scene, beside the pet's head
+    if let Some((said, shown)) = f.bubble {
+        let tip = Pos2::new(stage.left() + 100.0, pet_area.top() + 20.0);
+        if crate::components::bubble::bubble(ui, said, tip, 14.0, 170.0, stage.shrink(4.0), shown) {
+            actions.push(Action::DismissBubble);
+        }
+    }
 
     // status line: the shown service's state and tokens
     let activity = svc.activity;

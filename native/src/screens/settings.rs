@@ -358,9 +358,14 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     let gy = group_label(&p, left, gy + 2.0 * row + GAP, "voice");
     let rows = group(&p, left, right, gy, 2);
     row_label(&p, left, rows[0], "Speech bubbles", false);
-    toggle(ui, right - 10.0, rows[0], "talk", false, false);
-    row_label(&p, left, rows[1], "Chiptune voice", true);
-    toggle(ui, right - 10.0, rows[1], "sound", false, false);
+    if toggle(ui, right - 10.0, rows[0], "talk", draft.talk, true).clicked() {
+        actions.push(Action::EditPrefs(Prefs { talk: !draft.talk, ..draft.clone() }));
+    }
+    // the blips only come with the bubble, and never in the menu bar
+    row_label(&p, left, rows[1], "Chiptune voice", !draft.talk);
+    if toggle(ui, right - 10.0, rows[1], "sound", draft.sound && draft.talk, draft.talk).clicked() {
+        actions.push(Action::EditPrefs(Prefs { sound: !draft.sound, ..draft.clone() }));
+    }
 }
 
 #[cfg(test)]

@@ -61,6 +61,7 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         cursor_found: None,
         reminders: vec![],
         reminder_error: None,
+        seq: 0,
     }
 }
 
@@ -95,14 +96,14 @@ fn render_inner(case: Case, draft: Prefs) {
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
-        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0 };
+        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)) };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let area = ctx.content_rect().shrink(super::MARGIN);
-        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0 };
+        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)) };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -427,4 +428,14 @@ fn expanded_with_a_reminder_on() {
         pct: 86.0,
     }];
     render(Case { name: "expanded-reminder-on", snap, mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_talking() {
+    render(Case { name: "expanded-talking", snap: snapshot(usage(false, None), Some(limits(91.0, 68.0))), mood: Mood::Fire, view: View::default() });
+}
+
+#[test]
+fn compact_talking() {
+    render(Case { name: "compact-talking", snap: snapshot(usage(false, None), Some(limits(91.0, 68.0))), mood: Mood::Fire, view: compact_view() });
 }

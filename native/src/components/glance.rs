@@ -13,8 +13,8 @@ use crate::ui::icon::{self, EXPAND};
 use crate::ui::theme::color;
 
 const H: f32 = 26.0;
-const O: f32 = 3.0; // outline, as thick as the pet's
-const TAIL: f32 = 9.0;
+pub(crate) const O: f32 = 3.0; // outline, as thick as the pet's
+pub(crate) const TAIL: f32 = 9.0;
 const BLOCKS: usize = 8;
 
 /// How much room the glance needs above the point its tail touches.
@@ -26,13 +26,13 @@ fn mono() -> FontId {
 
 // a pixel-art box: two bands of outline, so the corners step in by one
 // outline width instead of curving
-fn pixel_box(p: &Painter, r: Rect, ink: Color32) {
+pub(crate) fn pixel_box(p: &Painter, r: Rect, ink: Color32) {
     p.rect_filled(r.expand2(Vec2::new(O, 0.0)), 0.0, ink);
     p.rect_filled(r.expand2(Vec2::new(0.0, O)), 0.0, ink);
 }
 
 // the tail under the bubble, centred on `x`, stepping in 3 px a row
-fn tail(p: &Painter, x: f32, top: f32) {
+pub(crate) fn tail(p: &Painter, x: f32, top: f32) {
     for (row, w) in [18.0, 12.0, 6.0].into_iter().enumerate() {
         p.rect_filled(Rect::from_min_size(Pos2::new(x - w / 2.0, top + row as f32 * O), Vec2::new(w, O)), 0.0, color::INK);
     }

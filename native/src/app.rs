@@ -52,6 +52,10 @@ pub struct App {
     window: [f32; 2],
     /// the pixels per point the window was last sized at
     sized_at: f32,
+    /// the pet's voice: what it noticed, and what it's saying now
+    talk: crate::talk::Talk,
+    heard: u64,
+    said: Option<Said>,
     /// the card's size as it shows now, and the morph under way (from, started)
     card_now: Vec2,
     morph: Option<(Vec2, Instant)>,
@@ -80,6 +84,25 @@ pub fn mood_across(snap: &Snapshot, claude: Option<(f64, Option<i64>)>, fire: f6
     }
     let hottest = crate::screens::sessions(snap, claude).into_iter().filter_map(|s| s.1).fold(None, |m: Option<f64>, p| Some(m.map_or(p, |m| m.max(p))));
     mood_for(snap.usage.as_ref(), hottest, fire)
+}
+
+/// A remark on screen: the words for each size, and when it goes.
+struct Said {
+    text: String,
+    short: String,
+    since: Instant,
+    until: Instant,
+}
+
+impl Said {
+    /// 0..1 as it appears and goes (0.15 s each way)
+    fn shown(&self) -> f32 {
+        let now = Instant::now();
+        if now >= self.until {
+            return (1.0 - now.duration_since(self.until).as_secs_f32() / 0.15).max(0.0);
+        }
+        (now.duration_since(self.since).as_secs_f32() / 0.15).min(1.0)
+    }
 }
 
 /// The window's size at launch, from the remembered view, before any reading.
@@ -161,6 +184,9 @@ impl App {
             leaving: None,
             window: initial_size(),
             sized_at: 0.0,
+            talk: crate::talk::Talk::new(Some(crate::auth::default_data_dir().join("native-voice.json"))),
+            heard: 0,
+            said: None,
             card_now: Vec2::ZERO,
             morph: None,
         }
@@ -233,6 +259,11 @@ impl App {
                     }
                 }
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
+                Action::DismissBubble => {
+                    if let Some(s) = &mut self.said {
+                        s.until = s.until.min(Instant::now());
+                    }
+                }
                 Action::SetCursor(on) => {
                     self.prefs.cursor = on;
                     self.draft.cursor = on;
@@ -248,6 +279,27 @@ impl App {
                 }
             }
             save_view(&self.view);
+        }
+    }
+
+    /// Hear one poll. A remark is said when the voice is on, nothing covers
+    /// the pet (Settings, pet-only), and the gap allows; only headlines blip,
+    /// and never in the menu bar or the compact face, nor while muted.
+    fn listen(&mut self, snap: &Snapshot, mood: crate::components::pet::Mood, session: Option<(f64, Option<i64>)>, size: Size) {
+        let now = crate::usage::now_ms();
+        let hour = chrono::Timelike::hour(&chrono::Local::now());
+        let seen = crate::talk::Seen { snap, mood, claude: session, fire: self.settings.fire_threshold, hour };
+        let Some(r) = self.talk.listen(&seen, now) else { return };
+        let quiet = !self.prefs.talk || self.view.settings.is_some() || size == Size::PetOnly;
+        if quiet || !self.talk.allow(&r, now) {
+            return;
+        }
+        let words = if size == Size::Compact { &r.line.short } else { &r.line.text };
+        let start = Instant::now();
+        let stay = Duration::from_millis((words.len() as u64 * 70 + 2500).max(4500));
+        self.said = Some(Said { text: r.line.text.clone(), short: r.line.short.clone(), since: start, until: start + stay });
+        if r.headline && self.prefs.sound && !self.prefs.menu_bar && size == Size::Expanded && self.prefs.muted_until <= now {
+            crate::voice::play(&r.line.text, r.tone);
         }
     }
 
@@ -486,7 +538,33 @@ impl eframe::App for App {
             // the content shows only inside the card as it opens or closes
             ui.set_clip_rect(card.expand(1.0));
         }
-        let f = Frame { area, card, snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos, menu_bar: self.prefs.menu_bar, heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64 };
+        // a new poll: what the pet makes of it
+        if snap.seq != self.heard {
+            self.heard = snap.seq;
+            self.listen(&snap, mood, session, size);
+        }
+        let shown = self.said.as_ref().map_or(0.0, Said::shown);
+        if shown <= 0.0 && self.said.as_ref().is_some_and(|s| Instant::now() > s.until) {
+            self.said = None;
+        } else if let Some(s) = &self.said {
+            // through the fades every frame; while it rests, wake when it goes
+            let rest = s.until.saturating_duration_since(Instant::now());
+            ctx.request_repaint_after(if shown < 1.0 || rest.is_zero() { Duration::ZERO } else { rest });
+        }
+        let bubble = self.said.as_ref().map(|s| (if size == Size::Compact { s.short.as_str() } else { s.text.as_str() }, shown));
+        let f = Frame {
+            area,
+            card,
+            snap: &snap,
+            mood,
+            session,
+            view: &self.view,
+            pet: &self.pet,
+            logos: &self.logos,
+            menu_bar: self.prefs.menu_bar,
+            heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
+            bubble,
+        };
 
         // the areas that take the pointer; clicks anywhere else fall through
         let mut hot = vec![card];

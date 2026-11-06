@@ -70,7 +70,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     let column = Rect::from_min_max(above.left_top(), Pos2::new(above.left() + STAGE.x, above.bottom()));
     halo(p, column, color::CLAUDE_BAR.gamma_multiply(0.06));
-    let _ = f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
+    let body = f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
     let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
     caption(p, ctx, f.logos, column.center().x, line_y, f.mood, activity, &workers(f));
 
@@ -95,6 +95,13 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         crate::ui::skeleton::sk_line(p, content.right() - 62.0, line_y, 62.0, 7.0);
     } else if let Some(ms) = rows.iter().find(|r| r.provider == selected).and_then(|r| r.reset_ms) {
         text_mid(p, content.right(), line_y, Align::Max, &format!("resets {}", clock(ms)), text::TINY, color::FG_RESET);
+    }
+    // a remark over everything, its tail on the pet's head
+    if let Some((said, shown)) = f.bubble {
+        let tip = Pos2::new(body.center().x + 8.0, body.top() + 4.0);
+        if crate::components::bubble::bubble(ui, said, tip, 18.0, rect.width() - 24.0, rect.shrink(6.0), shown) {
+            actions.push(Action::DismissBubble);
+        }
     }
     actions
 }

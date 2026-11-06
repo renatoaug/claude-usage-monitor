@@ -20,11 +20,17 @@ pub struct Prefs {
     pub cursor: bool,
     /// the widget's scale, 100-200 %
     pub zoom: i32,
+    /// the speech bubble (on unless turned off)
+    pub talk: bool,
+    /// the chiptune blips (opt-in)
+    pub sound: bool,
+    /// a mute in force until then (epoch ms); the Electron app sets it
+    pub muted_until: i64,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false, codex: false, cursor: false, zoom: 100 }
+        Prefs { alerts: true, heads_up: 80, near_limit: 95, fire: 90, menu_bar: false, codex: false, cursor: false, zoom: 100, talk: true, sound: false, muted_until: 0 }
     }
 }
 
@@ -49,6 +55,9 @@ impl Prefs {
             menu_bar: v["mode"].as_str() == Some("menubar"),
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
+            talk: v["talk"].as_bool() != Some(false),
+            sound: v["sound"].as_bool().unwrap_or(false),
+            muted_until: v["soundMutedUntil"].as_f64().unwrap_or(0.0) as i64,
             zoom: v["zoom"].as_f64().map(|z| z.round() as i32).unwrap_or(d.zoom),
         }
         .clamped()
@@ -76,6 +85,8 @@ impl Prefs {
         v["alertThresholds"] = json!([self.heads_up, self.near_limit]);
         v["fireThreshold"] = json!(self.fire);
         v["zoom"] = json!(self.zoom);
+        v["talk"] = json!(self.talk);
+        v["sound"] = json!(self.sound);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
             if !v[key].is_object() {
@@ -102,7 +113,7 @@ mod tests {
     #[test]
     fn reads_the_electron_keys_and_falls_back_to_defaults() {
         let p = Prefs::from_value(&json!({"alerts": false, "alertThresholds": [70, 90], "fireThreshold": 85}));
-        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false, codex: false, cursor: false, zoom: 100 });
+        assert_eq!(p, Prefs { alerts: false, heads_up: 70, near_limit: 90, fire: 85, menu_bar: false, codex: false, cursor: false, zoom: 100, talk: true, sound: false, muted_until: 0 });
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);

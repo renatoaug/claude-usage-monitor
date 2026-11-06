@@ -62,6 +62,8 @@ pub struct Snapshot {
     /// the reset reminders armed, and why the last ask was refused
     pub reminders: Vec<crate::reminders::Reminder>,
     pub reminder_error: Option<(String, Instant)>,
+    /// counts the polls: a new one is a new reading to react to
+    pub seq: u64,
 }
 
 /// Where a browser login stands.
@@ -425,6 +427,7 @@ impl Worker {
         if let Ok(mut s) = self.out.lock() {
             s.codex = codex;
             s.cursor = cursor;
+            s.seq += 1;
             s.usage = Some(reading);
             s.loaded = true;
             s.connected = connected;
