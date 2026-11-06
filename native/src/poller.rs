@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::accounts::{Account, Accounts};
+use crate::alerts::{self, Scope};
+use crate::prefs::Prefs;
 use crate::auth::{Auth, Limits, Profile, Ureq};
 use crate::usage::{self, Reader, now_ms};
 
@@ -41,7 +43,6 @@ pub struct Snapshot {
     pub limits_at: Option<Instant>,
     pub connected: bool,
     pub profile: Option<Profile>,
-    pub error: Option<String>,
     /// the first poll has finished: until then the screens show skeletons
     pub loaded: bool,
     /// the usage API asked us to slow down; the next try is then
@@ -73,6 +74,8 @@ pub enum Command {
     CompleteLogin(String),
     /// forget the active account's token (the account stays listed)
     Logout,
+    /// Settings were saved: the alerts follow the new thresholds
+    Prefs(Prefs),
 }
 
 pub type Shared = Arc<Mutex<Snapshot>>;
@@ -197,11 +200,17 @@ struct Worker {
     cache: Cache,
     schedule: Schedule,
     profile: Option<Profile>,
+    alerts: alerts::State,
+    prefs: Prefs,
+    /// consecutive 401s: one can be a refresh racing another, two is a dead token
+    auth_fails: u32,
 }
 
 impl Worker {
     fn new(ctx: egui::Context, settings: Settings, out: Shared) -> Self {
         let accounts = Accounts::new(None);
+        // folders left by an add abandoned mid-login (never one with a token)
+        accounts.prune_orphans();
         let dir = accounts.data_dir_of(&accounts.active_id());
         let mut w = Worker {
             ctx,
@@ -214,6 +223,9 @@ impl Worker {
             cache: Cache::default(),
             schedule: Schedule::new(now_ms(), None),
             profile: None,
+            alerts: alerts::State::default(),
+            prefs: Prefs::load(),
+            auth_fails: 0,
         };
         w.bind();
         w
@@ -229,6 +241,9 @@ impl Worker {
         // start from the saved reading: on screen at once, and no call if it's fresh
         self.cache = load_cache(&self.dir).unwrap_or_default();
         self.profile = self.cache.profile.clone();
+        // only the active account can notify; its alerts are its own
+        self.alerts = alerts::State::load(&self.dir);
+        self.auth_fails = 0;
         self.schedule = Schedule::new(now_ms(), Some(&self.cache).filter(|c| c.polled_at > 0));
         let now = now_ms();
         if let Ok(mut s) = self.out.lock() {
@@ -267,6 +282,13 @@ impl Worker {
                 if let Ok(mut s) = self.out.lock() {
                     s.accounts = self.accounts.list();
                 }
+            }
+            Command::Prefs(p) => {
+                if (p.heads_up, p.near_limit) != (self.prefs.heads_up, self.prefs.near_limit) {
+                    self.alerts.rearm();
+                    self.alerts.save(&self.dir);
+                }
+                self.prefs = p;
             }
             Command::Logout => {
                 self.auth.clear();
@@ -319,8 +341,20 @@ impl Worker {
                     Outcome::Read
                 }
                 Err(e) if e.status == 429 => Outcome::Throttled,
-                Err(_) => Outcome::Failed, // offline or a 401: keep the last reading
+                Err(e) if e.status == 401 => {
+                    // a refresh that raced another comes back 401 on a live
+                    // session: only the second in a row means the token is dead
+                    self.auth_fails += 1;
+                    if self.auth_fails >= 2 {
+                        self.lose_access();
+                    }
+                    Outcome::Failed
+                }
+                Err(_) => Outcome::Failed, // offline: keep the last reading
             };
+            if outcome == Outcome::Read {
+                self.auth_fails = 0;
+            }
             let now = now_ms();
             self.schedule.polled(now, outcome);
             if self.profile.is_none() {
@@ -341,6 +375,7 @@ impl Worker {
             }
             save_cache(&self.dir, &self.cache);
         }
+        self.check_alerts(&reading);
         if let Ok(mut s) = self.out.lock() {
             s.usage = Some(reading);
             s.loaded = true;
@@ -360,6 +395,63 @@ impl Worker {
             }
         }
         self.ctx.request_repaint();
+    }
+
+    /// The token is dead: forget it, say so once, and ask for a login.
+    fn lose_access(&mut self) {
+        self.auth.clear();
+        self.auth_fails = 0;
+        if self.prefs.alerts {
+            alerts::send(&alerts::auth_lost());
+        }
+        if let Ok(mut s) = self.out.lock() {
+            s.connected = false;
+            s.limits = None;
+        }
+    }
+
+    /// The account's real % when there's a reading still in force, else the
+    /// local estimate (as the Electron app did).
+    fn scopes(&self, reading: &usage::Usage) -> Vec<Scope> {
+        let now = now_ms();
+        let live = |w: &crate::auth::Window, at: i64| -> Option<(f64, Option<i64>)> {
+            let left = w.reset_ms.map(|r| r - (now - at));
+            (left.is_none_or(|l| l > 0)).then_some((w.pct, left))
+        };
+        let scope = |label: &str, r: Option<(f64, Option<i64>)>, session: bool| Scope {
+            label: label.into(),
+            pct: r.map(|x| x.0),
+            reset_ms: r.and_then(|x| x.1),
+            session,
+        };
+        match (&self.cache.limits, self.cache.fetched_at) {
+            (Some(l), Some(at)) => {
+                let mut v = vec![scope("Session", live(&l.session, at), true), scope("Weekly usage", live(&l.week, at), false)];
+                for sc in &l.scoped {
+                    let w = crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms };
+                    v.push(scope(&format!("{} weekly", sc.label), live(&w, at), false));
+                }
+                v
+            }
+            _ => vec![
+                scope("Session", reading.session.active.then_some((reading.session.pct, Some(reading.session.reset_ms))), true),
+                scope("Weekly usage", Some((reading.week.pct, reading.week.reset_ms)), false),
+            ],
+        }
+    }
+
+    fn check_alerts(&mut self, reading: &usage::Usage) {
+        let scopes = self.scopes(reading);
+        let thresholds = [self.prefs.heads_up, self.prefs.near_limit];
+        let (notes, dirty) = self.alerts.check(self.prefs.alerts, &thresholds, &scopes);
+        let session = scopes.first().and_then(|s| s.pct);
+        let (reset, reset_dirty) = self.alerts.window_reset(self.prefs.alerts, session);
+        for n in notes.iter().chain(reset.iter()) {
+            alerts::send(n);
+        }
+        if dirty || reset_dirty {
+            self.alerts.save(&self.dir);
+        }
     }
 
     // poll, then wait for the next poll or a command; a command is answered

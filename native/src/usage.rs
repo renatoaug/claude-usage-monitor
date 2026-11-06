@@ -489,6 +489,7 @@ fn project_label(cache: &mut HashMap<String, String>, dir_name: &str) -> String 
     label
 }
 
+#[cfg(test)]
 pub fn project_label_uncached(dir_name: &str) -> String {
     project_label(&mut HashMap::new(), dir_name)
 }
@@ -521,6 +522,7 @@ fn walk_jsonl(dir: &Path, out: &mut Vec<LogFile>, cutoff: i64) {
     }
 }
 
+#[cfg(test)]
 pub fn tokens_of(usage: &Value) -> u64 {
     ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"]
         .iter()
@@ -528,6 +530,7 @@ pub fn tokens_of(usage: &Value) -> u64 {
         .sum()
 }
 
+#[cfg(test)]
 fn str_of<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
     v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
 }

@@ -155,6 +155,7 @@ impl Accounts {
         self.save(&s);
     }
 
+    #[allow(dead_code)] // the Settings field for an account's logs folder isn't ported yet
     pub fn set_claude_dir(&self, id: &str, dir: Option<&str>) {
         let mut s = self.load();
         let Some(a) = s.accounts.iter_mut().find(|a| a.id == id) else { return };

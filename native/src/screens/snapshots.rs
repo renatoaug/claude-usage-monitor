@@ -50,7 +50,6 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         limits: l,
         limits_at: None,
         profile: Some(Profile { email: Some("you@example.com".into()), name: Some("Re".into()), plan: Some("Max".into()) }),
-        error: None,
         loaded: true,
         retry_at: None,
         accounts: vec![],

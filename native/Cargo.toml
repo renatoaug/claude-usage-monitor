@@ -9,6 +9,7 @@ chrono = "0.4.45"
 eframe = "0.37.0"
 getrandom = "0.4.3"
 memchr = "2.8.3"
+notify-rust = "4.18.2"
 png = "0.18.1"
 resvg = "0.49.0"
 serde = { version = "1.0.229", features = ["derive"] }

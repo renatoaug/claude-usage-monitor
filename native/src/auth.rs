@@ -246,9 +246,6 @@ impl Auth {
         self.unreadable = false;
     }
 
-    pub fn token_path(&self) -> &Path {
-        &self.token_path
-    }
 
     fn load(&mut self) -> Option<&Tokens> {
         if self.tokens.is_none() {
@@ -407,10 +404,6 @@ impl Auth {
         )
     }
 
-    /// The endpoint's own budget headers. Undocumented: only ever read.
-    pub fn rate_limit(&self) -> &[(String, String)] {
-        &self.rate_limit
-    }
 
     /// Step 3: the authoritative usage.
     pub fn fetch_usage(&mut self) -> Result<Limits> {

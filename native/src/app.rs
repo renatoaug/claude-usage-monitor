@@ -150,6 +150,7 @@ impl App {
                     self.draft.save();
                     self.prefs = self.draft.clone();
                     self.settings.fire_threshold = self.prefs.fire as f64;
+                    self.send(Command::Prefs(self.prefs.clone()));
                     self.view.settings = None;
                 }
                 Action::Logout => self.send(Command::Logout),

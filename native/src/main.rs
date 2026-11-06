@@ -6,6 +6,7 @@ use eframe::egui;
 use std::time::Instant;
 
 mod accounts;
+mod alerts;
 mod app;
 mod auth;
 mod components;
@@ -30,6 +31,11 @@ fn main() -> eframe::Result {
         reader.get_usage(&cfg);
         eprintln!("cold {cold:?}, warm {:?}", t.elapsed());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
+    // `clauddy --notify`: send a sample alert (dev aid: checks permission and look)
+    if std::env::args().any(|a| a == "--notify") {
+        alerts::send(&alerts::Note { title: "Session at 82%".into(), body: "2h 39m left · resets 6:50 PM".into(), sound: false });
         return Ok(());
     }
     // `clauddy --limits`: the active account's real % and identity (dev aid)
