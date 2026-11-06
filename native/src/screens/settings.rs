@@ -115,10 +115,37 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
     }
     y += ACTIONS_H;
 
-    // the version, and the update check (not wired yet)
+    // the version, and the update check
     let vy = y + 12.0 + 6.0;
     text_mid(&p, left, vy, Align::Min, &format!("clauddy v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
-    text_mid(&p, right, vy, Align::Max, "Check for updates", text::CAPTION, color::ADD.gamma_multiply(0.4));
+    use crate::updates::Update;
+    let (label, act) = match &f.update {
+        Update::Idle | Update::UpToDate | Update::Failed(_) => (
+            match &f.update {
+                Update::UpToDate => "Up to date · check again".to_string(),
+                Update::Failed(_) => "Couldn't check · try again".to_string(),
+                _ => "Check for updates".to_string(),
+            },
+            Some(Action::CheckUpdates),
+        ),
+        Update::Checking => ("Checking…".to_string(), None),
+        Update::Available(tag) => (format!("Update to {tag}"), Some(Action::InstallUpdate)),
+        Update::Updating => ("Updating…".to_string(), None),
+    };
+    let w = p.layout_no_wrap(label.clone(), eframe::egui::FontId::proportional(text::CAPTION), color::ADD).size().x;
+    let hit = Rect::from_min_max(Pos2::new(right - w, vy - 8.0), Pos2::new(right, vy + 8.0));
+    let hovered = match act.clone() {
+        Some(a) => {
+            let r = click_area(ui, hit, "updates");
+            if r.clicked() {
+                actions.push(a);
+            }
+            r.hovered()
+        }
+        None => false,
+    };
+    let fg = if act.is_none() { color::FG_MUTED } else if hovered { color::FG } else { color::ADD };
+    text_mid(&p, right, vy, Align::Max, &label, text::CAPTION, fg);
 
     account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
     actions

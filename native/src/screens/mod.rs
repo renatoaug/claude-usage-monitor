@@ -79,6 +79,8 @@ pub enum Action {
     HidePopover,
     /// mute the voice for an hour, or unmute
     ToggleMute,
+    CheckUpdates,
+    InstallUpdate,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -107,6 +109,8 @@ pub struct Frame<'a> {
     pub bubble: Option<(&'a str, f32)>,
     /// the mute button, while the voice can make a sound: whether it's muted
     pub mute: Option<bool>,
+    /// where the update check stands
+    pub update: crate::updates::Update,
 }
 
 /// The card sits this far inside the window, all round.

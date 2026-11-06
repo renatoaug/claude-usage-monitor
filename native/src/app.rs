@@ -54,6 +54,7 @@ pub struct App {
     sized_at: f32,
     /// the pet's voice: what it noticed, and what it's saying now
     talk: crate::talk::Talk,
+    updater: crate::updates::Updater,
     heard: u64,
     said: Option<Said>,
     /// the card's size as it shows now, and the morph under way (from, started)
@@ -185,6 +186,7 @@ impl App {
             leaving: None,
             window: initial_size(),
             sized_at: 0.0,
+            updater: crate::updates::Updater::new(&cc.egui_ctx),
             talk: crate::talk::Talk::new(Some(crate::auth::default_data_dir().join("native-voice.json"))),
             heard: 0,
             said: None,
@@ -261,6 +263,8 @@ impl App {
                 }
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
                 Action::HidePopover => self.close_popover(ctx),
+                Action::CheckUpdates => self.updater.check(),
+                Action::InstallUpdate => self.updater.install(),
                 Action::ToggleMute => {
                     let now = crate::usage::now_ms();
                     let until = if self.prefs.muted_until > now { 0 } else { now + 3_600_000 };
@@ -584,6 +588,7 @@ impl eframe::App for App {
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
             bubble,
+            update: self.updater.state(),
             mute: (self.prefs.talk && self.prefs.sound && !self.prefs.menu_bar).then(|| self.prefs.muted_until > crate::usage::now_ms()),
         };
 

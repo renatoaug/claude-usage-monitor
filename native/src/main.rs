@@ -20,6 +20,7 @@ mod reminders;
 mod screens;
 mod talk;
 mod ui;
+mod updates;
 mod usage;
 mod voice;
 
