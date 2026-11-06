@@ -18,7 +18,7 @@ cargo build --release
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp target/release/clauddy "$APP/Contents/MacOS/clauddy"
-cp ../build/icon.icns "$APP/Contents/Resources/icon.icns"
+cp assets/icon.icns "$APP/Contents/Resources/icon.icns"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
