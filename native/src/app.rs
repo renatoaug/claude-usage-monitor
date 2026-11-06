@@ -336,7 +336,6 @@ impl App {
                     self.draft.menu_bar = false;
                     self.prefs.save();
                 }
-                TrayEvent::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }
         // a click anywhere else takes focus away: the popover goes

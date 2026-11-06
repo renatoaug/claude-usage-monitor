@@ -17,7 +17,6 @@ static ICON: &[u8] = include_bytes!("../../assets/tray-template.png");
 pub enum TrayEvent {
     Open,
     Floating,
-    Quit,
 }
 
 pub struct Tray {
@@ -76,10 +75,13 @@ impl Tray {
             } else if e.id == ids.1 {
                 TrayEvent::Floating
             } else if e.id == ids.2 {
-                TrayEvent::Quit
+                // no frame may come to answer it while the window is hidden
+                std::process::exit(0);
             } else {
                 return;
             };
+            // a hidden window gets no frames: show it so the next one answers
+            crate::platform::wake();
             if let Ok(mut v) = q.lock() {
                 v.push(ev);
             }
