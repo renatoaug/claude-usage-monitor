@@ -102,6 +102,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
         actions.push(Action::ToggleSettings);
     }
     if let Some(s) = save {
+        save_glow(ui, ctx, s);
         if action_button(ui, s, "save", "Save changes", true) {
             actions.push(Action::SaveSettings);
         }
@@ -117,10 +118,25 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
     actions
 }
 
+// unsaved changes: a soft glow breathes round Save, every 1.6 s, so they
+// aren't forgotten (layers of fading rounded boxes stand in for a blur)
+fn save_glow(ui: &Ui, ctx: &Context, rect: Rect) {
+    let t = ctx.input(|i| i.time) as f32;
+    let breath = 0.5 - 0.5 * (t * std::f32::consts::TAU / 1.6).cos();
+    let p = ui.painter();
+    for k in 1..=6 {
+        let spread = k as f32 * 1.5;
+        let a = breath * (1.0 - k as f32 / 7.0) * 0.35;
+        p.rect_filled(rect.expand(spread), CornerRadius::same(radius::CONTROL + 2 + k as u8), color::PRIMARY_GLOW.gamma_multiply(a));
+    }
+    ctx.request_repaint_after(std::time::Duration::from_millis(50));
+}
+
 fn action_button(ui: &Ui, rect: Rect, id: &str, label: &str, primary: bool) -> bool {
     let resp = click_area(ui, rect, id);
     let (bg, fg) = match (primary, resp.hovered()) {
-        (true, _) => (color::PRIMARY, color::ON_PRIMARY),
+        (true, true) => (color::PRIMARY_HOVER, color::ON_PRIMARY),
+        (true, false) => (color::PRIMARY, color::ON_PRIMARY),
         (false, true) => (color::CONTROL_HOVER, color::FG),
         (false, false) => (color::CONTROL, color::FG),
     };

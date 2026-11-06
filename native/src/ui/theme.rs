@@ -40,6 +40,7 @@ mod palette {
     pub const CLAY_700: Color32 = rgb(0x30251e);
     pub const CORAL_350: Color32 = rgb(0xcb8a67);
     pub const CORAL_250: Color32 = rgb(0xce926d);
+    pub const CORAL_200: Color32 = rgb(0xe2a07f);
     pub const PAPER_50: Color32 = rgb(0xf4e8d4);
     pub const PAPER_200: Color32 = rgb(0xe3d0b2);
     pub const PAPER_0: Color32 = rgb(0xfdf6ea);
@@ -145,6 +146,9 @@ pub mod color {
     pub const TABS: Color32 = rgba(0, 0, 0, 56);
     pub const TAB_ON: Color32 = white(20);
     pub const PRIMARY: Color32 = CORAL_250;
+    pub const PRIMARY_HOVER: Color32 = CORAL_200;
+    /// the glow that pulses round Save while there are changes
+    pub const PRIMARY_GLOW: Color32 = rgba(0x82, 0x47, 0x34, 0x99);
     pub const ON_PRIMARY: Color32 = CLAY_800;
     pub const TILE: Color32 = white(3);
     pub const TILE_ON: Color32 = white(10);

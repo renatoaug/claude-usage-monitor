@@ -1,20 +1,20 @@
 // Clauddy in the menu bar: a template icon (macOS tints it for the theme)
-// with the session % beside it, a left click that opens the panel under it,
-// and a right-click menu. On Windows and Linux it's a tray icon with the %
-// in its tooltip.
+// with the session % beside it. A click opens its menu: the limits first
+// (session, week, per-model weeks, each with its reset), then Open, back to
+// floating, and Quit. On Windows and Linux it's a tray icon with the % in
+// its tooltip.
 
 use eframe::egui::{Context, Pos2, Rect, Vec2};
+
 use std::sync::{Arc, Mutex};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
-use tray_icon::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
+use tray_icon::{TrayIcon, TrayIconBuilder};
 
 static ICON: &[u8] = include_bytes!("../../assets/tray-template.png");
 
-/// What happened in the menu bar since the last frame.
+/// What was picked in the menu since the last frame.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrayEvent {
-    /// a left click, with the icon's box in physical pixels
-    Clicked(Rect),
     Open,
     Floating,
     Quit,
@@ -23,7 +23,25 @@ pub enum TrayEvent {
 pub struct Tray {
     icon: TrayIcon,
     title: String,
+    /// the limit lines at the top of the menu, as last shown
+    lines: Vec<String>,
+    open: MenuItem,
+    floating: MenuItem,
+    quit: MenuItem,
     events: Arc<Mutex<Vec<TrayEvent>>>,
+}
+
+// the menu: the limit lines (read-only), then the actions
+fn build_menu(lines: &[String], open: &MenuItem, floating: &MenuItem, quit: &MenuItem) -> Option<Menu> {
+    let menu = Menu::new();
+    for l in lines {
+        menu.append(&MenuItem::new(l, false, None)).ok()?;
+    }
+    if !lines.is_empty() {
+        menu.append(&PredefinedMenuItem::separator()).ok()?;
+    }
+    menu.append_items(&[open, floating, &PredefinedMenuItem::separator(), quit]).ok()?;
+    Some(menu)
 }
 
 fn decode(bytes: &[u8]) -> Option<tray_icon::Icon> {
@@ -39,31 +57,15 @@ impl Tray {
     /// Put the icon in the menu bar. Call on the main thread.
     pub fn new(ctx: &Context) -> Option<Self> {
         let events: Arc<Mutex<Vec<TrayEvent>>> = Arc::default();
-        let (open, floating, quit) = (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit", true, None));
-        let menu = Menu::new();
-        menu.append_items(&[&open, &PredefinedMenuItem::separator(), &floating, &PredefinedMenuItem::separator(), &quit]).ok()?;
+        let (open, floating, quit) = (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit Clauddy", true, None));
+        let menu = build_menu(&[], &open, &floating, &quit)?;
         let icon = TrayIconBuilder::new()
             .with_icon_templated(decode(ICON)?)
             .with_menu(Box::new(menu))
-            .with_menu_on_left_click(false)
+            .with_menu_on_left_click(true)
             .with_tooltip("Clauddy")
             .build()
             .ok()?;
-
-        // the menu bar answers on its own thread: queue, then wake the UI
-        let (q, c) = (events.clone(), ctx.clone());
-        TrayIconEvent::set_event_handler(Some(move |e: TrayIconEvent| {
-            if let TrayIconEvent::Click { rect, button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
-                let r = Rect::from_min_size(
-                    Pos2::new(rect.position.x as f32, rect.position.y as f32),
-                    Vec2::new(rect.size.width as f32, rect.size.height as f32),
-                );
-                if let Ok(mut v) = q.lock() {
-                    v.push(TrayEvent::Clicked(r));
-                }
-                c.request_repaint();
-            }
-        }));
         let (q, c) = (events.clone(), ctx.clone());
         let ids = (open.id().clone(), floating.id().clone(), quit.id().clone());
         MenuEvent::set_event_handler(Some(move |e: MenuEvent| {
@@ -81,7 +83,18 @@ impl Tray {
             }
             c.request_repaint();
         }));
-        Some(Tray { icon, title: String::new(), events })
+        Some(Tray { icon, title: String::new(), lines: vec![], open, floating, quit, events })
+    }
+
+    /// The limit lines at the top of the menu; rebuilt only when they change.
+    pub fn set_lines(&mut self, lines: Vec<String>) {
+        if lines == self.lines {
+            return;
+        }
+        if let Some(menu) = build_menu(&lines, &self.open, &self.floating, &self.quit) {
+            self.icon.set_menu(Some(Box::new(menu)));
+            self.lines = lines;
+        }
     }
 
     /// The icon's box, in physical pixels, where the OS says.
@@ -109,8 +122,16 @@ impl Tray {
 
 impl Drop for Tray {
     fn drop(&mut self) {
-        TrayIconEvent::set_event_handler(None::<fn(TrayIconEvent)>);
         MenuEvent::set_event_handler(None::<fn(MenuEvent)>);
+    }
+}
+
+/// A limit's line in the menu: "Session 39% · resets 4:40 PM".
+pub fn line(label: &str, pct: Option<f64>, reset_ms: Option<i64>) -> String {
+    let value = pct.map(|p| format!("{p:.0}%")).unwrap_or_else(|| "—".into());
+    match reset_ms {
+        Some(ms) if pct.is_some() => format!("{label} {value} · resets {}", crate::format::clock(ms)),
+        _ => format!("{label} {value}"),
     }
 }
 
@@ -131,6 +152,12 @@ mod tests {
         assert_eq!(super::title(Some(42.4), 90.0), "42%");
         assert_eq!(super::title(Some(93.0), 90.0), "🔥 93%");
         assert_eq!(super::title(None, 90.0), "");
+    }
+
+    #[test]
+    fn a_limit_line_names_its_reset() {
+        assert!(super::line("Session", Some(39.2), Some(60_000)).starts_with("Session 39% · resets "));
+        assert_eq!(super::line("Weekly", None, Some(60_000)), "Weekly —");
     }
 
     #[test]

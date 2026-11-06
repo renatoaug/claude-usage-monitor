@@ -201,6 +201,7 @@ impl App {
         self.popover = true;
         self.popover_focused = false;
         self.show(ctx, true);
+        crate::platform::activate();
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
     }
 
@@ -212,8 +213,8 @@ impl App {
 
     /// Floating or in the menu bar: put the icon up or take it down, and
     /// answer what was clicked there.
-    fn menu_bar(&mut self, ctx: &Context, session: Option<f64>) {
-        use crate::platform::tray::{Tray, TrayEvent, title};
+    fn menu_bar(&mut self, ctx: &Context, snap: &Snapshot, session: Option<(f64, Option<i64>)>) {
+        use crate::platform::tray::{Tray, TrayEvent, line, title};
         let wanted = self.prefs.menu_bar;
         if wanted && self.tray.is_none() {
             self.tray = Tray::new(ctx);
@@ -226,16 +227,22 @@ impl App {
             self.show(ctx, true);
         }
         let Some(tray) = &mut self.tray else { return };
-        tray.set_title(&title(session, self.settings.fire_threshold));
+        tray.set_title(&title(session.map(|s| s.0), self.settings.fire_threshold));
+        // the menu leads with the limits, as the panel does
+        let mut lines = vec![line("Session", session.map(|s| s.0), session.and_then(|s| s.1))];
+        if let Some(l) = &snap.limits {
+            let week = live(&l.week, snap.limits_at);
+            lines.push(line("Weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
+            for sc in &l.scoped {
+                let w = live(&crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms }, snap.limits_at);
+                lines.push(line(&format!("{} weekly", sc.label), w.map(|w| w.0), w.and_then(|w| w.1)));
+            }
+        }
+        tray.set_lines(lines);
         let events = tray.take_events();
         let icon = tray.rect();
         for e in events {
             match e {
-                TrayEvent::Clicked(r) if self.popover => {
-                    let _ = r;
-                    self.close_popover(ctx);
-                }
-                TrayEvent::Clicked(r) => self.open_popover(ctx, Some(r)),
                 TrayEvent::Open => self.open_popover(ctx, icon),
                 TrayEvent::Floating => {
                     self.prefs.menu_bar = false;
@@ -323,7 +330,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
         }
         self.apply(&ctx, actions);
-        self.menu_bar(&ctx, session.map(|s| s.0));
+        self.menu_bar(&ctx, &snap, session);
         self.shoot(&ctx);
         ctx.request_repaint_after(self.pet.next_frame(mood).min(Duration::from_secs(30)));
     }
