@@ -3,9 +3,10 @@
 
 use std::time::Instant;
 
-/// A screen fades in over this long: enough to read as a change, short
-/// enough not to be watched.
-pub const ENTER_S: f32 = 0.12;
+/// New content comes up over this long, from part-way (never from nothing).
+pub const ENTER_S: f32 = 0.18;
+/// The card opens or closes to a new size over this long.
+pub const MORPH_S: f32 = 0.22;
 /// The panel fades away over this long (going to the menu bar).
 pub const LEAVE_S: f32 = 0.22;
 /// A selection slides between options over this long.

@@ -67,8 +67,8 @@ pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
     let mut actions = vec![];
     let usage = f.snap.usage.as_ref();
-    let rect = ctx.content_rect().shrink(MARGIN);
-    card(ui, ctx, rect);
+    let rect = f.area;
+    card(ui, ctx, f.card);
     let (left, right) = (rect.left() + SIDE, rect.right() - SIDE);
     let p = ui.painter().clone();
     let p = &p;

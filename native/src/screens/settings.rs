@@ -62,8 +62,8 @@ pub fn size(snap: &Snapshot, tab: Tab) -> [f32; 2] {
 /// `draft` is the edited copy; `saved` what config.json holds.
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, saved: &Prefs, code: &mut String) -> Vec<Action> {
     let mut actions = vec![];
-    let rect = ctx.content_rect().shrink(MARGIN);
-    card(ui, ctx, rect);
+    let rect = f.area;
+    card(ui, ctx, f.card);
     let chip = title_band(ui, ctx, f, rect, &mut actions);
 
     // the settings sheet: its own shade, from the title band to the bottom

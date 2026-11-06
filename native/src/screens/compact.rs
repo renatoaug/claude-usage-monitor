@@ -42,8 +42,8 @@ pub fn rows(f: &Frame) -> Vec<ServiceRow> {
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let mut actions = vec![];
     let rows = rows(f);
-    let rect = ctx.content_rect().shrink(MARGIN);
-    card(ui, ctx, rect);
+    let rect = f.area;
+    card(ui, ctx, f.card);
     let p = ui.painter();
 
     // title band: the account, then pet-only, expand and close

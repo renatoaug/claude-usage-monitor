@@ -3,7 +3,7 @@
 // applies what the screen returns. It repaints only when the pet's next frame
 // is due, a reading lands, or a clock ticks over.
 
-use eframe::egui::{self, Context};
+use eframe::egui::{self, Context, Vec2};
 use std::time::{Duration, Instant};
 
 use crate::components::logos::Logos;
@@ -12,7 +12,7 @@ use crate::components::pet::{Mood, Pet};
 use crate::poller::{self, Command, Settings, Shared, Snapshot};
 use std::sync::mpsc::Sender;
 use crate::prefs::Prefs;
-use crate::screens::{Action, Frame, Size, View, compact, expanded, pet_only, settings};
+use crate::screens::{Action, Frame, MARGIN, Size, View, compact, expanded, pet_only, settings};
 use crate::ui::{motion, theme};
 use crate::usage::Usage;
 
@@ -48,6 +48,11 @@ pub struct App {
     entered: Instant,
     /// the panel fading away on its way to the menu bar
     leaving: Option<Instant>,
+    /// the window as asked of the OS (larger than `size` while the card morphs)
+    window: [f32; 2],
+    /// the card's size as it shows now, and the morph under way (from, started)
+    card_now: Vec2,
+    morph: Option<(Vec2, Instant)>,
 }
 
 /// Working wins; otherwise the session's heat; otherwise rest.
@@ -128,6 +133,9 @@ impl App {
             screen: (None, Size::Expanded),
             entered: Instant::now(),
             leaving: None,
+            window: [0.0, 0.0],
+            card_now: Vec2::ZERO,
+            morph: None,
         }
     }
 
@@ -309,17 +317,55 @@ impl eframe::App for App {
         let snap: Snapshot = self.data.lock().map(|s| s.clone()).unwrap_or_default();
         let session = snap.limits.as_ref().and_then(|l| live(&l.session, snap.limits_at));
         let mood = self.pinned.unwrap_or_else(|| mood_for(snap.usage.as_ref(), session.map(|s| s.0), self.settings.fire_threshold));
-        let f = Frame { snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
-
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
+        let screen = (self.view.settings, size);
 
-        // a new screen (Settings, a tab, a size) fades in; the panel fades
-        // out on its way to the menu bar
-        if (self.view.settings, size) != self.screen {
-            self.screen = (self.view.settings, size);
+        // the settled window for this screen
+        let want = match screen {
+            (Some(tab), _) => settings::size(&snap, tab),
+            (None, Size::Compact) => compact::size(1),
+            (None, Size::Expanded) => expanded::size(&snap, &self.view),
+            (None, Size::PetOnly) => pet_only::size(),
+        };
+        let card_of = |s: [f32; 2]| Vec2::new(s[0] - 2.0 * MARGIN, s[1] - 2.0 * MARGIN);
+
+        // A new size morphs the card itself: the window (transparent) takes
+        // the larger of the two sizes at once, the card eases from the old
+        // size to the new one inside it, revealing the new content as it
+        // opens, and the window settles to the exact size after. Nothing
+        // waits on the OS resizing a window frame by frame.
+        if want != self.size {
+            let morph = self.size != [0.0, 0.0] && size != Size::PetOnly && self.screen.1 != Size::PetOnly && self.leaving.is_none();
+            self.window = if morph { [self.window[0].max(want[0]), self.window[1].max(want[1])] } else { want };
+            self.morph = morph.then(|| (self.card_now, Instant::now()));
+            self.size = want;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.window.into()));
+        }
+        let settled = card_of(want);
+        match self.morph {
+            Some((from, start)) => {
+                let t = motion::progress(start, motion::MORPH_S);
+                self.card_now = from + (settled - from) * t;
+                if t >= 1.0 {
+                    self.morph = None;
+                    if self.window != want {
+                        self.window = want;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
+                    }
+                } else {
+                    ctx.request_repaint();
+                }
+            }
+            None => self.card_now = settled,
+        }
+
+        // the new content comes up from part-way, never from nothing (no
+        // blink); the panel fades all the way out only on its way to the menu bar
+        if screen != self.screen {
+            self.screen = screen;
             self.entered = Instant::now();
         }
-        let mut fade = motion::progress(self.entered, motion::ENTER_S);
+        let mut fade = 0.55 + 0.45 * motion::progress(self.entered, motion::ENTER_S);
         if let Some(t) = self.leaving {
             fade = 1.0 - motion::progress(t, motion::LEAVE_S);
             if fade <= 0.0 {
@@ -331,18 +377,27 @@ impl eframe::App for App {
             ctx.request_repaint();
         }
 
-        let (want, mut actions) = match (self.view.settings, size) {
-            (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
-            (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
-            (None, Size::Expanded) => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
+        let origin = ctx.content_rect().min + Vec2::splat(MARGIN);
+        let area = egui::Rect::from_min_size(origin, settled);
+        let card = egui::Rect::from_min_size(origin, self.card_now);
+        if self.morph.is_some() {
+            // the content shows only inside the card as it opens or closes
+            ui.set_clip_rect(card.expand(1.0));
+        }
+        let f = Frame { area, card, snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
+
+        let mut actions = match screen {
+            (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code),
+            (None, Size::Compact) => compact::draw(ui, &ctx, &f),
+            (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut self.code),
             (None, Size::PetOnly) => {
                 // the OS's answer where there is one; else what this window sees
                 let seen = ctx.input(|i| i.pointer.hover_pos().is_some());
                 let over = if cfg!(target_os = "macos") { Some(self.cursor.inside(seen)) } else { None };
                 let out = pet_only::draw(ui, &ctx, &f, over);
-                let origin = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
-                self.cursor.watch(Some(out.hot.iter().map(|r| r.translate(origin)).collect()));
-                (pet_only::size(), out.actions)
+                let at = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
+                self.cursor.watch(Some(out.hot.iter().map(|r| r.translate(at)).collect()));
+                out.actions
             }
         };
         if self.prefs.menu_bar {
@@ -356,13 +411,6 @@ impl eframe::App for App {
         }
         if size != Size::PetOnly {
             self.cursor.watch(None);
-        }
-        // the window takes its new size at once: easing it frame by frame
-        // lags the drawing on macOS, so the content tears; the fade carries
-        // the change instead
-        if want != self.size {
-            self.size = want;
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
         }
         self.apply(&ctx, actions);
         self.menu_bar(&ctx, &snap, session);

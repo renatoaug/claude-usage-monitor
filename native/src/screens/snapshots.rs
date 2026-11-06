@@ -88,13 +88,15 @@ fn render_inner(case: Case, draft: Prefs) {
         let ctx = egui::Context::default();
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
-        let f = Frame { snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos };
+        let full = eframe::egui::Rect::NOTHING;
+        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
-        let f = Frame { snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos };
+        let area = ctx.content_rect().shrink(super::MARGIN);
+        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),

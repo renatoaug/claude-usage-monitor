@@ -75,6 +75,11 @@ pub enum Action {
 
 /// Everything a screen draws from.
 pub struct Frame<'a> {
+    /// where the screen lays out: the card at its full, settled size
+    pub area: eframe::egui::Rect,
+    /// the card as it shows right now, which eases toward `area` when the
+    /// screen changes (the content is revealed within it)
+    pub card: eframe::egui::Rect,
     pub snap: &'a Snapshot,
     pub mood: Mood,
     /// the session window still in force: (%, ms to reset)

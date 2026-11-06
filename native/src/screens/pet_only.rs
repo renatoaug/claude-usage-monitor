@@ -27,7 +27,7 @@ pub struct Out {
 /// reads it from the pointer this window sees.
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     let mut actions = vec![];
-    let rect = ctx.content_rect().shrink(MARGIN);
+    let rect = f.area;
     let stage = Rect::from_min_size(Pos2::new(rect.right() - 21.0 - STAGE.x, rect.bottom() - 14.0 - STAGE.y), STAGE);
 
     // the pet is the handle
