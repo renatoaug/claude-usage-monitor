@@ -99,7 +99,7 @@ fn render_inner(case: Case, draft: Prefs) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
             (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut String::new()),
-            (None, Size::PetOnly) => pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance"))),
+            (None, Size::PetOnly) => pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance"))).actions,
         };
     });
     harness.run();

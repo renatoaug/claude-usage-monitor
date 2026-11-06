@@ -32,6 +32,10 @@ pub struct App {
     size: [f32; 2],
     started: Instant,
     shot_sent: bool,
+    /// the cursor, watched while just the pet is up
+    cursor: crate::platform::cursor::Watch,
+    /// whether clicks fall through the window (just the pet, off the pet)
+    passthrough: bool,
 }
 
 /// Working wins; otherwise the session's heat; otherwise rest.
@@ -102,6 +106,8 @@ impl App {
             size: [0.0, 0.0],
             started: Instant::now(),
             shot_sent: false,
+            cursor: crate::platform::cursor::Watch::new(&cc.egui_ctx),
+            passthrough: false,
         }
     }
 
@@ -205,8 +211,25 @@ impl eframe::App for App {
             (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
             (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
             (None, Size::Expanded) => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
-            (None, Size::PetOnly) => (pet_only::size(), pet_only::draw(ui, &ctx, &f, None)),
+            (None, Size::PetOnly) => {
+                // the OS's answer where there is one; else what this window sees
+                let seen = ctx.input(|i| i.pointer.hover_pos().is_some());
+                let over = if cfg!(target_os = "macos") { Some(self.cursor.inside(seen)) } else { None };
+                let out = pet_only::draw(ui, &ctx, &f, over);
+                let origin = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
+                self.cursor.watch(Some(out.hot.iter().map(|r| r.translate(origin)).collect()));
+                (pet_only::size(), out.actions)
+            }
         };
+        // just the pet: clicks off the pet fall through to what's behind
+        let through = self.view.size == Size::PetOnly && self.view.settings.is_none() && !self.cursor.inside(false) && cfg!(target_os = "macos");
+        if through != self.passthrough {
+            self.passthrough = through;
+            ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(through));
+        }
+        if self.view.size != Size::PetOnly {
+            self.cursor.watch(None);
+        }
         if want != self.size {
             self.size = want;
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));

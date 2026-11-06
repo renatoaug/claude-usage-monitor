@@ -52,8 +52,8 @@ fn reading_w(p: &Painter, row: &ServiceRow) -> f32 {
 
 /// Draw the glance centred on `center_x`, its tail touching `bottom`, faded
 /// by `shown` (0..1; it rises 4 px in three steps as it appears). Returns
-/// true when its expand button is clicked.
-pub fn glance(ui: &Ui, logos: &Logos, center_x: f32, bottom: f32, rows: &[ServiceRow], shown: f32) -> bool {
+/// whether its expand button was clicked, and the glance's box.
+pub fn glance(ui: &Ui, logos: &Logos, center_x: f32, bottom: f32, rows: &[ServiceRow], shown: f32) -> (bool, Rect) {
     let mut p = ui.painter().clone();
     p.multiply_opacity(shown);
     let widths: Vec<f32> = rows.iter().map(|r| reading_w(&p, r)).collect();
@@ -99,10 +99,10 @@ pub fn glance(ui: &Ui, logos: &Logos, center_x: f32, bottom: f32, rows: &[Servic
     let hovered = shown > 0.5 && {
         let resp = click_area(ui, restore, "glance-restore");
         if resp.clicked() {
-            return true;
+            return (true, bubble.expand(O));
         }
         resp.hovered()
     };
     icon::draw(&p, restore.center() - Vec2::new(0.0, 1.0), EXPAND, 12.0, if hovered { color::INK } else { color::INK.gamma_multiply(0.6) });
-    false
+    (false, bubble.expand(O))
 }

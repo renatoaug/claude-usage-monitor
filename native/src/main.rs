@@ -11,6 +11,7 @@ mod app;
 mod auth;
 mod components;
 mod format;
+mod platform;
 mod poller;
 mod prefs;
 mod screens;
