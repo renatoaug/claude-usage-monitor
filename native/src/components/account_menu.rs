@@ -33,7 +33,6 @@ pub fn account_label(a: &Account, index: usize) -> String {
 pub fn account_menu(ui: &Ui, top_left: Pos2, accounts: &[Account], active: &str, pending_remove: Option<&str>) -> Option<MenuPick> {
     let rect = menu_rect(top_left, accounts.len());
     let p = ui.painter();
-    p.rect_filled(rect.translate(Vec2::new(0.0, 4.0)).expand(2.0), CornerRadius::same(radius::CONTROL), color::MENU_SHADOW);
     p.rect(rect, CornerRadius::same(radius::CONTROL), color::MENU, Stroke::new(1.0, color::MENU_EDGE), StrokeKind::Inside);
     // the menu swallows clicks that miss its rows
     let _ = ui.interact(rect, ui.scope_id().with("account-menu"), Sense::click());

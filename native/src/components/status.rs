@@ -1,13 +1,13 @@
 // What the pet is up to: the expanded status line and the compact caption.
 
-use eframe::egui::{Align2, Color32, Context, FontId, Painter, Pos2, Rect, Vec2};
+use eframe::egui::{Align, Color32, Context, Painter, Pos2, Rect, Vec2};
 
 use super::logos::{Logos, Provider};
 use super::pet::Mood;
 use crate::format::tokens;
 use crate::ui::skeleton::sk_line;
 use crate::ui::tag::{TagStyle, tag};
-use crate::ui::text::{bold, width};
+use crate::ui::text::{bold_mid, text_mid, width};
 use crate::ui::theme::{color, text};
 
 pub const STATUS_H: f32 = 34.0;
@@ -37,18 +37,18 @@ pub fn mood_colors(m: Mood) -> (Color32, Color32) {
 pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activity: Option<&str>, today: Option<u64>, live: bool) {
     let (dot, word_color) = mood_colors(mood);
     p.circle_filled(Pos2::new(left + 3.5, y), 3.5, dot);
-    let r = bold(p, Pos2::new(left + 13.0, y), Align2::LEFT_CENTER, &status_word(mood, activity), text::BODY, word_color);
+    let r = bold_mid(p, left + 13.0, y, Align::Min, &status_word(mood, activity), text::BODY, word_color);
     if today.is_none() {
         // still loading: hold the tokens' place
         sk_line(p, r.right() + 10.0, y, 110.0, 8.0);
     }
     if let Some(n) = today {
-        let sep = p.text(Pos2::new(r.right() + 6.0, y), Align2::LEFT_CENTER, "·", FontId::proportional(text::BODY), color::FG_MUTED.gamma_multiply(0.5));
-        p.text(Pos2::new(sep.right() + 6.0, y), Align2::LEFT_CENTER, format!("{} tokens today", tokens(n)), FontId::proportional(text::SMALL), color::FG_MUTED);
+        let sep = text_mid(p, r.right() + 6.0, y, Align::Min, "·", text::BODY, color::FG_MUTED.gamma_multiply(0.5));
+        text_mid(p, sep.right() + 6.0, y, Align::Min, &format!("{} tokens today", tokens(n)), text::SMALL, color::FG_MUTED);
     }
     if live {
         let style = TagStyle { fg: color::LIVE, edge: color::LIVE_EDGE, wash: color::LIVE_WASH, pad: Vec2::new(5.0, 3.0) };
-        tag(p, Pos2::new(right - 5.0, y), Align2::RIGHT_CENTER, "live", &style);
+        tag(p, right, y, Align::Max, "live", &style);
     }
 }
 
@@ -63,7 +63,7 @@ pub fn caption(p: &Painter, ctx: &Context, logos: &Logos, center_x: f32, y: f32,
     } else {
         p.circle_filled(Pos2::new(left + 2.0, y), 2.0, mood_colors(mood).0);
     }
-    p.text(Pos2::new(left + mark + 5.0, y), Align2::LEFT_CENTER, word, FontId::proportional(text::CAPTION), color::FG_CAPTION);
+    text_mid(p, left + mark + 5.0, y, Align::Min, &word, text::CAPTION, color::FG_CAPTION);
 }
 
 #[cfg(test)]

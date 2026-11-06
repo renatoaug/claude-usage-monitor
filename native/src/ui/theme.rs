@@ -23,7 +23,6 @@ mod palette {
     use super::*;
 
     pub const CLAY_900: Color32 = rgb(0x221913);
-    pub const CLAY_GLOW: Color32 = rgba(0x0c, 0x07, 0x04, 0x10);
     pub const CLAY_EDGE: Color32 = rgba(0x1d, 0x17, 0x11, 0x20);
     pub const NIGHT_900: Color32 = rgb(0x0f1210);
     pub const SAND_50: Color32 = rgb(0xeeeae5);
@@ -81,7 +80,8 @@ pub mod color {
 
     // surfaces
     pub const SURFACE: Color32 = CLAY_900;
-    pub const SURFACE_GLOW: Color32 = CLAY_GLOW;
+    /// the glow's heart: warm, a little translucent, fading to nothing
+    pub const SURFACE_WARM: Color32 = rgba(0x16, 0x0c, 0x06, 0x24);
     pub const BORDER: Color32 = CLAY_EDGE;
     pub const PANE: Color32 = NIGHT_900;
     pub const PANE_EDGE: Color32 = white(6);
@@ -103,6 +103,8 @@ pub mod color {
     pub const FG_MUTED: Color32 = SAND_500;
     pub const FG_RESET: Color32 = SAND_600;
 
+    pub const CLEAR: Color32 = Color32::TRANSPARENT;
+
     /// "No tint": draw a texture in its own colours.
     pub const NO_TINT: Color32 = Color32::WHITE;
 
@@ -117,7 +119,6 @@ pub mod color {
     pub const MENU: Color32 = CLAY_700;
     pub const MENU_EDGE: Color32 = white(20);
     pub const MENU_HOVER: Color32 = white(12);
-    pub const MENU_SHADOW: Color32 = rgba(0, 0, 0, 84);
     pub const ADD: Color32 = CORAL_350;
     pub const FIELD: Color32 = white(8);
     pub const FIELD_EDGE: Color32 = white(24);
@@ -167,6 +168,13 @@ pub mod color {
     pub const SKY_DOT: Color32 = white(217);
     pub const CLOUD: Color32 = NIGHT_CLOUD;
     pub const STAR: Color32 = NIGHT_STAR;
+}
+
+/// Mix two colours, `t` of the way from `a` to `b` (premultiplied mix linearly).
+pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+    let t = t.clamp(0.0, 1.0);
+    let m = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
+    Color32::from_rgba_premultiplied(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()), m(a.a(), b.a()))
 }
 
 /// Text sizes, by role.

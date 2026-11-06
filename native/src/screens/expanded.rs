@@ -80,7 +80,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         .filter(|_| active.is_some_and(|(_, a)| a.label.is_some()))
         .or_else(|| f.snap.profile.as_ref().and_then(|pr| pr.email.clone()));
     let plan = f.snap.profile.as_ref().and_then(|pr| pr.plan.clone());
-    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 16.5, label.as_deref(), plan.as_deref(), false);
+    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 19.0, label.as_deref(), plan.as_deref(), false);
     let chip_resp = ui.interact(chip, ui.scope_id().with("account-chip"), Sense::click());
     if chip_resp.hovered() {
         ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
