@@ -7,6 +7,7 @@ use std::time::Instant;
 
 mod accounts;
 mod auth;
+mod logos;
 mod pet;
 mod poller;
 mod sprite;
@@ -48,7 +49,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Clauddy")
-            .with_inner_size(widget::SIZE)
+            .with_inner_size(widget::size_for(1))
             .with_transparent(true)
             .with_decorations(false)
             .with_has_shadow(false)
