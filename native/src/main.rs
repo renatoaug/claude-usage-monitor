@@ -11,6 +11,7 @@ mod auth;
 mod components;
 mod format;
 mod poller;
+mod prefs;
 mod screens;
 mod ui;
 mod usage;

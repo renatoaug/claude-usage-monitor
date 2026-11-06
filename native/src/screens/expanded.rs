@@ -73,31 +73,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     let p = ui.painter().clone();
     let p = &p;
 
-    // title band: the account chip, then settings, the usage page, pet-only, minimize, close
-    let active = f.snap.accounts.iter().enumerate().find(|(_, a)| a.id == f.snap.active);
-    let label = active
-        .map(|(i, a)| account_label(a, i))
-        .filter(|_| active.is_some_and(|(_, a)| a.label.is_some()))
-        .or_else(|| f.snap.profile.as_ref().and_then(|pr| pr.email.clone()));
-    let plan = f.snap.profile.as_ref().and_then(|pr| pr.plan.clone());
-    let menu_t = ctx.animate_bool_with_time(ui.scope_id().with("menu-open"), f.view.account_menu, 0.16);
-    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 19.0, label.as_deref(), plan.as_deref(), false, menu_t);
-    if click_area(ui, chip, "account-chip").clicked() {
-        actions.push(Action::ToggleAccountMenu);
-    }
-    let buttons = [
-        ("close", icon::CLOSE),
-        ("minimize", icon::MINIMIZE),
-        ("pet-only", icon::PET),
-        ("usage", icon::EXTERNAL),
-        ("settings", icon::GEAR),
-    ];
-    match button_row(ui, rect.right() - 8.0, rect.top() + 19.0, &buttons) {
-        Some(0) => actions.push(Action::Close),
-        Some(1) => actions.push(Action::Resize(Size::Compact)),
-        Some(3) => actions.push(Action::OpenUsagePage),
-        _ => {} // pet-only and settings: next
-    }
+    let chip = title_band(ui, ctx, f, rect, &mut actions);
 
     // the stage: a dark pane with the pet near its left edge
     let stage = Rect::from_min_size(Pos2::new(left, rect.top() + STAGE_TOP), Vec2::new(right - left, STAGE_H));
@@ -176,27 +152,65 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         }
     }
 
-    // the account menu, over everything; a click anywhere else closes it
-    if f.view.account_menu {
-        let at = Pos2::new(rect.left() + 8.0, rect.top() + 33.0);
-        let menu = menu_rect(at, f.snap.accounts.len());
-        match account_menu(ui, at, &f.snap.accounts, &f.snap.active, f.view.pending_remove.as_deref()) {
-            Some(MenuPick::Switch(id)) => actions.push(Action::SwitchAccount(id)),
-            Some(MenuPick::AskRemove(id)) => actions.push(Action::AskRemoveAccount(id)),
-            Some(MenuPick::Remove(id)) => actions.push(Action::RemoveAccount(id)),
-            Some(MenuPick::Add) => actions.push(Action::AddAccount),
-            None => {
-                let outside = ctx.input(|i| {
-                    i.key_pressed(egui::Key::Escape)
-                        || (i.pointer.any_click() && i.pointer.interact_pos().is_some_and(|pos| !menu.contains(pos) && !chip.contains(pos)))
-                });
-                if outside {
-                    actions.push(Action::CloseAccountMenu);
-                }
+    account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
+    actions
+}
+
+/// The title band shared by the expanded panel and Settings: the account
+/// chip, then settings, the usage page, pet-only, minimize and close.
+/// Returns the chip's box (the account menu hangs from it).
+pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut Vec<Action>) -> Rect {
+    let p = ui.painter();
+    let active = f.snap.accounts.iter().enumerate().find(|(_, a)| a.id == f.snap.active);
+    let label = active
+        .map(|(i, a)| account_label(a, i))
+        .filter(|_| active.is_some_and(|(_, a)| a.label.is_some()))
+        .or_else(|| f.snap.profile.as_ref().and_then(|pr| pr.email.clone()));
+    let plan = f.snap.profile.as_ref().and_then(|pr| pr.plan.clone());
+    let menu_t = ctx.animate_bool_with_time(ui.scope_id().with("menu-open"), f.view.account_menu, 0.16);
+    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 19.0, label.as_deref(), plan.as_deref(), false, menu_t);
+    if click_area(ui, chip, "account-chip").clicked() {
+        actions.push(Action::ToggleAccountMenu);
+    }
+    let buttons = [
+        ("close", icon::CLOSE),
+        ("minimize", icon::MINIMIZE),
+        ("pet-only", icon::PET),
+        ("usage", icon::EXTERNAL),
+        ("settings", icon::GEAR),
+    ];
+    match button_row(ui, rect.right() - 8.0, rect.top() + 19.0, &buttons) {
+        Some(0) => actions.push(Action::Close),
+        Some(1) => actions.push(Action::Resize(Size::Compact)),
+        Some(3) => actions.push(Action::OpenUsagePage),
+        Some(4) => actions.push(Action::ToggleSettings),
+        _ => {} // pet-only: next
+    }
+    chip
+}
+
+/// The account menu, over everything; a click anywhere else closes it.
+pub fn account_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip: Rect, actions: &mut Vec<Action>) {
+    if !f.view.account_menu {
+        return;
+    }
+    let at = Pos2::new(rect.left() + 8.0, rect.top() + 33.0);
+    let menu = menu_rect(at, f.snap.accounts.len());
+    match account_menu(ui, at, &f.snap.accounts, &f.snap.active, f.view.pending_remove.as_deref()) {
+        Some(MenuPick::Switch(id)) => actions.push(Action::SwitchAccount(id)),
+        Some(MenuPick::AskRemove(id)) => actions.push(Action::AskRemoveAccount(id)),
+        Some(MenuPick::Remove(id)) => actions.push(Action::RemoveAccount(id)),
+        Some(MenuPick::Add) => actions.push(Action::AddAccount),
+        None => {
+            let outside = ctx.input(|i| {
+                i.key_pressed(egui::Key::Escape)
+                    || (i.pointer.any_click() && i.pointer.interact_pos().is_some_and(|pos| !menu.contains(pos) && !chip.contains(pos)))
+            });
+            if outside {
+                actions.push(Action::CloseAccountMenu);
             }
         }
     }
-    actions
 }
 
 // by model, by project, the 30-day map

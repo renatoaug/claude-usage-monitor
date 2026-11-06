@@ -71,6 +71,8 @@ pub enum Command {
     Remove(String),
     BeginLogin,
     CompleteLogin(String),
+    /// forget the active account's token (the account stays listed)
+    Logout,
 }
 
 pub type Shared = Arc<Mutex<Snapshot>>;
@@ -264,6 +266,18 @@ impl Worker {
                 self.accounts.remove(&id);
                 if let Ok(mut s) = self.out.lock() {
                     s.accounts = self.accounts.list();
+                }
+            }
+            Command::Logout => {
+                self.auth.clear();
+                self.cache = Cache::default();
+                let _ = std::fs::remove_file(cache_path(&self.dir));
+                self.profile = None;
+                if let Ok(mut s) = self.out.lock() {
+                    s.connected = false;
+                    s.limits = None;
+                    s.profile = None;
+                    s.retry_at = None;
                 }
             }
             Command::BeginLogin => {

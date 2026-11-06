@@ -5,6 +5,7 @@
 
 pub mod compact;
 pub mod expanded;
+pub mod settings;
 #[cfg(test)]
 mod snapshots;
 
@@ -34,11 +35,14 @@ pub struct View {
     /// an account whose × was clicked once: the next click removes it
     #[serde(skip)]
     pub pending_remove: Option<String>,
+    /// Settings is open, on this tab (not remembered)
+    #[serde(skip)]
+    pub settings: Option<settings::Tab>,
 }
 
 impl Default for View {
     fn default() -> Self {
-        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None }
+        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None, settings: None }
     }
 }
 
@@ -58,6 +62,11 @@ pub enum Action {
     AddAccount,
     BeginLogin,
     SubmitCode,
+    ToggleSettings,
+    SettingsTab(settings::Tab),
+    EditPrefs(crate::prefs::Prefs),
+    SaveSettings,
+    Logout,
 }
 
 /// Everything a screen draws from.

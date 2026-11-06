@@ -11,7 +11,8 @@ use crate::components::meter::live;
 use crate::components::pet::{Mood, Pet};
 use crate::poller::{self, Command, Settings, Shared, Snapshot};
 use std::sync::mpsc::Sender;
-use crate::screens::{Action, Frame, Size, View, compact, expanded};
+use crate::prefs::Prefs;
+use crate::screens::{Action, Frame, Size, View, compact, expanded, settings};
 use crate::ui::theme;
 use crate::usage::Usage;
 
@@ -22,6 +23,9 @@ pub struct App {
     commands: Sender<Command>,
     /// the login code being pasted
     code: String,
+    /// what config.json holds, and the copy Settings edits
+    prefs: Prefs,
+    draft: Prefs,
     settings: Settings,
     pinned: Option<Mood>,
     view: View,
@@ -88,6 +92,8 @@ impl App {
             data,
             commands,
             code: String::new(),
+            prefs: Prefs::load(),
+            draft: Prefs::load(),
             settings,
             pinned: Mood::from_env(),
             view: load_view(),
@@ -132,6 +138,21 @@ impl App {
                     self.code.clear();
                     self.send(Command::BeginLogin);
                 }
+                Action::ToggleSettings => {
+                    // opening starts a fresh draft; closing drops unsaved edits
+                    self.draft = self.prefs.clone();
+                    self.view.settings = if self.view.settings.is_some() { None } else { Some(settings::Tab::Accounts) };
+                    self.view.account_menu = false;
+                }
+                Action::SettingsTab(t) => self.view.settings = Some(t),
+                Action::EditPrefs(p) => self.draft = p,
+                Action::SaveSettings => {
+                    self.draft.save();
+                    self.prefs = self.draft.clone();
+                    self.settings.fire_threshold = self.prefs.fire as f64;
+                    self.view.settings = None;
+                }
+                Action::Logout => self.send(Command::Logout),
                 Action::SubmitCode => {
                     let code = std::mem::take(&mut self.code);
                     self.send(Command::CompleteLogin(code));
@@ -177,9 +198,10 @@ impl eframe::App for App {
         let mood = self.pinned.unwrap_or_else(|| mood_for(snap.usage.as_ref(), session.map(|s| s.0), self.settings.fire_threshold));
         let f = Frame { snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
 
-        let (want, actions) = match self.view.size {
-            Size::Compact => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
-            Size::Expanded => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
+        let (want, actions) = match (self.view.settings, self.view.size) {
+            (Some(tab), _) => (settings::size(&snap, tab), settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code)),
+            (None, Size::Compact) => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
+            (None, Size::Expanded) => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
         };
         if want != self.size {
             self.size = want;

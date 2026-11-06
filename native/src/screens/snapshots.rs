@@ -5,7 +5,8 @@
 use eframe::egui;
 use egui_kittest::Harness;
 
-use super::{Frame, Size, View, compact, expanded};
+use super::{Frame, Size, View, compact, expanded, settings};
+use crate::prefs::Prefs;
 use crate::auth::{Limits, Profile, Scoped, Window};
 use crate::components::logos::Logos;
 use crate::components::pet::{Mood, Pet};
@@ -65,12 +66,21 @@ struct Case {
     view: View,
 }
 
+fn render_with(case: Case, draft: Prefs) {
+    render_inner(case, draft)
+}
+
 fn render(case: Case) {
+    render_inner(case, Prefs::default())
+}
+
+fn render_inner(case: Case, draft: Prefs) {
     freeze_clock();
     let session = case.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None));
-    let size = |f: &Frame| match case.view.size {
-        Size::Compact => compact::size(compact::rows(f).len()),
-        Size::Expanded => expanded::size(f.snap, f.view),
+    let size = |f: &Frame| match (case.view.settings, case.view.size) {
+        (Some(tab), _) => settings::size(f.snap, tab),
+        (None, Size::Compact) => compact::size(compact::rows(f).len()),
+        (None, Size::Expanded) => expanded::size(f.snap, f.view),
     };
     let mut assets: Option<(Pet, Logos)> = None;
     // first pass measures the window, as the app does
@@ -85,9 +95,10 @@ fn render(case: Case) {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let f = Frame { snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos };
-        let _ = match case.view.size {
-            Size::Compact => compact::draw(ui, &ctx, &f),
-            Size::Expanded => expanded::draw(ui, &ctx, &f, &mut String::new()),
+        let _ = match (case.view.settings, case.view.size) {
+            (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
+            (None, Size::Compact) => compact::draw(ui, &ctx, &f),
+            (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut String::new()),
         };
     });
     harness.run();
@@ -210,4 +221,34 @@ fn expanded_login_failed() {
     let mut snap = two_accounts(snapshot(usage(false, None), None));
     snap.login = crate::poller::Login::Failed("exchange 400: invalid code".into());
     render(Case { name: "expanded-login-failed", snap, mood: Mood::Idle, view: View::default() });
+}
+
+fn settings_view(tab: settings::Tab) -> View {
+    View { settings: Some(tab), ..View::default() }
+}
+
+#[test]
+fn settings_accounts() {
+    let snap = two_accounts(snapshot(usage(false, None), Some(limits(42.0, 68.0))));
+    render(Case { name: "settings-accounts", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Accounts) });
+}
+
+#[test]
+fn settings_accounts_logging_in() {
+    let mut snap = two_accounts(snapshot(usage(false, None), None));
+    snap.login = crate::poller::Login::AwaitingCode;
+    render(Case { name: "settings-accounts-login", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Accounts) });
+}
+
+#[test]
+fn settings_alerts_with_an_unsaved_edit() {
+    let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    let draft = Prefs { fire: 85, ..Prefs::default() };
+    render_with(Case { name: "settings-alerts", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Alerts) }, draft);
+}
+
+#[test]
+fn settings_appearance() {
+    let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    render(Case { name: "settings-appearance", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Appearance) });
 }

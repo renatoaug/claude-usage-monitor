@@ -39,6 +39,12 @@ mod palette {
     pub const TAN_300: Color32 = rgb(0xc6a385);
     pub const CLAY_700: Color32 = rgb(0x30251e);
     pub const CORAL_350: Color32 = rgb(0xcb8a67);
+    pub const CORAL_250: Color32 = rgb(0xce926d);
+    pub const CLAY_800: Color32 = rgb(0x261a12);
+    pub const CLAY_850: Color32 = rgb(0x271d16);
+    pub const TAN_200: Color32 = rgb(0xcdb49b);
+    pub const TAN_500: Color32 = rgb(0xae7954);
+    pub const TAN_600: Color32 = rgb(0x5c5146);
     pub const TAN_400: Color32 = rgb(0xc2865e);
     pub const CORAL_300: Color32 = rgb(0xf3a38b);
     pub const CORAL_400: Color32 = rgb(0xe4a17c);
@@ -123,6 +129,21 @@ pub mod color {
     pub const FIELD: Color32 = white(8);
     pub const FIELD_EDGE: Color32 = white(24);
     pub const ERROR: Color32 = RED_300;
+
+    // settings
+    pub const SETTINGS: Color32 = CLAY_850;
+    pub const GROUP: Color32 = white(6);
+    pub const ROW_LABEL: Color32 = TAN_200;
+    pub const SWITCH_OFF: Color32 = TAN_600;
+    pub const SWITCH_ON: Color32 = TAN_500;
+    pub const KNOB: Color32 = white(217);
+    pub const TABS: Color32 = rgba(0, 0, 0, 56);
+    pub const TAB_ON: Color32 = white(20);
+    pub const PRIMARY: Color32 = CORAL_250;
+    pub const ON_PRIMARY: Color32 = CLAY_800;
+    pub const TILE: Color32 = white(3);
+    pub const TILE_ON: Color32 = white(10);
+    pub const TILE_EDGE_ON: Color32 = white(56);
 
     // tags
     pub const PLAN: Color32 = TAN_300;
