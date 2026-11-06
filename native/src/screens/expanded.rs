@@ -3,7 +3,12 @@
 
 use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
-use super::{Action, Frame, MARGIN, Size, View};
+use super::{Action, Frame, MARGIN, Size, View, connected, shown};
+use crate::components::logos::Provider;
+use crate::components::meter::{Meter, codex_meters};
+use crate::ui::surface::{Tint, card_tinted};
+use crate::ui::text::text_mid;
+use crate::usage::Labeled;
 use crate::poller::Snapshot;
 use crate::components::account::account_chip;
 use crate::components::account_menu::{MenuPick, account_label, account_menu, menu_rect};
@@ -17,7 +22,7 @@ use crate::components::pet::Mood;
 use crate::components::status::{STATUS_H, status_line};
 use crate::ui::controls::{button_row, click_area};
 use crate::ui::icon;
-use crate::ui::surface::{card, hairline, pane};
+use crate::ui::surface::{hairline, pane};
 use crate::ui::theme::{color, radius, text};
 
 const CARD_W: f32 = 280.0;
@@ -29,6 +34,66 @@ const TOGGLE_H: f32 = 32.0;
 const MODEL_ROWS: usize = 4;
 const PROJECT_ROWS: usize = 6;
 const PAD_BOTTOM: f32 = 14.0;
+
+const TABS_H: f32 = 10.0 + 26.0;
+
+/// What the panel shows for one service: its meters and colour, today's
+/// tokens, the lists and the map, and whether it's working.
+struct Service<'a> {
+    provider: Provider,
+    meters: Vec<Meter>,
+    accent: egui::Color32,
+    bar: egui::Color32,
+    heat: &'static [egui::Color32; 5],
+    today: Option<u64>,
+    live: bool,
+    working: bool,
+    by_model: &'a [Labeled],
+    by_project: &'a [Labeled],
+    days30: &'a [u64],
+    month: u64,
+}
+
+fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::Usage) -> Service<'a> {
+    match (provider, &snap.codex) {
+        (Provider::Codex, Some(c)) => Service {
+            provider,
+            meters: codex_meters(c),
+            accent: color::CODEX_BAR,
+            bar: color::CODEX_BAR,
+            heat: &color::HEAT_CODEX,
+            today: Some(c.tokens_today),
+            live: false, // logs, not a live feed
+            working: c.active,
+            by_model: &c.by_model,
+            by_project: &c.by_project,
+            days30: &c.days30,
+            month: c.month_tokens,
+        },
+        _ => {
+            let u = snap.usage.as_ref().unwrap_or(empty);
+            Service {
+                provider: Provider::Claude,
+                meters: meters(snap),
+                accent: color::ACCENT,
+                bar: color::BREAKDOWN,
+                heat: &color::HEAT,
+                today: snap.loaded.then_some(u.today_tokens),
+                live: snap.limits.is_some(),
+                working: u.active,
+                by_model: &u.by_model,
+                by_project: &u.by_project,
+                days30: &u.days30,
+                month: u.month_tokens,
+            }
+        }
+    }
+}
+
+/// The service shown, from the view's choice and what's connected.
+fn shown_in(snap: &Snapshot, view: &View) -> Provider {
+    if connected(snap).contains(&view.provider) { view.provider } else { Provider::Claude }
+}
 
 fn meters_h(count: usize) -> f32 {
     (0..count).map(|i| meter::height(i == 0)).sum()
@@ -57,18 +122,20 @@ fn logging_in(snap: &Snapshot) -> bool {
 /// Window size for this content. Before the first reading, the skeleton's
 /// shape: two meters and Details as it was left.
 pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
-    let usage = snap.usage.as_ref();
-    let m = if snap.loaded { meters(snap).len() } else { 2 };
-    let models = usage.map(|u| u.by_model.len()).unwrap_or(0);
-    let projects = usage.map(|u| u.by_project.len()).unwrap_or(0);
-    [CARD_W + 2.0 * MARGIN, height(m, view, models, projects, logging_in(snap)) + 2.0 * MARGIN]
+    let empty = crate::usage::Usage::empty();
+    let s = service(snap, shown_in(snap, view), &empty);
+    let m = if snap.loaded { s.meters.len() } else { 2 };
+    let tabs = if connected(snap).len() > 1 { TABS_H } else { 0.0 };
+    let login = s.provider == Provider::Claude && logging_in(snap);
+    [CARD_W + 2.0 * MARGIN, height(m, view, s.by_model.len(), s.by_project.len(), login) + tabs + 2.0 * MARGIN]
 }
 
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
     let mut actions = vec![];
-    let usage = f.snap.usage.as_ref();
+    let empty = crate::usage::Usage::empty();
+    let svc = service(f.snap, shown(f), &empty);
     let rect = f.area;
-    card(ui, ctx, f.card);
+    card_tinted(ui, ctx, f.card, if svc.provider == Provider::Codex { Tint::Codex } else { Tint::Claude });
     let (left, right) = (rect.left() + SIDE, rect.right() - SIDE);
     let p = ui.painter().clone();
     let p = &p;
@@ -91,16 +158,29 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     };
     f.pet.draw(&inside, pet_area, f.mood);
 
-    // status line
-    let activity = usage.and_then(|u| u.activity.as_deref());
-    let today = if f.snap.loaded { usage.map(|u| u.today_tokens) } else { None };
-    status_line(p, left, right, stage.bottom() + 17.0, f.mood, activity, today, f.snap.limits.is_some());
+    // status line: the shown service's state and tokens
+    let activity = if svc.provider == Provider::Claude { f.snap.usage.as_ref().and_then(|u| u.activity.as_deref()) } else { None };
+    let mood = match (svc.working, f.mood) {
+        (true, _) => Mood::Working,
+        (false, Mood::Working) => Mood::Idle, // the other service is the one working
+        (false, m) => m,
+    };
+    status_line(p, left, right, stage.bottom() + 17.0, mood, activity, svc.today, svc.live);
     let mut y = stage.bottom() + STATUS_H;
     hairline(p, left, right, y);
 
+    // with several services, tabs pick the one the panel shows
+    let services = connected(f.snap);
+    if services.len() > 1 {
+        if let Some(pick) = service_tabs(ui, f, left, right, y + 10.0, &services, svc.provider) {
+            actions.push(Action::SelectProvider(pick));
+        }
+        y += TABS_H;
+    }
+
     // the meters, or the way in when no account is connected
-    let list = meters(f.snap);
-    if logging_in(f.snap) {
+    let list = &svc.meters;
+    if svc.provider == Provider::Claude && logging_in(f.snap) {
         let error = match &f.snap.login {
             Login::Failed(e) => Some(e.as_str()),
             _ => None,
@@ -128,7 +208,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         y += CONNECT_H;
     } else {
         for (i, m) in list.iter().enumerate() {
-            meter(p, left, right, y, m, i == 0);
+            meter(p, left, right, y, m, i == 0, svc.accent);
             y += meter::height(i == 0);
         }
         y += 12.0;
@@ -147,8 +227,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     }
     y += TOGGLE_H;
     if f.view.details {
-        let empty = crate::usage::Usage::empty();
-        details(ui, p, left, right, y, usage.unwrap_or(&empty), f, &mut actions);
+        details(ui, p, left, right, y, &svc, f, &mut actions);
     }
 
     account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
@@ -214,18 +293,53 @@ pub fn account_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip:
 }
 
 // by model, by project, the 30-day map
-fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, u: &crate::usage::Usage, f: &Frame, actions: &mut Vec<Action>) {
-    let models = &u.by_model[..u.by_model.len().min(MODEL_ROWS)];
-    let projects = &u.by_project[..u.by_project.len().min(PROJECT_ROWS)];
-    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded) {
+fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Service, f: &Frame, actions: &mut Vec<Action>) {
+    let models = &s.by_model[..s.by_model.len().min(MODEL_ROWS)];
+    let projects = &s.by_project[..s.by_project.len().min(PROJECT_ROWS)];
+    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded, s.bar) {
         actions.push(Action::ToggleModels);
     }
     y += breakdown::height(models.len(), f.view.models);
-    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded) {
+    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded, s.bar) {
         actions.push(Action::ToggleProjects);
     }
     y += breakdown::height(projects.len(), f.view.projects);
-    heat_map(p, left, right, y, &u.days30, u.month_tokens);
+    heat_map(p, left, right, y, s.days30, s.month, s.heat);
+}
+
+// the service tabs: logo, name and session % each; the chosen one on a
+// plate tinted with its colour
+fn service_tabs(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, services: &[Provider], chosen: Provider) -> Option<Provider> {
+    let p = ui.painter();
+    let gap = 6.0;
+    let w = (right - left - gap * (services.len() - 1) as f32) / services.len() as f32;
+    let mut pick = None;
+    for (i, &prov) in services.iter().enumerate() {
+        let r = Rect::from_min_size(Pos2::new(left + i as f32 * (w + gap), y), Vec2::new(w, 26.0));
+        let resp = click_area(ui, r, ("service-tab", prov.name()));
+        let on = prov == chosen;
+        let (bg, edge) = match (on, prov) {
+            (true, Provider::Codex) => (color::TAB_CODEX, color::TAB_CODEX_EDGE),
+            (true, _) => (color::TAB_CLAUDE, color::TAB_CLAUDE_EDGE),
+            (false, _) => (color::WASH, if resp.hovered() { color::CONTROL_HOVER.gamma_multiply(0.7) } else { color::TAB_EDGE }),
+        };
+        p.rect(r, CornerRadius::same(radius::CONTROL), bg, Stroke::new(1.0, edge), StrokeKind::Inside);
+        let fg = if on || resp.hovered() { color::FG } else { color::FG_MUTED };
+        let mid = r.center().y;
+        f.logos.draw(p, prov, Rect::from_center_size(Pos2::new(r.left() + 14.0, mid), Vec2::splat(12.0)), prov.tint().gamma_multiply(if on { 1.0 } else { 0.65 }));
+        text_mid(p, r.left() + 25.0, mid, egui::Align::Min, prov.name(), text::BODY, fg);
+        let pct = match prov {
+            Provider::Codex => f.snap.codex.as_ref().and_then(|c| super::codex_pct(&c.session)),
+            _ => f.session.map(|s| s.0),
+        };
+        let urgent = pct.is_some_and(|v| v >= 80.0);
+        let value = pct.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into());
+        text_mid(p, r.right() - 8.0, mid, egui::Align::Max, &value, text::SMALL, if urgent { color::URGENT } else { fg });
+        if resp.clicked() && !on {
+            pick = Some(prov);
+        }
+    }
+    pick
 }
 
 #[cfg(test)]
@@ -238,6 +352,7 @@ mod tests {
         let open = View { details: true, ..View::default() };
         let folded = View { details: true, models: false, projects: false, ..View::default() };
         assert!(height(2, &open, 3, 5, false) > height(2, &closed, 3, 5, false));
+        let _ = TABS_H;
         assert!(height(2, &folded, 3, 5, false) < height(2, &open, 3, 5, false));
     }
 }

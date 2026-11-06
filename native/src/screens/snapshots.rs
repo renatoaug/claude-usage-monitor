@@ -55,6 +55,8 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         accounts: vec![],
         active: String::new(),
         login: Default::default(),
+        codex: None,
+        codex_found: None,
     }
 }
 
@@ -77,7 +79,7 @@ fn render_inner(case: Case, draft: Prefs) {
     freeze_clock();
     let session = case.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None));
     let size = |f: &Frame| match (case.view.settings, case.view.size) {
-        (Some(tab), _) => settings::size(f.snap, tab),
+        (Some(tab), _) => settings::size(f.snap, tab, f.view),
         (None, Size::Compact) => compact::size(compact::rows(f).len()),
         (None, Size::Expanded) => expanded::size(f.snap, f.view),
         (None, Size::PetOnly) => pet_only::size(),
@@ -276,6 +278,76 @@ fn pet_only_working_with_its_glance() {
         name: "pet-only-working-glance",
         snap: snapshot(usage(true, Some("running")), Some(limits(86.0, 68.0))),
         mood: Mood::Working,
+        view: pet_only_view(),
+    });
+}
+
+fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
+    use crate::codex::{CodexUsage, Window};
+    let l = |label: &str, tokens: u64| Labeled { label: label.into(), tokens };
+    snap.codex = Some(CodexUsage {
+        active: working,
+        last_seen: Some(0),
+        plan: Some("plus".into()),
+        session: Some(Window { pct: Some(28.0), reset_ms: Some(3 * H), expired: false }),
+        weekly: Some(Window { pct: Some(64.0), reset_ms: Some(4 * 24 * H), expired: false }),
+        weekly_only: false,
+        limits_at: None,
+        tokens_today: 12_400_000,
+        tokens_5h: 3_100_000,
+        tokens_week: 88_000_000,
+        by_model: vec![l("gpt-6", 70_000_000), l("gpt-6-mini", 18_000_000)],
+        by_project: vec![l("clauddy", 52_000_000), l("api", 36_000_000)],
+        days30: (0..30u64).map(|i| (i * 13 % 7) * 4_000_000).collect(),
+        month_tokens: 380_000_000,
+    });
+    snap.codex_found = Some((true, Some("plus".into())));
+    snap
+}
+
+#[test]
+fn compact_with_codex() {
+    render(Case {
+        name: "compact-codex",
+        snap: with_codex(snapshot(usage(true, Some("running")), Some(limits(42.0, 68.0))), true),
+        mood: Mood::Working,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn expanded_with_codex_on_claude() {
+    render(Case { name: "expanded-codex-claude-tab", snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_showing_codex() {
+    use crate::components::logos::Provider;
+    render(Case {
+        name: "expanded-codex-tab",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), true),
+        mood: Mood::Working,
+        view: View { provider: Provider::Codex, details: true, ..View::default() },
+    });
+}
+
+#[test]
+fn settings_codex_card() {
+    use crate::components::logos::Provider;
+    render(Case {
+        name: "settings-codex",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false),
+        mood: Mood::Idle,
+        view: View { provider: Provider::Codex, settings: Some(settings::Tab::Accounts), ..View::default() },
+    });
+}
+
+#[test]
+fn pet_only_glance_with_codex() {
+    render(Case {
+        name: "pet-only-codex-glance",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), false),
+        mood: Mood::Idle,
         view: pet_only_view(),
     });
 }

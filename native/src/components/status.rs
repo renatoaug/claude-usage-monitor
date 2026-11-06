@@ -52,14 +52,18 @@ pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activ
     }
 }
 
-/// Compact: under the pet, the worker's logo (or a dot) and the word, centred.
-pub fn caption(p: &Painter, ctx: &Context, logos: &Logos, center_x: f32, y: f32, mood: Mood, activity: Option<&str>) {
-    let word = status_word(mood, activity);
-    let working = mood == Mood::Working;
-    let mark = if working { 10.0 } else { 4.0 };
+/// Compact: under the pet, the workers' logos (or a dot) and the word,
+/// centred. Claude alone says what it's doing; Codex, or both, say "working".
+pub fn caption(p: &Painter, ctx: &Context, logos: &Logos, center_x: f32, y: f32, mood: Mood, activity: Option<&str>, workers: &[Provider]) {
+    let working = mood == Mood::Working && !workers.is_empty();
+    let word = if working && workers != [Provider::Claude] { "working".to_string() } else { status_word(mood, activity) };
+    let mark = if working { workers.len() as f32 * 13.0 - 3.0 } else { 4.0 };
     let left = center_x - (mark + 5.0 + width(ctx, &word, text::CAPTION)) / 2.0;
     if working {
-        logos.draw(p, Provider::Claude, Rect::from_min_size(Pos2::new(left, y - 5.0), Vec2::splat(10.0)), color::CLAUDE_WORKING);
+        for (i, w) in workers.iter().enumerate() {
+            let at = Rect::from_min_size(Pos2::new(left + i as f32 * 13.0, y - 5.0), Vec2::splat(10.0));
+            logos.draw(p, *w, at, if *w == Provider::Claude { color::CLAUDE_WORKING } else { w.tint() });
+        }
     } else {
         p.circle_filled(Pos2::new(left + 2.0, y), 2.0, mood_colors(mood).0);
     }

@@ -51,6 +51,10 @@ pub struct Snapshot {
     pub accounts: Vec<Account>,
     pub active: String,
     pub login: Login,
+    /// Codex, when it's tracked: its reading, and whether this machine has
+    /// Codex at all (and on what plan)
+    pub codex: Option<crate::codex::CodexUsage>,
+    pub codex_found: Option<(bool, Option<String>)>,
 }
 
 /// Where a browser login stands.
@@ -204,6 +208,7 @@ struct Worker {
     prefs: Prefs,
     /// consecutive 401s: one can be a refresh racing another, two is a dead token
     auth_fails: u32,
+    codex: crate::codex::Codex,
 }
 
 impl Worker {
@@ -226,7 +231,12 @@ impl Worker {
             alerts: alerts::State::default(),
             prefs: Prefs::load(),
             auth_fails: 0,
+            codex: crate::codex::Codex::new(None),
         };
+        let found = w.codex.detect();
+        if let Ok(mut s) = w.out.lock() {
+            s.codex_found = Some(found);
+        }
         w.bind();
         w
     }
@@ -287,6 +297,12 @@ impl Worker {
                 if (p.heads_up, p.near_limit) != (self.prefs.heads_up, self.prefs.near_limit) {
                     self.alerts.rearm();
                     self.alerts.save(&self.dir);
+                }
+                if p.codex && !self.prefs.codex {
+                    let found = self.codex.detect();
+                    if let Ok(mut s) = self.out.lock() {
+                        s.codex_found = Some(found);
+                    }
                 }
                 self.prefs = p;
             }
@@ -375,8 +391,10 @@ impl Worker {
             }
             save_cache(&self.dir, &self.cache);
         }
-        self.check_alerts(&reading);
+        let codex = if self.prefs.codex { self.codex.get_usage(now_ms()) } else { None };
+        self.check_alerts(&reading, codex.as_ref());
         if let Ok(mut s) = self.out.lock() {
+            s.codex = codex;
             s.usage = Some(reading);
             s.loaded = true;
             s.connected = connected;
@@ -440,12 +458,23 @@ impl Worker {
         }
     }
 
-    fn check_alerts(&mut self, reading: &usage::Usage) {
-        let scopes = self.scopes(reading);
+    fn check_alerts(&mut self, reading: &usage::Usage, codex: Option<&crate::codex::CodexUsage>) {
+        let mut scopes = self.scopes(reading);
+        let claude_session = scopes.first().and_then(|s| s.pct);
+        // Codex has its own windows, so its own keys ("Codex session:80")
+        if let Some(c) = codex {
+            let scope = |label: &str, w: &Option<crate::codex::Window>, session: bool| Scope {
+                label: label.into(),
+                pct: w.as_ref().and_then(|w| w.pct),
+                reset_ms: w.as_ref().and_then(|w| w.reset_ms),
+                session,
+            };
+            scopes.push(scope(if c.weekly_only { "Codex weekly" } else { "Codex session" }, &c.session, true));
+            scopes.push(scope("Codex weekly", &c.weekly, false));
+        }
         let thresholds = [self.prefs.heads_up, self.prefs.near_limit];
         let (notes, dirty) = self.alerts.check(self.prefs.alerts, &thresholds, &scopes);
-        let session = scopes.first().and_then(|s| s.pct);
-        let (reset, reset_dirty) = self.alerts.window_reset(self.prefs.alerts, session);
+        let (reset, reset_dirty) = self.alerts.window_reset(self.prefs.alerts, claude_session);
         for n in notes.iter().chain(reset.iter()) {
             alerts::send(n);
         }

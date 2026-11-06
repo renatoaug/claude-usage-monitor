@@ -68,6 +68,18 @@ pub fn mood_for(usage: Option<&Usage>, session_pct: Option<f64>, fire: f64) -> M
     }
 }
 
+/// The mood across every connected service: any of them working wins; with
+/// none working, the hottest session sets it (an expired Codex reading
+/// doesn't count). Claude's logs alone say when it's asleep.
+pub fn mood_across(usage: Option<&Usage>, claude_pct: Option<f64>, codex: Option<&crate::codex::CodexUsage>, fire: f64) -> Mood {
+    if codex.is_some_and(|c| c.active) {
+        return Mood::Working;
+    }
+    let codex_pct = codex.and_then(|c| crate::screens::codex_pct(&c.session));
+    let hottest = [claude_pct, codex_pct].into_iter().flatten().fold(None, |m: Option<f64>, p| Some(m.map_or(p, |m| m.max(p))));
+    mood_for(usage, hottest, fire)
+}
+
 /// The window's size at launch, from the remembered view, before any reading.
 /// On macOS the window is a fixed, transparent canvas the card lives in: it
 /// never resizes (a resize shows one empty frame, which reads as a blink),
@@ -206,6 +218,17 @@ impl App {
                     self.view.settings = None;
                 }
                 Action::Logout => self.send(Command::Logout),
+                Action::SelectProvider(p) => self.view.provider = p,
+                Action::SetCodex(on) => {
+                    // connecting a service takes effect at once, like logging in
+                    self.prefs.codex = on;
+                    self.draft.codex = on;
+                    self.prefs.save();
+                    self.send(Command::Prefs(self.prefs.clone()));
+                    if on {
+                        self.view.provider = crate::components::logos::Provider::Codex;
+                    }
+                }
                 Action::SubmitCode => {
                     let code = std::mem::take(&mut self.code);
                     self.send(Command::CompleteLogin(code));
@@ -260,7 +283,17 @@ impl App {
             self.show(ctx, true);
         }
         let Some(tray) = &mut self.tray else { return };
-        tray.set_title(&title(session.map(|s| s.0), self.settings.fire_threshold));
+        // one service: its %; several: "C 64% · X 28%"; 🔥 when one is past the fire threshold
+        let codex_pct = snap.codex.as_ref().and_then(|c| crate::screens::codex_pct(&c.session));
+        let text = if snap.codex.is_some() {
+            crate::platform::tray::title_many(
+                &[(crate::components::logos::Provider::Claude, session.map(|s| s.0)), (crate::components::logos::Provider::Codex, codex_pct)],
+                self.settings.fire_threshold,
+            )
+        } else {
+            title(session.map(|s| s.0), self.settings.fire_threshold)
+        };
+        tray.set_title(&text);
         // the menu leads with the limits, as the panel does
         let mut lines = vec![line("Session", session.map(|s| s.0), session.and_then(|s| s.1))];
         if let Some(l) = &snap.limits {
@@ -328,14 +361,16 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         let snap: Snapshot = self.data.lock().map(|s| s.clone()).unwrap_or_default();
         let session = snap.limits.as_ref().and_then(|l| live(&l.session, snap.limits_at));
-        let mood = self.pinned.unwrap_or_else(|| mood_for(snap.usage.as_ref(), session.map(|s| s.0), self.settings.fire_threshold));
+        let mood = self
+            .pinned
+            .unwrap_or_else(|| mood_across(snap.usage.as_ref(), session.map(|s| s.0), snap.codex.as_ref(), self.settings.fire_threshold));
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
         let screen = (self.view.settings, size);
 
         // the settled window for this screen
         let want = match screen {
-            (Some(tab), _) => settings::size(&snap, tab),
-            (None, Size::Compact) => compact::size(1),
+            (Some(tab), _) => settings::size(&snap, tab, &self.view),
+            (None, Size::Compact) => compact::size(crate::screens::connected(&snap).len()),
             (None, Size::Expanded) => expanded::size(&snap, &self.view),
             (None, Size::PetOnly) => pet_only::size(),
         };
@@ -398,7 +433,13 @@ impl eframe::App for App {
         let card = egui::Rect::from_min_size(origin, self.card_now);
         // the card stays solid while its content fades: never a see-through moment
         if size != Size::PetOnly && self.leaving.is_none() {
-            crate::ui::surface::card_backdrop(ui.painter(), card);
+            // Codex's shade when the expanded panel shows it
+            let codex_shown = size == Size::Expanded
+                && self.view.settings.is_none()
+                && self.view.provider == crate::components::logos::Provider::Codex
+                && snap.codex.is_some();
+            let tint = if codex_shown { crate::ui::surface::Tint::Codex } else { crate::ui::surface::Tint::Claude };
+            crate::ui::surface::card_backdrop(ui.painter(), card, tint);
         }
         if fade < 1.0 {
             ui.multiply_opacity(fade);

@@ -21,7 +21,7 @@ pub fn heat_level(v: u64, max: u64) -> usize {
     }
 }
 
-pub fn heat_map(p: &Painter, left: f32, right: f32, y: f32, days: &[u64], total: u64) {
+pub fn heat_map(p: &Painter, left: f32, right: f32, y: f32, days: &[u64], total: u64, palette: &[eframe::egui::Color32; 5]) {
     hairline(p, left, right, y);
     let my = y + 15.0;
     p.text(Pos2::new(left, my), Align2::LEFT_CENTER, "30 days", FontId::proportional(text::CAPTION), color::FG_SECTION);
@@ -31,7 +31,7 @@ pub fn heat_map(p: &Painter, left: f32, right: f32, y: f32, days: &[u64], total:
     let w = (right - left - 2.0 * (n - 1.0)) / n;
     for (i, &v) in days.iter().enumerate() {
         let sq = Rect::from_min_size(Pos2::new(left + i as f32 * (w + 2.0), my + 13.0), Vec2::new(w, 7.0));
-        p.rect_filled(sq, CornerRadius::same(radius::TAG), color::HEAT[heat_level(v, max)]);
+        p.rect_filled(sq, CornerRadius::same(radius::TAG), palette[heat_level(v, max)]);
     }
 }
 

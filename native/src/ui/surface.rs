@@ -1,16 +1,36 @@
 // Surfaces: the widget's card, a pane inside it, the hairline between parts.
 
-use eframe::egui::{Context, CornerRadius, Mesh, Painter, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, ViewportCommand};
+use eframe::egui::{Color32, Context, CornerRadius, Mesh, Painter, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, ViewportCommand};
 
 use super::theme::{color, mix, radius};
 
 /// The card: the panel colour, its border and the warm glow from the top
 /// left. The whole card drags the window; anything drawn later sits on top.
 pub fn card(ui: &Ui, ctx: &Context, rect: Rect) {
+    card_tinted(ui, ctx, rect, Tint::Claude);
+}
+
+/// The panel's shade: warm for Claude, green-grey while it shows Codex.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Tint {
+    Claude,
+    Codex,
+}
+
+impl Tint {
+    pub fn surface(self) -> Color32 {
+        if self == Tint::Codex { color::SURFACE_CODEX } else { color::SURFACE }
+    }
+    fn glow(self) -> Color32 {
+        if self == Tint::Codex { color::SURFACE_WARM_CODEX } else { color::SURFACE_WARM }
+    }
+}
+
+pub fn card_tinted(ui: &Ui, ctx: &Context, rect: Rect, tint: Tint) {
     let p = ui.painter();
     let round = CornerRadius::same(radius::CARD);
-    p.rect_filled(rect, round, color::SURFACE);
-    p.add(Shape::mesh(glow_mesh(rect, rect.left_top() + Vec2::new(rect.width() * 0.2, 0.0), GLOW_REACH)));
+    p.rect_filled(rect, round, tint.surface());
+    p.add(Shape::mesh(glow_mesh(rect, rect.left_top() + Vec2::new(rect.width() * 0.2, 0.0), GLOW_REACH, tint.glow())));
     // the border goes last: its anti-aliased edge covers the mesh's
     p.rect_stroke(rect, round, Stroke::new(1.0, color::BORDER), StrokeKind::Inside);
     let drag = ui.interact(rect, ui.scope_id().with("card-drag"), Sense::click_and_drag());
@@ -52,9 +72,8 @@ fn rounded_outline(rect: Rect, r: f32, step: f32) -> Vec<Pos2> {
 /// A radial glow shaped exactly like the card: a fan from `center` to the
 /// rounded outline, with a ring at `reach` where it fades out, so the warmth
 /// falls off with distance and never spills past the rounded corners.
-fn glow_mesh(rect: Rect, center: Pos2, reach: f32) -> Mesh {
+fn glow_mesh(rect: Rect, center: Pos2, reach: f32, warm: Color32) -> Mesh {
     let mut m = Mesh::default();
-    let warm = color::SURFACE_WARM;
     let clear = color::CLEAR;
     let outline = rounded_outline(rect.shrink(0.5), radius::CARD as f32 - 0.5, 4.0);
     let c = m.vertices.len() as u32;
@@ -79,8 +98,8 @@ fn glow_mesh(rect: Rect, center: Pos2, reach: f32) -> Mesh {
 
 /// The card's solid fill alone, drawn before content that may be fading so
 /// the card itself never goes see-through.
-pub fn card_backdrop(p: &Painter, rect: Rect) {
-    p.rect_filled(rect, CornerRadius::same(radius::CARD), color::SURFACE);
+pub fn card_backdrop(p: &Painter, rect: Rect, tint: Tint) {
+    p.rect_filled(rect, CornerRadius::same(radius::CARD), tint.surface());
 }
 
 /// A dark pane inside the card (the expanded pet's stage).

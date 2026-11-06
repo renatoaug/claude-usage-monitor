@@ -6,7 +6,8 @@ use eframe::egui::{Align, Context, Pos2, Rect, Ui, Vec2};
 
 use crate::ui::text::text_mid;
 
-use super::{Action, Frame, MARGIN, Size};
+use super::{Action, Frame, MARGIN, Size, codex_pct, shown};
+use crate::ui::controls::click_area;
 use crate::components::account::account;
 use crate::components::logos::Provider;
 use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
@@ -34,9 +35,25 @@ pub fn size(rows: usize) -> [f32; 2] {
     [CARD_W + 2.0 * MARGIN, card_h + 2.0 * MARGIN]
 }
 
-/// The connected services (Codex and Cursor join when they're ported).
+/// One row per connected service.
 pub fn rows(f: &Frame) -> Vec<ServiceRow> {
-    vec![ServiceRow { provider: Provider::Claude, pct: f.session.map(|s| s.0), reset_ms: f.session.and_then(|s| s.1) }]
+    let mut v = vec![ServiceRow { provider: Provider::Claude, pct: f.session.map(|s| s.0), reset_ms: f.session.and_then(|s| s.1) }];
+    if let Some(c) = &f.snap.codex {
+        v.push(ServiceRow { provider: Provider::Codex, pct: codex_pct(&c.session), reset_ms: c.session.as_ref().and_then(|w| w.reset_ms) });
+    }
+    v
+}
+
+/// The services working right now, for the logos under the pet.
+pub fn workers(f: &Frame) -> Vec<Provider> {
+    let mut v = vec![];
+    if f.snap.usage.as_ref().is_some_and(|u| u.active) {
+        v.push(Provider::Claude);
+    }
+    if f.snap.codex.as_ref().is_some_and(|c| c.active) {
+        v.push(Provider::Codex);
+    }
+    v
 }
 
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
@@ -66,15 +83,20 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     halo(p, column, color::CLAUDE_BAR.gamma_multiply(0.06));
     let _ = f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
     let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
-    caption(p, ctx, f.logos, column.center().x, line_y, f.mood, activity);
+    caption(p, ctx, f.logos, column.center().x, line_y, f.mood, activity, &workers(f));
 
     // the rows, centred on the space above the bottom line
     let col_left = column.right() + 8.0;
+    let selected = shown(f);
     let mut y = above.center().y - rows_h(rows.len()) / 2.0;
-    for (i, row) in rows.iter().enumerate() {
+    for row in &rows {
         let at = Pos2::new(col_left, y);
+        // with several, a row picks the service the panel shows
+        if rows.len() > 1 && click_area(ui, Rect::from_min_size(at, Vec2::new(content.right() - col_left, ROW_H)), ("row", row.provider.name())).clicked() {
+            actions.push(Action::SelectProvider(row.provider));
+        }
         if f.snap.loaded {
-            service_row(p, f.logos, at, content.right() - col_left, row, i == 0);
+            service_row(p, f.logos, at, content.right() - col_left, row, row.provider == selected);
         } else {
             service_row_skeleton(p, f.logos, at, content.right() - col_left, row.provider);
         }
@@ -82,7 +104,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     }
     if !f.snap.loaded {
         crate::ui::skeleton::sk_line(p, content.right() - 62.0, line_y, 62.0, 7.0);
-    } else if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {
+    } else if let Some(ms) = rows.iter().find(|r| r.provider == selected).and_then(|r| r.reset_ms) {
         text_mid(p, content.right(), line_y, Align::Max, &format!("resets {}", clock(ms)), text::TINY, color::FG_RESET);
     }
     actions

@@ -10,7 +10,7 @@ pub mod settings;
 #[cfg(test)]
 mod snapshots;
 
-use crate::components::logos::Logos;
+use crate::components::logos::{Logos, Provider};
 use crate::components::pet::{Mood, Pet};
 use crate::poller::Snapshot;
 
@@ -42,11 +42,13 @@ pub struct View {
     /// Settings is open, on this tab (not remembered)
     #[serde(skip)]
     pub settings: Option<settings::Tab>,
+    /// the service the panel shows when more than one is connected
+    pub provider: Provider,
 }
 
 impl Default for View {
     fn default() -> Self {
-        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None, settings: None }
+        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None, settings: None, provider: Provider::Claude }
     }
 }
 
@@ -67,6 +69,8 @@ pub enum Action {
     BeginLogin,
     SubmitCode,
     ToggleSettings,
+    SelectProvider(Provider),
+    SetCodex(bool),
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -91,3 +95,22 @@ pub struct Frame<'a> {
 
 /// The card sits this far inside the window, all round.
 pub const MARGIN: f32 = 6.0;
+
+/// The services connected now, Claude first.
+pub fn connected(snap: &Snapshot) -> Vec<Provider> {
+    let mut v = vec![Provider::Claude];
+    if snap.codex.is_some() {
+        v.push(Provider::Codex);
+    }
+    v
+}
+
+/// The service the panel shows: the chosen one while it's connected.
+pub fn shown(f: &Frame) -> Provider {
+    if connected(f.snap).contains(&f.view.provider) { f.view.provider } else { Provider::Claude }
+}
+
+/// A Codex window's % while it's in force (an expired reading doesn't count).
+pub fn codex_pct(w: &Option<crate::codex::Window>) -> Option<f64> {
+    w.as_ref().and_then(|w| w.pct)
+}

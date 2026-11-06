@@ -45,17 +45,23 @@ fn logging_in(snap: &Snapshot) -> bool {
     matches!(snap.login, Login::AwaitingCode | Login::Failed(_))
 }
 
-fn pane_h(tab: Tab, snap: &Snapshot) -> f32 {
+// the service whose card Accounts shows: Claude unless Codex's tile was picked
+fn account_service(view: &super::View) -> Provider {
+    if view.provider == Provider::Codex { Provider::Codex } else { Provider::Claude }
+}
+
+fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
+    let login = account_service(view) == Provider::Claude && logging_in(snap);
     match tab {
-        Tab::Accounts => TILES_H + 10.0 + CONN_H + if logging_in(snap) { LOGIN_H } else { 0.0 },
+        Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
         Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
     }
 }
 
 /// Window size for Settings on `tab`.
-pub fn size(snap: &Snapshot, tab: Tab) -> [f32; 2] {
-    let h = BODY_TOP + 12.0 + TABS_H + pane_h(tab, snap) + ACTIONS_H + VERSION_H + PAD_BOTTOM;
+pub fn size(snap: &Snapshot, tab: Tab, view: &super::View) -> [f32; 2] {
+    let h = BODY_TOP + 12.0 + TABS_H + pane_h(tab, snap, view) + ACTIONS_H + VERSION_H + PAD_BOTTOM;
     [CARD_W + 2.0 * MARGIN, h + 2.0 * MARGIN]
 }
 
@@ -83,11 +89,11 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
     y += TABS_H;
 
     match tab {
-        Tab::Accounts => accounts(ui, f, left, right, y, code, &mut actions),
+        Tab::Accounts => accounts(ui, f, left, right, y, code, saved, &mut actions),
         Tab::Alerts => alerts(ui, left, right, y, draft, &mut actions),
         Tab::Appearance => appearance(ui, f, left, right, y, draft, &mut actions),
     }
-    y += pane_h(tab, f.snap);
+    y += pane_h(tab, f.snap, f.view);
 
     // Cancel, and Save once there's something to save
     let dirty = draft != saved;
@@ -146,25 +152,48 @@ fn action_button(ui: &Ui, rect: Rect, id: &str, label: &str, primary: bool) -> b
     resp.clicked()
 }
 
-fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut String, actions: &mut Vec<Action>) {
+fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut String, saved: &Prefs, actions: &mut Vec<Action>) {
     let p = ui.painter().clone();
-    // one tile per service; Codex and Cursor arrive with their ports
+    // one tile per service; a click opens its card below (Cursor isn't ported yet)
+    let picked = account_service(f.view);
     let w = (right - left - 12.0) / 3.0;
     for (i, provider) in [Provider::Claude, Provider::Codex, Provider::Cursor].into_iter().enumerate() {
         let tile = Rect::from_min_size(Pos2::new(left + i as f32 * (w + 6.0), y), Vec2::new(w, TILES_H));
-        let on = provider == Provider::Claude;
-        let (bg, edge) = if on { (color::TILE_ON, color::TILE_EDGE_ON) } else { (color::TILE, color::HAIR) };
+        let ready = provider != Provider::Cursor;
+        let on = provider == picked;
+        let hovered = ready && {
+            let r = click_area(ui, tile, ("service-tile", provider.name()));
+            if r.clicked() && !on {
+                actions.push(Action::SelectProvider(provider));
+            }
+            r.hovered()
+        };
+        let (bg, edge) = match (on, hovered) {
+            (true, _) => (color::TILE_ON, color::TILE_EDGE_ON),
+            (false, true) => (color::TILE, color::CONTROL_HOVER.gamma_multiply(0.6)),
+            (false, false) => (color::TILE, color::HAIR),
+        };
         p.rect(tile, CornerRadius::same(radius::CONTROL + 4), bg, Stroke::new(1.0, edge), StrokeKind::Inside);
-        let fade = if on { 1.0 } else { 0.4 };
+        let linked = match provider {
+            Provider::Claude => f.snap.connected,
+            Provider::Codex => saved.codex,
+            Provider::Cursor => false,
+        };
+        let fade = if !ready { 0.4 } else if linked || on { 1.0 } else { 0.7 };
         let logo = Rect::from_center_size(Pos2::new(tile.center().x, tile.top() + 19.0), Vec2::splat(18.0));
-        f.logos.draw(&p, provider, logo, if on { provider.tint() } else { color::FG_MUTED.gamma_multiply(fade) });
+        f.logos.draw(&p, provider, logo, if ready && (linked || on) { provider.tint() } else { color::FG_MUTED.gamma_multiply(fade) });
         text_mid(&p, tile.center().x, tile.top() + 38.0, Align::Center, provider.name(), text::SMALL, color::FG.gamma_multiply(fade));
-        let state = match (on, f.snap.connected) {
+        let state = match (ready, linked) {
+            (false, _) => "Soon",
             (true, true) => "Connected",
             (true, false) => "Connect",
-            (false, _) => "Soon",
         };
         text_mid(&p, tile.center().x, tile.top() + 51.0, Align::Center, state, text::CAPTION, color::FG_MUTED.gamma_multiply(fade));
+    }
+
+    if picked == Provider::Codex {
+        codex_card(ui, f, left, right, y + TILES_H + 10.0, saved, actions);
+        return;
     }
 
     // the Claude card: its avatar, who's connected and on what plan, and
@@ -215,6 +244,48 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
             Some(LoginPick::Submit) => actions.push(Action::SubmitCode),
             Some(LoginPick::Reopen) => actions.push(Action::BeginLogin),
             None => {}
+        }
+    }
+}
+
+// Codex: read from its own logs on this Mac, so there's no login, only on
+// or off; it takes effect at once
+fn codex_card(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, saved: &Prefs, actions: &mut Vec<Action>) {
+    let p = ui.painter().clone();
+    let card = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, CONN_H));
+    p.rect(card, CornerRadius::same(radius::CONTROL + 2), color::GROUP, Stroke::new(1.0, color::HAIR), StrokeKind::Inside);
+    let avatar = Rect::from_min_size(Pos2::new(card.left() + 10.0, card.center().y - 14.0), Vec2::splat(28.0));
+    p.rect_filled(avatar, CornerRadius::same(radius::CONTROL + 1), color::AVATAR_CODEX);
+    f.logos.draw(&p, Provider::Codex, Rect::from_center_size(avatar.center(), Vec2::splat(18.0)), color::CODEX);
+    let x = avatar.right() + 10.0;
+    let (head_y, caption_y) = (card.center().y - 8.0, card.center().y + 9.0);
+    let name = bold_mid(&p, x, head_y, Align::Min, "Codex", text::BODY, color::FG);
+    let (found, found_plan) = f.snap.codex_found.clone().unwrap_or((true, None));
+    let plan = f.snap.codex.as_ref().and_then(|c| c.plan.clone()).or(found_plan);
+    if let Some(plan) = plan.filter(|_| saved.codex) {
+        let style = TagStyle { fg: color::PLAN, edge: color::PLAN_EDGE, wash: color::PLAN_WASH, pad: Vec2::new(4.0, 3.0) };
+        tag(&p, name.right() + 6.0, head_y, Align::Min, &plan.to_lowercase(), &style);
+    }
+    if saved.codex {
+        text_mid(&p, x, caption_y, Align::Min, "Connected on this device", text::SMALL, color::CAPTION);
+        let out = Rect::from_center_size(Pos2::new(card.right() - 22.0, card.center().y), Vec2::splat(24.0));
+        let resp = click_area(ui, out, "codex-off");
+        if resp.hovered() {
+            p.rect_filled(out, CornerRadius::same(radius::CONTROL), color::MENU_HOVER);
+        }
+        icon::draw(&p, out.center(), icon::LOG_OUT, 13.0, if resp.hovered() { color::REMOVE_HOVER } else { color::REMOVE });
+        if resp.clicked() {
+            actions.push(Action::SetCodex(false));
+        }
+    } else {
+        let hint = if found { "Track Codex alongside Claude, in this pet." } else { "No Codex sessions on this Mac yet." };
+        let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(x, card.top()), Pos2::new(card.right() - 84.0, card.bottom())));
+        text_mid(&clip, x, caption_y, Align::Min, hint, text::SMALL, color::CAPTION);
+        if found {
+            let btn = Rect::from_min_size(Pos2::new(card.right() - 76.0, card.center().y - 12.0), Vec2::new(64.0, 24.0));
+            if action_button(ui, btn, "codex-on", "Connect", true) {
+                actions.push(Action::SetCodex(true));
+            }
         }
     }
 }
@@ -283,9 +354,10 @@ mod tests {
     #[test]
     fn each_tab_sizes_the_window_to_its_own_content() {
         let snap = Snapshot::default();
-        let h = |t| size(&snap, t)[1];
+        let view = crate::screens::View::default();
+        let h = |t| size(&snap, t, &view)[1];
         assert!(h(Tab::Appearance) > h(Tab::Alerts));
         let logging = Snapshot { login: Login::AwaitingCode, ..Default::default() };
-        assert!(size(&logging, Tab::Accounts)[1] > h(Tab::Accounts));
+        assert!(size(&logging, Tab::Accounts, &view)[1] > h(Tab::Accounts));
     }
 }

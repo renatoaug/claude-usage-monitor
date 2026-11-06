@@ -5,8 +5,10 @@ use eframe::egui::{self, Color32, ColorImage, Rect, TextureHandle, TextureOption
 
 use crate::ui::theme::color;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Provider {
+    #[default]
     Claude,
     Codex,
     Cursor,
@@ -28,6 +30,15 @@ impl Provider {
             Provider::Cursor => color::CURSOR,
         }
     }
+    /// One letter for the menu bar's "C 64% · X 28%".
+    pub fn initial(self) -> &'static str {
+        match self {
+            Provider::Claude => "C",
+            Provider::Codex => "X",
+            Provider::Cursor => "Cu",
+        }
+    }
+
     /// The usage bar.
     pub fn bar(self) -> Color32 {
         match self {

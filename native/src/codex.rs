@@ -416,7 +416,7 @@ impl Codex {
         let mut days30 = vec![0u64; DAYS];
         let (mut by_model, mut model_order) = (HashMap::new(), vec![]);
         let (mut by_project, mut project_order) = (HashMap::new(), vec![]);
-        let mut tally = |map: &mut HashMap<String, u64>, order: &mut Vec<String>, k: String, t: u64| {
+        let tally = |map: &mut HashMap<String, u64>, order: &mut Vec<String>, k: String, t: u64| {
             if !map.contains_key(&k) {
                 order.push(k.clone());
             }

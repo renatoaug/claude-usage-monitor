@@ -41,14 +41,51 @@ pub fn live(w: &Window, at: Option<Instant>) -> Option<(f64, Option<i64>)> {
 
 /// One ramp for every meter: plain below 60, warm to 85, hot past it.
 /// Returns (bar, number) colours.
-pub fn level(pct: f64) -> (Color32, Color32) {
+pub fn level(pct: f64, accent: Color32) -> (Color32, Color32) {
     if pct >= 85.0 {
         (color::HOT, color::HOT)
     } else if pct >= 60.0 {
         (color::WARM, color::WARM)
     } else {
-        (color::ACCENT, color::FG)
+        (accent, color::FG)
     }
+}
+
+// a reading older than this says how old it is instead of its tokens
+const STALE_MS: i64 = 15 * 60_000;
+
+// a Codex window's subtitle: its reset and tokens; how old it is when the
+// reading is stale; waiting when the window passed with no fresh reading
+fn ext_sub(w: &Option<crate::codex::Window>, tokens: Option<u64>, stale: Option<i64>) -> String {
+    let t = tokens.map(|n| format!("{} tokens", crate::format::tokens(n)));
+    let join = |parts: Vec<Option<String>>| parts.into_iter().flatten().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
+    let Some(w) = w else { return join(vec![Some("limits not recorded yet".into()), t]) };
+    if w.pct.is_none() {
+        return join(vec![Some("waiting for a fresh reading".into()), t]);
+    }
+    if let Some(age) = stale {
+        let at = w.reset_ms.map(|ms| format!("resets {}", crate::format::clock(ms)));
+        return join(vec![at, Some(format!("read {} ago", countdown(age)))]);
+    }
+    let s = join(vec![w.reset_ms.map(|ms| format!("resets in {}", reset_in(ms))), t]);
+    if s.is_empty() { "—".into() } else { s }
+}
+
+/// Codex's meters: its session (or, on a weekly-only plan, its week in that
+/// place) and its week.
+pub fn codex_meters(c: &crate::codex::CodexUsage) -> Vec<Meter> {
+    let now = crate::usage::now_ms();
+    let stale = c.limits_at.map(|at| now - at).filter(|&age| age > STALE_MS);
+    let pct = |w: &Option<crate::codex::Window>| w.as_ref().and_then(|w| w.pct);
+    let mut v = vec![Meter {
+        label: if c.weekly_only { "weekly · all models".into() } else { "current session".into() },
+        pct: pct(&c.session),
+        sub: ext_sub(&c.session, Some(if c.weekly_only { c.tokens_week } else { c.tokens_5h }), stale),
+    }];
+    if !c.weekly_only {
+        v.push(Meter { label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale) });
+    }
+    v
 }
 
 /// The session, the week, and any per-model weekly limits. Connected but not
@@ -109,8 +146,8 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
 
 /// Draw `m` between `left` and `right`, starting at `y`. The hero (the
 /// session) has a 27 px number on the label's baseline and a thicker bar.
-pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter, hero: bool) {
-    let (fill, num) = level(m.pct.unwrap_or(0.0));
+pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter, hero: bool, accent: Color32) {
+    let (fill, num) = level(m.pct.unwrap_or(0.0), accent);
     let value = m.pct.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into());
     let (track_y, track_h) = if hero {
         let base = y + 8.0 + 30.0;
@@ -150,9 +187,9 @@ mod tests {
 
     #[test]
     fn the_ramp_is_plain_then_warm_then_hot() {
-        assert_eq!(level(10.0).1, color::FG);
-        assert_eq!(level(60.0).0, color::WARM);
-        assert_eq!(level(85.0).0, color::HOT);
+        assert_eq!(level(10.0, color::ACCENT), (color::ACCENT, color::FG));
+        assert_eq!(level(60.0, color::ACCENT).0, color::WARM);
+        assert_eq!(level(85.0, color::CODEX_BAR).0, color::HOT);
     }
 
     #[test]
@@ -161,5 +198,21 @@ mod tests {
         let waiting = meters(&Snapshot { connected: true, ..Default::default() });
         assert_eq!(waiting.len(), 2);
         assert!(waiting.iter().all(|m| m.pct.is_none()));
+    }
+}
+
+#[cfg(test)]
+mod codex_tests {
+    use super::*;
+    use crate::codex::Window;
+
+    #[test]
+    fn a_codex_window_says_reset_tokens_or_how_old_it_is() {
+        let w = Some(Window { pct: Some(20.0), reset_ms: Some(2 * 3_600_000), expired: false });
+        assert!(ext_sub(&w, Some(5_000), None).starts_with("resets in 2h 0m ("));
+        assert!(ext_sub(&w, Some(5_000), Some(20 * 60_000)).ends_with("read 20m ago"));
+        let gone = Some(Window { pct: None, reset_ms: None, expired: true });
+        assert_eq!(ext_sub(&gone, None, None), "waiting for a fresh reading");
+        assert_eq!(ext_sub(&None, None, None), "limits not recorded yet");
     }
 }
