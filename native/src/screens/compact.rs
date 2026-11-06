@@ -46,7 +46,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     // title band: the account, then pet-only, expand and close
     let band_y = rect.top() + 15.5;
-    account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref(), false);
+    account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref());
     match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
         Some(0) => actions.push(Action::Close),
         Some(1) => actions.push(Action::Resize(Size::Expanded)),

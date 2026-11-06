@@ -52,6 +52,9 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         error: None,
         loaded: true,
         retry_at: None,
+        accounts: vec![],
+        active: String::new(),
+        login: Default::default(),
     }
 }
 
@@ -84,7 +87,7 @@ fn render(case: Case) {
         let f = Frame { snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos };
         let _ = match case.view.size {
             Size::Compact => compact::draw(ui, &ctx, &f),
-            Size::Expanded => expanded::draw(ui, &ctx, &f),
+            Size::Expanded => expanded::draw(ui, &ctx, &f, &mut String::new()),
         };
     });
     harness.run();
@@ -166,4 +169,45 @@ fn compact_loading() {
 #[test]
 fn expanded_loading() {
     render(Case { name: "expanded-loading", snap: Snapshot::default(), mood: Mood::Idle, view: View::default() });
+}
+
+fn two_accounts(mut snap: Snapshot) -> Snapshot {
+    use crate::accounts::Account;
+    snap.accounts = vec![
+        Account { id: "default".into(), label: Some("you@example.com".into()), claude_dir: None },
+        Account { id: "acct-2".into(), label: Some("work@example.com".into()), claude_dir: None },
+    ];
+    snap.active = "default".into();
+    snap
+}
+
+#[test]
+fn expanded_account_menu() {
+    let view = View { account_menu: true, ..View::default() };
+    render(Case { name: "expanded-account-menu", snap: two_accounts(snapshot(usage(false, None), Some(limits(42.0, 68.0)))), mood: Mood::Idle, view });
+}
+
+#[test]
+fn expanded_account_menu_confirming_a_removal() {
+    let view = View { account_menu: true, pending_remove: Some("acct-2".into()), ..View::default() };
+    render(Case {
+        name: "expanded-account-menu-remove",
+        snap: two_accounts(snapshot(usage(false, None), Some(limits(42.0, 68.0)))),
+        mood: Mood::Idle,
+        view,
+    });
+}
+
+#[test]
+fn expanded_logging_in() {
+    let mut snap = two_accounts(snapshot(usage(false, None), None));
+    snap.login = crate::poller::Login::AwaitingCode;
+    render(Case { name: "expanded-login", snap, mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_login_failed() {
+    let mut snap = two_accounts(snapshot(usage(false, None), None));
+    snap.login = crate::poller::Login::Failed("exchange 400: invalid code".into());
+    render(Case { name: "expanded-login-failed", snap, mood: Mood::Idle, view: View::default() });
 }

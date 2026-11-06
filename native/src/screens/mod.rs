@@ -28,15 +28,21 @@ pub struct View {
     pub details: bool,
     pub models: bool,
     pub projects: bool,
+    /// the account menu is open (not remembered)
+    #[serde(skip)]
+    pub account_menu: bool,
+    /// an account whose × was clicked once: the next click removes it
+    #[serde(skip)]
+    pub pending_remove: Option<String>,
 }
 
 impl Default for View {
     fn default() -> Self {
-        View { size: Size::Expanded, details: false, models: true, projects: true }
+        View { size: Size::Expanded, details: false, models: true, projects: true, account_menu: false, pending_remove: None }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Action {
     Close,
     Resize(Size),
@@ -44,6 +50,14 @@ pub enum Action {
     ToggleDetails,
     ToggleModels,
     ToggleProjects,
+    ToggleAccountMenu,
+    CloseAccountMenu,
+    SwitchAccount(String),
+    AskRemoveAccount(String),
+    RemoveAccount(String),
+    AddAccount,
+    BeginLogin,
+    SubmitCode,
 }
 
 /// Everything a screen draws from.

@@ -4,10 +4,11 @@
 
 use eframe::egui;
 use serde_json::Value;
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::accounts::Accounts;
+use crate::accounts::{Account, Accounts};
 use crate::auth::{Auth, Limits, Profile, Ureq};
 use crate::usage::{self, Reader, now_ms};
 
@@ -45,18 +46,44 @@ pub struct Snapshot {
     pub loaded: bool,
     /// the usage API asked us to slow down; the next try is then
     pub retry_at: Option<Instant>,
+    /// the Claude accounts, and the one on screen
+    pub accounts: Vec<Account>,
+    pub active: String,
+    pub login: Login,
+}
+
+/// Where a browser login stands.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum Login {
+    #[default]
+    Idle,
+    /// the browser is open; waiting for the pasted code
+    AwaitingCode,
+    Failed(String),
+}
+
+/// What the UI asks the poll thread to do.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Command {
+    Switch(String),
+    /// a fresh, logged-out account: switch to it and start its login
+    Add,
+    Remove(String),
+    BeginLogin,
+    CompleteLogin(String),
 }
 
 pub type Shared = Arc<Mutex<Snapshot>>;
 
-pub fn spawn(ctx: egui::Context, settings: Settings) -> Shared {
+pub fn spawn(ctx: egui::Context, settings: Settings) -> (Shared, Sender<Command>) {
     let shared: Shared = Arc::default();
     let out = shared.clone();
+    let (tx, rx) = mpsc::channel();
     std::thread::Builder::new()
         .name("poller".into())
-        .spawn(move || run(ctx, settings, out))
+        .spawn(move || Worker::new(ctx, settings, out).run(rx))
         .expect("poll thread");
-    shared
+    (shared, tx)
 }
 
 // The account's % only moves when tokens are spent, and the local logs show
@@ -157,33 +184,122 @@ fn instant_at(epoch_ms: i64, now: i64) -> Instant {
     Instant::now().checked_sub(ago).unwrap_or_else(Instant::now)
 }
 
-fn run(ctx: egui::Context, settings: Settings, out: Shared) {
-    let accounts = Accounts::new(None);
-    let account = accounts.active();
-    let dir = accounts.data_dir_of(&account.id);
-    let mut reader = Reader::new(account.claude_dir.as_ref().map(Into::into));
-    let mut auth = Auth::new(Some(dir.clone()), Box::new(Ureq::default()));
+struct Worker {
+    ctx: egui::Context,
+    settings: Settings,
+    out: Shared,
+    accounts: Accounts,
+    dir: std::path::PathBuf,
+    reader: Reader,
+    auth: Auth,
+    cache: Cache,
+    schedule: Schedule,
+    profile: Option<Profile>,
+}
 
-    // start from the saved reading: on screen at once, and no call if it's fresh
-    let mut cache = load_cache(&dir).unwrap_or_default();
-    let mut profile = cache.profile.clone();
-    let mut schedule = Schedule::new(now_ms(), Some(&cache).filter(|c| c.polled_at > 0));
-    if let Ok(mut s) = out.lock() {
-        if let (Some(l), Some(at)) = (&cache.limits, cache.fetched_at) {
-            s.limits = Some(l.clone());
-            s.limits_at = Some(instant_at(at, now_ms()));
-        }
-        s.retry_at = cache.retry_at.filter(|&t| t > now_ms()).map(|t| Instant::now() + Duration::from_millis((t - now_ms()) as u64));
-        s.profile = profile.clone();
+impl Worker {
+    fn new(ctx: egui::Context, settings: Settings, out: Shared) -> Self {
+        let accounts = Accounts::new(None);
+        let dir = accounts.data_dir_of(&accounts.active_id());
+        let mut w = Worker {
+            ctx,
+            settings,
+            out,
+            reader: Reader::new(None),
+            auth: Auth::new(Some(dir.clone()), Box::new(Ureq::default())),
+            dir,
+            accounts,
+            cache: Cache::default(),
+            schedule: Schedule::new(now_ms(), None),
+            profile: None,
+        };
+        w.bind();
+        w
     }
 
-    loop {
-        let reading = reader.get_usage(&settings.usage);
-        let connected = auth.is_connected();
+    /// Point everything at the active account: its logs, its token, its
+    /// saved reading. Only the active account is polled.
+    fn bind(&mut self) {
+        let account = self.accounts.active();
+        self.dir = self.accounts.data_dir_of(&account.id);
+        self.reader.set_claude_dir(account.claude_dir.as_ref().map(Into::into));
+        self.auth.set_data_dir(Some(self.dir.clone()));
+        // start from the saved reading: on screen at once, and no call if it's fresh
+        self.cache = load_cache(&self.dir).unwrap_or_default();
+        self.profile = self.cache.profile.clone();
+        self.schedule = Schedule::new(now_ms(), Some(&self.cache).filter(|c| c.polled_at > 0));
+        let now = now_ms();
+        if let Ok(mut s) = self.out.lock() {
+            s.limits = self.cache.limits.clone().filter(|_| self.cache.fetched_at.is_some());
+            s.limits_at = self.cache.fetched_at.map(|at| instant_at(at, now));
+            s.retry_at = self.cache.retry_at.filter(|&t| t > now).map(|t| Instant::now() + Duration::from_millis((t - now) as u64));
+            s.profile = self.profile.clone();
+            s.accounts = self.accounts.list();
+            s.active = account.id;
+            s.connected = self.auth.is_connected();
+        }
+    }
+
+    fn set_login(&self, login: Login) {
+        if let Ok(mut s) = self.out.lock() {
+            s.login = login;
+        }
+    }
+
+    fn handle(&mut self, cmd: Command) {
+        match cmd {
+            Command::Switch(id) => {
+                if self.accounts.set_active(&id).is_some() {
+                    self.set_login(Login::Idle);
+                    self.bind();
+                }
+            }
+            Command::Add => {
+                let id = self.accounts.add(None);
+                self.accounts.set_active(&id);
+                self.bind();
+                self.handle(Command::BeginLogin);
+            }
+            Command::Remove(id) => {
+                self.accounts.remove(&id);
+                if let Ok(mut s) = self.out.lock() {
+                    s.accounts = self.accounts.list();
+                }
+            }
+            Command::BeginLogin => {
+                crate::app::open_url(&self.auth.begin());
+                self.set_login(Login::AwaitingCode);
+            }
+            Command::CompleteLogin(code) => match self.auth.complete(&code) {
+                Ok(()) => {
+                    self.set_login(Login::Idle);
+                    // a fresh login reads at once, and names the account
+                    self.cache = Cache::default();
+                    self.schedule = Schedule::new(now_ms(), None);
+                    self.profile = self.auth.fetch_profile().ok();
+                    let id = self.accounts.active_id();
+                    if let Some(email) = self.profile.as_ref().and_then(|p| p.email.as_deref()) {
+                        self.accounts.label(&id, Some(email));
+                    }
+                    if let Ok(mut s) = self.out.lock() {
+                        s.accounts = self.accounts.list();
+                        s.profile = self.profile.clone();
+                        s.connected = true;
+                    }
+                }
+                Err(e) => self.set_login(Login::Failed(e.message)),
+            },
+        }
+        self.ctx.request_repaint();
+    }
+
+    fn tick(&mut self) {
+        let reading = self.reader.get_usage(&self.settings.usage);
+        let connected = self.auth.is_connected();
         let mut fresh = None;
         let mut retry_at = None;
-        if connected && schedule.due(now_ms(), reading.session.tokens) {
-            let outcome = match auth.fetch_usage() {
+        if connected && self.schedule.due(now_ms(), reading.session.tokens) {
+            let outcome = match self.auth.fetch_usage() {
                 Ok(l) => {
                     fresh = Some(l);
                     Outcome::Read
@@ -192,25 +308,26 @@ fn run(ctx: egui::Context, settings: Settings, out: Shared) {
                 Err(_) => Outcome::Failed, // offline or a 401: keep the last reading
             };
             let now = now_ms();
-            schedule.polled(now, outcome);
-            if profile.is_none() {
-                profile = auth.fetch_profile().ok();
+            self.schedule.polled(now, outcome);
+            if self.profile.is_none() {
+                self.profile = self.auth.fetch_profile().ok();
             }
-            cache.polled_at = now;
-            cache.profile = profile.clone();
-            cache.backoff = schedule.backoff;
-            cache.retry_at = None;
+            let c = &mut self.cache;
+            c.polled_at = now;
+            c.profile = self.profile.clone();
+            c.backoff = self.schedule.backoff;
+            c.retry_at = None;
             if let Some(l) = &fresh {
-                cache.limits = Some(l.clone());
-                cache.fetched_at = Some(now);
+                c.limits = Some(l.clone());
+                c.fetched_at = Some(now);
             }
             if outcome == Outcome::Throttled {
-                cache.retry_at = Some(schedule.next_at());
-                retry_at = Some(Instant::now() + Duration::from_millis((schedule.next_at() - now).max(0) as u64));
+                c.retry_at = Some(self.schedule.next_at());
+                retry_at = Some(Instant::now() + Duration::from_millis((self.schedule.next_at() - now).max(0) as u64));
             }
-            save_cache(&dir, &cache);
+            save_cache(&self.dir, &self.cache);
         }
-        if let Ok(mut s) = out.lock() {
+        if let Ok(mut s) = self.out.lock() {
             s.usage = Some(reading);
             s.loaded = true;
             s.connected = connected;
@@ -224,12 +341,29 @@ fn run(ctx: egui::Context, settings: Settings, out: Shared) {
             if !connected {
                 s.limits = None;
             }
-            if profile.is_some() {
-                s.profile = profile.clone();
+            if self.profile.is_some() {
+                s.profile = self.profile.clone();
             }
         }
-        ctx.request_repaint();
-        std::thread::sleep(settings.poll);
+        self.ctx.request_repaint();
+    }
+
+    // poll, then wait for the next poll or a command; a command is answered
+    // at once and followed by a fresh poll, so its effect shows right away
+    fn run(mut self, rx: Receiver<Command>) {
+        loop {
+            self.tick();
+            match rx.recv_timeout(self.settings.poll) {
+                Ok(cmd) => {
+                    self.handle(cmd);
+                    while let Ok(more) = rx.try_recv() {
+                        self.handle(more);
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => return,
+            }
+        }
     }
 }
 

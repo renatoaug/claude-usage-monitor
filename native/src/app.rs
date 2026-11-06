@@ -9,7 +9,8 @@ use std::time::{Duration, Instant};
 use crate::components::logos::Logos;
 use crate::components::meter::live;
 use crate::components::pet::{Mood, Pet};
-use crate::poller::{self, Settings, Shared, Snapshot};
+use crate::poller::{self, Command, Settings, Shared, Snapshot};
+use std::sync::mpsc::Sender;
 use crate::screens::{Action, Frame, Size, View, compact, expanded};
 use crate::ui::theme;
 use crate::usage::Usage;
@@ -18,6 +19,9 @@ pub struct App {
     pet: Pet,
     logos: Logos,
     data: Shared,
+    commands: Sender<Command>,
+    /// the login code being pasted
+    code: String,
     settings: Settings,
     pinned: Option<Mood>,
     view: View,
@@ -63,7 +67,7 @@ fn save_view(v: &View) {
 }
 
 /// Open a URL in the default browser.
-fn open_url(url: &str) {
+pub fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
     let (cmd, args) = ("open", vec![url]);
     #[cfg(target_os = "windows")]
@@ -77,11 +81,13 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         theme::install_font(&cc.egui_ctx);
         let settings = Settings::load();
-        let data = poller::spawn(cc.egui_ctx.clone(), settings.clone());
+        let (data, commands) = poller::spawn(cc.egui_ctx.clone(), settings.clone());
         App {
             pet: Pet::new(&cc.egui_ctx),
             logos: Logos::load(&cc.egui_ctx),
             data,
+            commands,
+            code: String::new(),
             settings,
             pinned: Mood::from_env(),
             view: load_view(),
@@ -100,9 +106,43 @@ impl App {
                 Action::ToggleDetails => self.view.details = !self.view.details,
                 Action::ToggleModels => self.view.models = !self.view.models,
                 Action::ToggleProjects => self.view.projects = !self.view.projects,
+                Action::ToggleAccountMenu => {
+                    self.view.account_menu = !self.view.account_menu;
+                    self.view.pending_remove = None;
+                }
+                Action::CloseAccountMenu => {
+                    self.view.account_menu = false;
+                    self.view.pending_remove = None;
+                }
+                Action::SwitchAccount(id) => {
+                    self.view.account_menu = false;
+                    self.send(Command::Switch(id));
+                }
+                Action::AskRemoveAccount(id) => self.view.pending_remove = Some(id),
+                Action::RemoveAccount(id) => {
+                    self.view.pending_remove = None;
+                    self.send(Command::Remove(id));
+                }
+                Action::AddAccount => {
+                    self.view.account_menu = false;
+                    self.code.clear();
+                    self.send(Command::Add);
+                }
+                Action::BeginLogin => {
+                    self.code.clear();
+                    self.send(Command::BeginLogin);
+                }
+                Action::SubmitCode => {
+                    let code = std::mem::take(&mut self.code);
+                    self.send(Command::CompleteLogin(code));
+                }
             }
             save_view(&self.view);
         }
+    }
+
+    fn send(&self, cmd: Command) {
+        let _ = self.commands.send(cmd);
     }
 
     // CLAUDDY_SHOT=path.png: save one frame after 8 s, then quit (dev aid)
@@ -139,7 +179,7 @@ impl eframe::App for App {
 
         let (want, actions) = match self.view.size {
             Size::Compact => (compact::size(compact::rows(&f).len()), compact::draw(ui, &ctx, &f)),
-            Size::Expanded => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f)),
+            Size::Expanded => (expanded::size(&snap, &self.view), expanded::draw(ui, &ctx, &f, &mut self.code)),
         };
         if want != self.size {
             self.size = want;

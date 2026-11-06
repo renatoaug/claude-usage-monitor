@@ -1,6 +1,6 @@
 // Surfaces: the widget's card, a pane inside it, the hairline between parts.
 
-use eframe::egui::{Context, CornerRadius, Painter, Rect, Sense, Stroke, StrokeKind, Ui, Vec2, ViewportCommand};
+use eframe::egui::{Context, CornerRadius, Painter, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2, ViewportCommand};
 
 use super::theme::{color, radius};
 
@@ -9,10 +9,31 @@ use super::theme::{color, radius};
 pub fn card(ui: &Ui, ctx: &Context, rect: Rect) {
     let p = ui.painter();
     p.rect(rect, CornerRadius::same(radius::CARD), color::SURFACE, Stroke::new(1.0, color::BORDER), StrokeKind::Inside);
-    let glow = p.with_clip_rect(rect.shrink(1.0));
+    // The warm glow from the top left, kept inside the rounded corner: egui
+    // clips to rectangles only, so the glow fills the card minus its top-left
+    // corner square, and that square gets a quarter disc of the same warmth.
     let center = rect.left_top() + Vec2::new(rect.width() * 0.2, 0.0);
-    for i in 0..16 {
-        glow.circle_filled(center, 140.0 - i as f32 * 8.0, color::SURFACE_GLOW.gamma_multiply(0.18));
+    let r = radius::CARD as f32;
+    let inner = rect.shrink(1.0);
+    // the three pieces meet exactly at the corner square's edges: no seam
+    let (cx, cy) = (rect.left() + r, rect.top() + r);
+    let body = [
+        Rect::from_min_max(Pos2::new(cx, inner.top()), inner.right_bottom()),
+        Rect::from_min_max(Pos2::new(inner.left(), cy), Pos2::new(cx, inner.bottom())),
+    ];
+    let rings: Vec<f32> = (0..16).map(|i| 140.0 - i as f32 * 8.0).collect();
+    let tint = color::SURFACE_GLOW.gamma_multiply(0.18);
+    for clip in body {
+        let glow = p.with_clip_rect(clip);
+        for &ring in &rings {
+            glow.circle_filled(center, ring, tint);
+        }
+    }
+    let corner = Rect::from_min_size(rect.left_top(), Vec2::splat(r));
+    let corner_painter = p.with_clip_rect(corner);
+    let reach = (corner.center() - center).length();
+    for _ in rings.iter().filter(|&&ring| ring > reach) {
+        corner_painter.circle_filled(Pos2::new(cx, cy), r - 1.0, tint);
     }
     let drag = ui.interact(rect, ui.scope_id().with("card-drag"), Sense::click_and_drag());
     if drag.drag_started() {

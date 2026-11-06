@@ -38,6 +38,8 @@ mod palette {
     pub const SAND_600: Color32 = rgb(0xb4a18a);
     pub const SAND_700: Color32 = rgb(0x6b635a);
     pub const TAN_300: Color32 = rgb(0xc6a385);
+    pub const CLAY_700: Color32 = rgb(0x30251e);
+    pub const CORAL_350: Color32 = rgb(0xcb8a67);
     pub const TAN_400: Color32 = rgb(0xc2865e);
     pub const CORAL_300: Color32 = rgb(0xf3a38b);
     pub const CORAL_400: Color32 = rgb(0xe4a17c);
@@ -110,6 +112,16 @@ pub mod color {
     pub const CONTROL: Color32 = white(4);
     pub const CONTROL_HOVER: Color32 = white(60);
     pub const CONTROL_EDGE: Color32 = white(9);
+
+    // menus and fields
+    pub const MENU: Color32 = CLAY_700;
+    pub const MENU_EDGE: Color32 = white(20);
+    pub const MENU_HOVER: Color32 = white(12);
+    pub const MENU_SHADOW: Color32 = rgba(0, 0, 0, 84);
+    pub const ADD: Color32 = CORAL_350;
+    pub const FIELD: Color32 = white(8);
+    pub const FIELD_EDGE: Color32 = white(24);
+    pub const ERROR: Color32 = RED_300;
 
     // tags
     pub const PLAN: Color32 = TAN_300;
