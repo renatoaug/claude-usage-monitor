@@ -1,6 +1,6 @@
 // The settings people change, kept in ~/.claude-usage-monitor/config.json,
 // the file the Electron app writes too. Saving rewrites only these keys, so
-// everything else in it (budgets, the pet, the voice) is left as it was.
+// everything else in it (budgets, notes, the Electron-only keys) is left as it was.
 
 use serde_json::{Value, json};
 
@@ -26,6 +26,8 @@ pub struct Prefs {
     pub sound: bool,
     /// a mute in force until then (epoch ms); the Electron app sets it
     pub muted_until: i64,
+    /// the pet picked in Settings (a seasonal one may take over on its days)
+    pub pet: String,
 }
 
 impl Default for Prefs {
@@ -42,6 +44,7 @@ impl Default for Prefs {
             talk: true,
             sound: false,
             muted_until: 0,
+            pet: crate::components::skins::DEFAULT.into(),
         }
     }
 }
@@ -68,6 +71,7 @@ impl Prefs {
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
             talk: v["talk"].as_bool() != Some(false),
+            pet: v["pet"].as_str().unwrap_or(crate::components::skins::DEFAULT).to_string(),
             sound: v["sound"].as_bool().unwrap_or(false),
             muted_until: v["soundMutedUntil"].as_f64().unwrap_or(0.0) as i64,
             zoom: v["zoom"].as_f64().map(|z| z.round() as i32).unwrap_or(d.zoom),
@@ -100,6 +104,7 @@ impl Prefs {
         v["talk"] = json!(self.talk);
         v["sound"] = json!(self.sound);
         v["soundMutedUntil"] = json!(self.muted_until);
+        v["pet"] = json!(self.pet);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
             if !v[key].is_object() {
@@ -139,9 +144,11 @@ mod tests {
                 zoom: 100,
                 talk: true,
                 sound: false,
-                muted_until: 0
+                muted_until: 0,
+                pet: "clauddy".into(),
             }
         );
+        assert_eq!(Prefs::from_value(&json!({"pet": "wizard"})).pet, "wizard");
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
@@ -152,8 +159,9 @@ mod tests {
 
     #[test]
     fn saving_keeps_every_other_key() {
+        // a pet only the Electron app draws is kept as it was, not reset
         let mut v = json!({"plan": "max5x", "pet": "pumpkin", "fireThreshold": 90});
-        Prefs { fire: 75, ..Prefs::default() }.merge_into(&mut v);
+        Prefs { fire: 75, ..Prefs::from_value(&v) }.merge_into(&mut v);
         assert_eq!(v["fireThreshold"], 75);
         assert_eq!(v["pet"], "pumpkin");
         assert_eq!(v["plan"], "max5x");

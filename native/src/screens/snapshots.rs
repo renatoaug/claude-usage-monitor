@@ -94,6 +94,9 @@ fn render_inner(case: Case, draft: Prefs) {
     let window = {
         let ctx = egui::Context::default();
         let pet = Pet::frozen(&ctx, 0.3);
+        if case.name.contains("wizard") {
+            pet.set_skin(crate::components::skins::find("wizard").unwrap());
+        }
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
         let f = Frame {
@@ -118,6 +121,9 @@ fn render_inner(case: Case, draft: Prefs) {
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
+        if case.name.contains("wizard") {
+            pet.set_skin(crate::components::skins::find("wizard").unwrap());
+        }
         let area = ctx.content_rect().shrink(super::MARGIN);
         let f = Frame {
             area,
@@ -482,4 +488,42 @@ fn settings_offering_an_update() {
         mood: Mood::Idle,
         view: View { settings: Some(settings::Tab::Accounts), ..View::default() },
     });
+}
+
+fn wizard_snap(session: f64, working: bool) -> Snapshot {
+    snapshot(usage(working, working.then_some("editing")), Some(limits(session, 68.0)))
+}
+
+#[test]
+fn wizard_expanded() {
+    render(Case { name: "wizard-expanded", snap: wizard_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn wizard_expanded_working() {
+    render(Case { name: "wizard-expanded-working", snap: wizard_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn wizard_compact_on_fire() {
+    render(Case { name: "wizard-compact-fire", snap: wizard_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn wizard_pet_only() {
+    render(Case { name: "wizard-pet-only", snap: wizard_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn settings_picking_a_pet() {
+    let draft = Prefs { pet: "wizard".into(), ..Prefs::default() };
+    render_with(
+        Case {
+            name: "settings-pet-picker",
+            snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))),
+            mood: Mood::Idle,
+            view: View { settings: Some(settings::Tab::Appearance), pet_picker: true, ..View::default() },
+        },
+        draft,
+    );
 }

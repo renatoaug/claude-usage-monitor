@@ -42,6 +42,12 @@ In the menu bar the window is an ordinary one the card's size, shown under the i
 
 A hidden window gets no frames, so anything that must happen while it is hidden (the menu's picks) puts it back on screen first.
 
+## Pets
+
+A pet is a pair of sprite sheets in Clauddy's layout, working (4 × 2) and moods (4 × 4), listed in `src/components/skins.rs` with where the art sits in each frame ([ADR-013](../decisions/ADR-013-pets-are-generated-sprite-sheets.md)). Settings > Appearance > Change opens a picker with each pet's idle pose; the choice is `config.json`'s `pet`, previewed while Settings is open. On a pack's days (Halloween, Christmas) one of its pets takes over, picked by a hash of the year, as in the Electron app; a pack with no native pets yet leaves the choice alone.
+
+To add a pet: generate both sheets from `assets/working-sheet.png` and `assets/moods-sheet.png` as reference (same frames, same size and position), clear the flat background, resize to 1024 × 512 and 1024 × 1024, measure the art's box per row, and add a `Skin`. A snapshot case shows it in every size.
+
 ## Notifications, login and updates
 
 - **Notifications** go through `UNUserNotificationCenter`, from a signed bundle only; at launch the app comes to the front and asks for permission. The loose binary can't notify.

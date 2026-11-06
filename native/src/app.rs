@@ -235,6 +235,7 @@ impl App {
                     // opening starts a fresh draft; closing drops unsaved edits
                     self.draft = self.prefs.clone();
                     self.view.settings = if self.view.settings.is_some() { None } else { Some(settings::Tab::Accounts) };
+                    self.view.pet_picker = false;
                     self.view.account_menu = false;
                 }
                 Action::SettingsTab(t) => self.view.settings = Some(t),
@@ -265,6 +266,7 @@ impl App {
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
                 Action::HidePopover => self.close_popover(ctx),
                 Action::CheckUpdates => self.updater.check(),
+                Action::TogglePetPicker => self.view.pet_picker = !self.view.pet_picker,
                 Action::InstallUpdate => self.updater.install(),
                 Action::DismissBubble => {
                     if let Some(s) = &mut self.said {
@@ -554,6 +556,12 @@ impl eframe::App for App {
             // the content shows only inside the card as it opens or closes
             ui.set_clip_rect(card.expand(1.0));
         }
+        // the pet: the one being picked while Settings is open, else the
+        // saved one, unless the season's takes over today
+        let chosen = if self.view.settings.is_some() { &self.draft.pet } else { &self.prefs.pet };
+        let today = chrono::Local::now();
+        let (y, m, d) = (chrono::Datelike::year(&today), chrono::Datelike::month(&today), chrono::Datelike::day(&today));
+        self.pet.set_skin(crate::components::skins::active(chosen, y, m, d));
         // a new poll: what the pet makes of it
         if snap.seq != self.heard {
             self.heard = snap.seq;

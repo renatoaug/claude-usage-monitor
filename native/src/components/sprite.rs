@@ -48,9 +48,6 @@ pub fn at(seq: Seq, t: f32) -> (usize, f32) {
     (seq[0].0, seq[0].1)
 }
 
-pub static WORKING_SHEET: &[u8] = include_bytes!("../../assets/working-sheet.png");
-pub static MOODS_SHEET: &[u8] = include_bytes!("../../assets/moods-sheet.png");
-
 // working (4 x 2): typing in turns, a look at the screen, a blink, stuck,
 // happy, a cheer, back to work
 pub const WORKING: Seq = &[
@@ -103,13 +100,5 @@ mod tests {
     fn every_frame_exists_in_its_sheet() {
         assert!(WORKING.iter().all(|s| s.0 < 8));
         assert!([IDLE, SLEEPING, FIRE, TIRED].iter().all(|q| q.iter().all(|s| s.0 < 16)));
-    }
-
-    #[test]
-    fn the_embedded_sheets_decode_to_their_grids() {
-        for (bytes, size) in [(WORKING_SHEET, (1024, 512)), (MOODS_SHEET, (1024, 1024))] {
-            let r = png::Decoder::new(std::io::Cursor::new(bytes)).read_info().unwrap();
-            assert_eq!((r.info().width, r.info().height), size);
-        }
     }
 }

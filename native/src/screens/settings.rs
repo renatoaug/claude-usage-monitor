@@ -8,6 +8,8 @@ use super::expanded::{account_menu_overlay, title_band};
 use super::{Action, Frame, MARGIN};
 use crate::components::login::{LoginPick, login_panel};
 use crate::components::logos::Provider;
+use crate::components::pet::Mood;
+use crate::components::skins;
 use crate::poller::{Login, Snapshot};
 use crate::prefs::Prefs;
 use crate::ui::controls::click_area;
@@ -55,7 +57,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
     match tab {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
-        Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
+        Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2) + if view.pet_picker { picker_h() } else { 0.0 },
     }
 }
 
@@ -369,6 +371,41 @@ fn alerts(ui: &Ui, left: f32, right: f32, y: f32, draft: &Prefs, actions: &mut V
     }
 }
 
+const TILE: Vec2 = Vec2::new(0.0, 84.0);
+const TILE_GAP: f32 = 6.0;
+const PER_ROW: usize = 3;
+
+fn picker_h() -> f32 {
+    let rows = skins::SKINS.len().div_ceil(PER_ROW);
+    8.0 + rows as f32 * (TILE.y + TILE_GAP)
+}
+
+// every pet, a tile each: its idle pose and its name; the chosen one lit
+fn picker(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, chosen: &str) -> Option<&'static str> {
+    let p = ui.painter();
+    let w = (right - left - TILE_GAP * (PER_ROW - 1) as f32) / PER_ROW as f32;
+    let mut pick = None;
+    for (i, skin) in skins::SKINS.iter().enumerate() {
+        let (c, r) = ((i % PER_ROW) as f32, (i / PER_ROW) as f32);
+        let tile = Rect::from_min_size(Pos2::new(left + c * (w + TILE_GAP), y + r * (TILE.y + TILE_GAP)), Vec2::new(w, TILE.y));
+        let resp = click_area(ui, tile, ("pet", skin.id));
+        let on = skin.id == chosen;
+        let (bg, edge) = match (on, resp.hovered()) {
+            (true, _) => (color::TILE_ON, color::TILE_EDGE_ON),
+            (false, true) => (color::TILE, color::CONTROL_HOVER.gamma_multiply(0.6)),
+            (false, false) => (color::TILE, color::HAIR),
+        };
+        p.rect(tile, CornerRadius::same(radius::CONTROL + 4), bg, Stroke::new(1.0, edge), StrokeKind::Inside);
+        let art = Rect::from_min_size(tile.min + Vec2::new(10.0, 8.0), Vec2::new(w - 20.0, TILE.y - 32.0));
+        let _ = f.pet.draw_skin_fit(p, art, Mood::Idle, skin);
+        text_mid(p, tile.center().x, tile.bottom() - 13.0, Align::Center, skin.name, text::SMALL, if on { color::FG } else { color::FG_MUTED });
+        if resp.clicked() && !on {
+            pick = Some(skin.id);
+        }
+    }
+    pick
+}
+
 // Appearance: what the native app can't change yet is shown, faded.
 fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, actions: &mut Vec<Action>) {
     let p = ui.painter().clone();
@@ -376,12 +413,27 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
 
     let gy = group_label(&p, left, y, "pet");
     let rows = group(&p, left, right, gy, 1);
+    let chosen = skins::find(&draft.pet).unwrap_or(&skins::SKINS[0]);
     let thumb = Rect::from_center_size(Pos2::new(left + 22.0, rows[0]), Vec2::splat(22.0));
-    let _ = f.pet.draw_fit(&p, thumb, crate::components::pet::Mood::Idle);
-    text_mid(&p, left + 40.0, rows[0], Align::Min, "Clauddy", text::BODY, color::ROW_LABEL);
-    text_mid(&p, right - 10.0, rows[0], Align::Max, "Change", text::BODY, color::ADD.gamma_multiply(0.4));
+    let _ = f.pet.draw_skin_fit(&p, thumb, Mood::Idle, chosen);
+    text_mid(&p, left + 40.0, rows[0], Align::Min, chosen.name, text::BODY, color::ROW_LABEL);
+    let label = if f.view.pet_picker { "Hide" } else { "Change" };
+    let w = p.layout_no_wrap(label.into(), eframe::egui::FontId::proportional(text::BODY), color::ADD).size().x;
+    let hit = Rect::from_min_max(Pos2::new(right - 10.0 - w, rows[0] - 10.0), Pos2::new(right - 10.0, rows[0] + 10.0));
+    let resp = click_area(ui, hit, "pet-change");
+    text_mid(&p, right - 10.0, rows[0], Align::Max, label, text::BODY, if resp.hovered() { color::FG } else { color::ADD });
+    if resp.clicked() {
+        actions.push(Action::TogglePetPicker);
+    }
+    let mut below = gy + row;
+    if f.view.pet_picker {
+        if let Some(id) = picker(ui, f, left, right, below + 8.0, &draft.pet) {
+            actions.push(Action::EditPrefs(Prefs { pet: id.into(), ..draft.clone() }));
+        }
+        below += picker_h();
+    }
 
-    let gy = group_label(&p, left, gy + row + GAP, "display");
+    let gy = group_label(&p, left, below + GAP, "display");
     let rows = group(&p, left, right, gy, 2);
     row_label(&p, left, rows[0], "Lives in", false);
     let seg = Rect::from_min_size(Pos2::new(right - 10.0 - 140.0, rows[0] - 12.0), Vec2::new(140.0, 24.0));

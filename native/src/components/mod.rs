@@ -13,5 +13,6 @@ pub mod night_sky;
 pub mod pet;
 pub mod reminder;
 pub mod service_row;
+pub mod skins;
 pub mod sprite;
 pub mod status;

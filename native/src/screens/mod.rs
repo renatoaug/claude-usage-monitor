@@ -44,6 +44,9 @@ pub struct View {
     pub settings: Option<settings::Tab>,
     /// the service the panel shows when more than one is connected
     pub provider: Provider,
+    /// Settings' pet picker is open (not remembered)
+    #[serde(skip)]
+    pub pet_picker: bool,
 }
 
 impl Default for View {
@@ -57,6 +60,7 @@ impl Default for View {
             pending_remove: None,
             settings: None,
             provider: Provider::Claude,
+            pet_picker: false,
         }
     }
 }
@@ -87,6 +91,7 @@ pub enum Action {
     /// the menu bar's popover goes back into the bar
     HidePopover,
     CheckUpdates,
+    TogglePetPicker,
     InstallUpdate,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),

@@ -57,3 +57,4 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-010](ADR-010-build-on-each-platform.md) | Each platform builds on its own runner | Accepted |
 | [ADR-011](ADR-011-codex-limits-from-the-app-server.md) | Codex limits come from its app-server | Accepted |
 | [ADR-012](ADR-012-the-native-app-replaces-electron.md) | The native app replaces the Electron one | Accepted |
+| [ADR-013](ADR-013-pets-are-generated-sprite-sheets.md) | Pets are generated sprite sheets | Accepted |
