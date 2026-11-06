@@ -77,6 +77,12 @@ fn glow_mesh(rect: Rect, center: Pos2, reach: f32) -> Mesh {
     m
 }
 
+/// The card's solid fill alone, drawn before content that may be fading so
+/// the card itself never goes see-through.
+pub fn card_backdrop(p: &Painter, rect: Rect) {
+    p.rect_filled(rect, CornerRadius::same(radius::CARD), color::SURFACE);
+}
+
 /// A dark pane inside the card (the expanded pet's stage).
 pub fn pane(p: &Painter, rect: Rect) {
     p.rect(rect, CornerRadius::same(radius::CONTROL), color::PANE, Stroke::new(1.0, color::PANE_EDGE), StrokeKind::Inside);

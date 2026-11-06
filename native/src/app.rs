@@ -69,7 +69,19 @@ pub fn mood_for(usage: Option<&Usage>, session_pct: Option<f64>, fire: f64) -> M
 }
 
 /// The window's size at launch, from the remembered view, before any reading.
+/// On macOS the window is a fixed, transparent canvas the card lives in: it
+/// never resizes (a resize shows one empty frame, which reads as a blink),
+/// and clicks off the card fall through to what's behind. Elsewhere the
+/// window fits the card.
+const FIXED_CANVAS: bool = cfg!(target_os = "macos");
+/// Wide enough for the expanded panel, tall enough for its Details open
+/// or any Settings tab; it grows if a screen ever needs more.
+const CANVAS: [f32; 2] = [292.0, 780.0];
+
 pub fn initial_size() -> [f32; 2] {
+    if FIXED_CANVAS {
+        return CANVAS;
+    }
     let view = load_view();
     let size = if Prefs::load().menu_bar { Size::Expanded } else { view.size };
     match size {
@@ -214,7 +226,7 @@ impl App {
     fn open_popover(&mut self, ctx: &Context, icon: Option<egui::Rect>) {
         let ppp = ctx.pixels_per_point();
         if let Some(r) = icon {
-            let x = r.center().x / ppp - self.size[0] / 2.0;
+            let x = r.center().x / ppp - self.size[0] / 2.0; // the card's width, centred under the icon
             let y = r.bottom() / ppp + 2.0;
             ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::pos2(x.round(), y.round())));
         }
@@ -336,10 +348,19 @@ impl eframe::App for App {
         // waits on the OS resizing a window frame by frame.
         if want != self.size {
             let morph = self.size != [0.0, 0.0] && size != Size::PetOnly && self.screen.1 != Size::PetOnly && self.leaving.is_none();
-            self.window = if morph { [self.window[0].max(want[0]), self.window[1].max(want[1])] } else { want };
+            let window = if FIXED_CANVAS {
+                [CANVAS[0].max(want[0]).max(self.window[0]), CANVAS[1].max(want[1]).max(self.window[1])]
+            } else if morph {
+                [self.window[0].max(want[0]), self.window[1].max(want[1])]
+            } else {
+                want
+            };
             self.morph = morph.then(|| (self.card_now, Instant::now()));
             self.size = want;
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.window.into()));
+            if window != self.window {
+                self.window = window;
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(window.into()));
+            }
         }
         let settled = card_of(want);
         match self.morph {
@@ -348,7 +369,7 @@ impl eframe::App for App {
                 self.card_now = from + (settled - from) * t;
                 if t >= 1.0 {
                     self.morph = None;
-                    if self.window != want {
+                    if !FIXED_CANVAS && self.window != want {
                         self.window = want;
                         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
                     }
@@ -372,20 +393,25 @@ impl eframe::App for App {
                 self.leaving = None;
             }
         }
+        let origin = ctx.content_rect().min + Vec2::splat(MARGIN);
+        let area = egui::Rect::from_min_size(origin, settled);
+        let card = egui::Rect::from_min_size(origin, self.card_now);
+        // the card stays solid while its content fades: never a see-through moment
+        if size != Size::PetOnly && self.leaving.is_none() {
+            crate::ui::surface::card_backdrop(ui.painter(), card);
+        }
         if fade < 1.0 {
             ui.multiply_opacity(fade);
             ctx.request_repaint();
         }
-
-        let origin = ctx.content_rect().min + Vec2::splat(MARGIN);
-        let area = egui::Rect::from_min_size(origin, settled);
-        let card = egui::Rect::from_min_size(origin, self.card_now);
         if self.morph.is_some() {
             // the content shows only inside the card as it opens or closes
             ui.set_clip_rect(card.expand(1.0));
         }
         let f = Frame { area, card, snap: &snap, mood, session, view: &self.view, pet: &self.pet, logos: &self.logos };
 
+        // the areas that take the pointer; clicks anywhere else fall through
+        let mut hot = vec![card];
         let mut actions = match screen {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -395,8 +421,7 @@ impl eframe::App for App {
                 let seen = ctx.input(|i| i.pointer.hover_pos().is_some());
                 let over = if cfg!(target_os = "macos") { Some(self.cursor.inside(seen)) } else { None };
                 let out = pet_only::draw(ui, &ctx, &f, over);
-                let at = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
-                self.cursor.watch(Some(out.hot.iter().map(|r| r.translate(at)).collect()));
+                hot = out.hot;
                 out.actions
             }
         };
@@ -404,13 +429,17 @@ impl eframe::App for App {
             actions.retain(|a| !matches!(a, Action::Resize(_)));
         }
         // just the pet: clicks off the pet fall through to what's behind
-        let through = size == Size::PetOnly && self.view.settings.is_none() && !self.cursor.inside(false) && cfg!(target_os = "macos");
+        let watching = (FIXED_CANVAS || size == Size::PetOnly) && self.shown && cfg!(target_os = "macos");
+        if watching {
+            let at = ctx.input(|i| i.viewport().inner_rect).map(|r| r.min.to_vec2()).unwrap_or_default();
+            self.cursor.watch(Some(hot.iter().map(|r| r.translate(at)).collect()));
+        } else {
+            self.cursor.watch(None);
+        }
+        let through = watching && !self.cursor.inside(false);
         if through != self.passthrough {
             self.passthrough = through;
             ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(through));
-        }
-        if size != Size::PetOnly {
-            self.cursor.watch(None);
         }
         self.apply(&ctx, actions);
         self.menu_bar(&ctx, &snap, session);
