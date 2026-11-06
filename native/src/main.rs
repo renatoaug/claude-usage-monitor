@@ -5,6 +5,8 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Shape, Stroke, Vec2, epaint::QuadraticBezierShape};
 use std::time::{Duration, Instant};
 
+mod accounts;
+mod auth;
 mod usage;
 
 const SPRITE: [&str; 9] = [
@@ -213,6 +215,22 @@ fn main() -> eframe::Result {
         reader.get_usage(&cfg);
         eprintln!("cold {cold:?}, warm {:?}", t.elapsed());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
+    // `clauddy --limits`: the active account's real % and identity (dev aid)
+    if std::env::args().any(|a| a == "--limits") {
+        let accts = accounts::Accounts::new(None);
+        let id = accts.active_id();
+        let mut auth = auth::Auth::new(Some(accts.data_dir_of(&id)), Box::new(auth::Ureq::default()));
+        println!("account {id}, connected {}", auth.is_connected());
+        match auth.fetch_profile() {
+            Ok(p) => println!("profile {}", serde_json::to_string(&p).unwrap_or_default()),
+            Err(e) => println!("profile error {} {}", e.status, e.message),
+        }
+        match auth.fetch_usage() {
+            Ok(l) => println!("limits {}", serde_json::to_string_pretty(&l).unwrap_or_default()),
+            Err(e) => println!("limits error {} {}", e.status, e.message),
+        }
         return Ok(());
     }
     let options = eframe::NativeOptions {
