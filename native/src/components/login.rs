@@ -1,7 +1,8 @@
 // Finishing a browser login: the browser shows a code; paste it here.
 
-use eframe::egui::{self, Align2, CornerRadius, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2};
+use eframe::egui::{self, Align2, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, TextEdit, Ui, Vec2};
 
+use crate::ui::controls::click_area;
 use crate::ui::theme::{color, radius, text};
 
 pub const LOGIN_H: f32 = 112.0;
@@ -35,7 +36,7 @@ pub fn login_panel(ui: &mut Ui, left: f32, right: f32, y: f32, code: &mut String
     let entered = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
     let btn = Rect::from_min_size(Pos2::new(field.right() + 6.0, field.top()), Vec2::new(64.0, 24.0));
-    let b = ui.interact(btn, ui.scope_id().with("login-submit"), Sense::click());
+    let b = click_area(ui, btn, "login-submit");
     let (bg, fg) = if b.hovered() { (color::CONTROL_HOVER, color::ICON_HOVER) } else { (color::CONTROL, color::FG) };
     p.rect(btn, CornerRadius::same(radius::CONTROL), bg, Stroke::new(1.0, color::CONTROL_EDGE), StrokeKind::Inside);
     p.text(btn.center(), Align2::CENTER_CENTER, "Connect", FontId::proportional(text::SMALL), fg);
@@ -44,7 +45,7 @@ pub fn login_panel(ui: &mut Ui, left: f32, right: f32, y: f32, code: &mut String
     }
 
     let again = Rect::from_min_size(Pos2::new(x, field.bottom() + 4.0), Vec2::new(150.0, 14.0));
-    let a = ui.interact(again, ui.scope_id().with("login-reopen"), Sense::click());
+    let a = click_area(ui, again, "login-reopen");
     let c = if a.hovered() { color::FG } else { color::ADD };
     p.text(Pos2::new(x, again.center().y), Align2::LEFT_CENTER, "Open the browser again", FontId::proportional(text::TINY + 1.0), c);
     if a.clicked() {

@@ -2,9 +2,10 @@
 // switches), × to remove one that isn't on screen (asks once), and a way to
 // add another.
 
-use eframe::egui::{Align2, CornerRadius, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{Align2, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
 use crate::accounts::Account;
+use crate::ui::controls::click_area;
 use crate::ui::surface::hairline;
 use crate::ui::text::ellipsis;
 use crate::ui::theme::{color, radius, text};
@@ -35,7 +36,7 @@ pub fn account_menu(ui: &Ui, top_left: Pos2, accounts: &[Account], active: &str,
     let p = ui.painter();
     p.rect(rect, CornerRadius::same(radius::CONTROL), color::MENU, Stroke::new(1.0, color::MENU_EDGE), StrokeKind::Inside);
     // the menu swallows clicks that miss its rows
-    let _ = ui.interact(rect, ui.scope_id().with("account-menu"), Sense::click());
+    let _ = click_area(ui, rect, "account-menu");
 
     let mut pick = None;
     let inner_left = rect.left() + PAD;
@@ -47,8 +48,8 @@ pub fn account_menu(ui: &Ui, top_left: Pos2, accounts: &[Account], active: &str,
         let is_active = a.id == active;
         let x_rect = Rect::from_min_size(Pos2::new(row.right() - 46.0, row.top()), Vec2::new(46.0, ROW));
         let can_remove = removable && !is_active;
-        let x_resp = can_remove.then(|| ui.interact(x_rect, ui.scope_id().with(("remove", &a.id)), Sense::click()));
-        let resp = ui.interact(row, ui.scope_id().with(("account", &a.id)), Sense::click());
+        let x_resp = can_remove.then(|| click_area(ui, x_rect, ("remove", &a.id)));
+        let resp = click_area(ui, row, ("account", &a.id));
         if resp.hovered() && !is_active {
             p.rect_filled(row, CornerRadius::same(radius::TAG), color::MENU_HOVER);
         }
@@ -72,7 +73,7 @@ pub fn account_menu(ui: &Ui, top_left: Pos2, accounts: &[Account], active: &str,
     }
     hairline(p, inner_left, inner_right, y + 0.5);
     let add = Rect::from_min_size(Pos2::new(inner_left, y + 1.0), Vec2::new(inner_right - inner_left, ROW));
-    let resp = ui.interact(add, ui.scope_id().with("add-account"), Sense::click());
+    let resp = click_area(ui, add, "add-account");
     let c = if resp.hovered() { color::FG } else { color::ADD };
     p.text(Pos2::new(add.left() + 4.0, add.center().y), Align2::LEFT_CENTER, "+ Add another account", FontId::proportional(text::SMALL), c);
     if resp.clicked() {

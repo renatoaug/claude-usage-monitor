@@ -1,7 +1,7 @@
 // Expanded: the account and controls, the pet's stage, the status line, the
 // meters, and Details (tokens by model and by project, the 30-day map).
 
-use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
 use super::{Action, Frame, MARGIN, Size, View};
 use crate::poller::Snapshot;
@@ -15,8 +15,8 @@ use crate::components::meter::{self, meter, meter_skeleton, meters};
 use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::status::{STATUS_H, status_line};
-use crate::ui::controls::button_row;
-use crate::ui::icon::{self, CHEVRON_DOWN, CHEVRON_RIGHT};
+use crate::ui::controls::{button_row, click_area};
+use crate::ui::icon;
 use crate::ui::surface::{card, hairline, pane};
 use crate::ui::theme::{color, radius, text};
 
@@ -80,12 +80,9 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         .filter(|_| active.is_some_and(|(_, a)| a.label.is_some()))
         .or_else(|| f.snap.profile.as_ref().and_then(|pr| pr.email.clone()));
     let plan = f.snap.profile.as_ref().and_then(|pr| pr.plan.clone());
-    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 19.0, label.as_deref(), plan.as_deref(), false);
-    let chip_resp = ui.interact(chip, ui.scope_id().with("account-chip"), Sense::click());
-    if chip_resp.hovered() {
-        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
-    if chip_resp.clicked() {
+    let menu_t = ctx.animate_bool_with_time(ui.scope_id().with("menu-open"), f.view.account_menu, 0.16);
+    let chip = account_chip(p, rect.left() + 10.0, rect.top() + 19.0, label.as_deref(), plan.as_deref(), false, menu_t);
+    if click_area(ui, chip, "account-chip").clicked() {
         actions.push(Action::ToggleAccountMenu);
     }
     let buttons = [
@@ -149,11 +146,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         p.rect(r, CornerRadius::same(radius::CONTROL), color::WASH, Stroke::new(1.0, color::WASH_EDGE), StrokeKind::Inside);
         p.text(r.center() - Vec2::new(0.0, 6.0), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
         p.text(r.center() + Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, "to see the real session and week %", FontId::proportional(text::SMALL), color::FG_MUTED);
-        let connect = ui.interact(r, ui.scope_id().with("connect"), Sense::click());
-        if connect.hovered() {
-            ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
-        }
-        if connect.clicked() {
+        if click_area(ui, r, "connect").clicked() {
             actions.push(Action::BeginLogin);
         }
         y += CONNECT_H;
@@ -168,10 +161,11 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     // Details
     hairline(p, left, right, y);
     let toggle = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, TOGGLE_H));
-    let resp = ui.interact(toggle, ui.scope_id().with("details"), Sense::click());
+    let resp = click_area(ui, toggle, "details");
     let c = if resp.hovered() { color::FG } else { color::FG_TOGGLE };
     p.text(Pos2::new(left, y + 20.0), Align2::LEFT_CENTER, "Details", FontId::proportional(text::BODY), c);
-    icon::draw(p, Pos2::new(right - 5.0, y + 20.0), if f.view.details { CHEVRON_DOWN } else { CHEVRON_RIGHT }, 9.0, c);
+    let open_t = ctx.animate_bool_with_time(ui.scope_id().with("details-open"), f.view.details, 0.16);
+    icon::disclosure(p, Pos2::new(right - 5.0, y + 20.0), open_t, c);
     if resp.clicked() {
         actions.push(Action::ToggleDetails);
     }

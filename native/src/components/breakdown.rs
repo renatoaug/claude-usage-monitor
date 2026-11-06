@@ -2,11 +2,12 @@
 // ranked rows, each with a dot, the name, a bar against the top row, and the
 // tokens.
 
-use eframe::egui::{Align2, FontId, Pos2, Rect, Sense, Ui, Vec2};
+use eframe::egui::{Align2, FontId, Pos2, Rect, Ui, Vec2};
 
 use crate::format::tokens;
 use crate::ui::bar::bar;
-use crate::ui::icon::{self, CHEVRON_DOWN, CHEVRON_RIGHT};
+use crate::ui::controls::click_area;
+use crate::ui::icon;
 use crate::ui::surface::hairline;
 use crate::ui::theme::{color, text};
 use crate::usage::Labeled;
@@ -22,11 +23,12 @@ pub fn section(ui: &Ui, left: f32, right: f32, y: f32, id: &str, title: &str, ro
     let p = ui.painter();
     hairline(p, left, right, y);
     let head = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, 22.0));
-    let resp = ui.interact(head, ui.scope_id().with(id), Sense::click());
+    let resp = click_area(ui, head, id);
     let c = if resp.hovered() { color::FG } else { color::FG_SECTION };
     let hy = y + 16.0;
     p.text(Pos2::new(left, hy), Align2::LEFT_CENTER, title, FontId::proportional(text::SMALL), c);
-    icon::draw(p, Pos2::new(right - 5.0, hy), if open { CHEVRON_DOWN } else { CHEVRON_RIGHT }, 9.0, c);
+    let t = ui.ctx().animate_bool_with_time(ui.scope_id().with((id, "open")), open, 0.16);
+    icon::disclosure(p, Pos2::new(right - 5.0, hy), t, c);
     if !open {
         return resp.clicked();
     }

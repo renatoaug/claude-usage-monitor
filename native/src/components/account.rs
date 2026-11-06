@@ -5,7 +5,7 @@
 use eframe::egui::{Align, Painter, Pos2, Rect, Vec2};
 
 use crate::auth::Profile;
-use crate::ui::icon::{self, CHEVRON_DOWN};
+use crate::ui::icon;
 use crate::ui::tag::{TagStyle, tag};
 use crate::ui::text::{ellipsis, text_mid};
 use crate::ui::theme::{color, text};
@@ -26,13 +26,13 @@ pub fn account(p: &Painter, left: f32, y: f32, profile: Option<&Profile>) {
 }
 
 /// Expanded: the chip; returns the area that opens the account menu.
-pub fn account_chip(p: &Painter, left: f32, y: f32, label: Option<&str>, plan: Option<&str>, hovered: bool) -> Rect {
+pub fn account_chip(p: &Painter, left: f32, y: f32, label: Option<&str>, plan: Option<&str>, hovered: bool, open: f32) -> Rect {
     let fg = if hovered { color::FG } else { color::FG_MUTED };
     let who = label.map(|n| ellipsis(n, 14)).unwrap_or_else(|| "Claude".into());
     let r = text_mid(p, left + 9.0, y, Align::Min, &who, text::SMALL, fg);
     p.circle_filled(Pos2::new(left + 2.0, y), 2.0, color::SIGNED_IN);
     let caret = Pos2::new(r.right() + 6.0, y);
-    icon::draw(p, caret, CHEVRON_DOWN, 9.0, fg);
+    icon::caret(p, caret, open, fg);
     let mut right = caret.x + 5.0;
     if let Some(plan) = plan {
         right = plan_tag(p, right + 5.0, y, plan).right();

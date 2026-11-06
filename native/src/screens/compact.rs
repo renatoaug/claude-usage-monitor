@@ -2,12 +2,13 @@
 // connected service on the right and the selected one's reset under them.
 // With a single service its row sits alone, centred on the pet.
 
-use eframe::egui::{Align2, Context, FontId, Pos2, Rect, Ui, Vec2};
+use eframe::egui::{Align, Context, Pos2, Rect, Ui, Vec2};
+
+use crate::ui::text::text_mid;
 
 use super::{Action, Frame, MARGIN, Size};
 use crate::components::account::account;
 use crate::components::logos::Provider;
-use crate::components::pet::Mood;
 use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
 use crate::components::status::caption;
 use crate::format::clock;
@@ -19,16 +20,17 @@ use crate::ui::theme::{color, text};
 const CARD_W: f32 = 216.0;
 const PAD_TOP: f32 = 32.0;
 const PAD: f32 = 12.0;
-const STAGE: Vec2 = Vec2::new(66.0, 70.0);
-const RESET_H: f32 = 7.0 + 10.0;
+const STAGE: Vec2 = Vec2::new(70.0, 70.0);
+// the bottom line: the pet's word on the left, the reset on the right
+const LINE_H: f32 = 14.0;
 
 fn rows_h(rows: usize) -> f32 {
-    rows as f32 * ROW_H + rows.saturating_sub(1) as f32 * ROW_GAP + RESET_H
+    rows as f32 * ROW_H + rows.saturating_sub(1) as f32 * ROW_GAP
 }
 
 /// Window size for `rows` service rows.
 pub fn size(rows: usize) -> [f32; 2] {
-    let card_h = PAD_TOP + rows_h(rows).max(STAGE.y) + PAD;
+    let card_h = PAD_TOP + (rows_h(rows) + LINE_H).max(STAGE.y) + PAD;
     [CARD_W + 2.0 * MARGIN, card_h + 2.0 * MARGIN]
 }
 
@@ -53,22 +55,21 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         _ => {} // pet-only: next
     }
 
-    // the pet's column, centred on the content
+    // the content: the pet's column on the left, the rows on the right, and
+    // a bottom line with the pet's word under it and the reset at the right
     let content = Rect::from_min_max(Pos2::new(rect.left() + PAD, rect.top() + PAD_TOP), Pos2::new(rect.right() - PAD, rect.bottom() - PAD));
-    let stage = Rect::from_center_size(Pos2::new(content.left() + STAGE.x / 2.0, content.center().y), STAGE);
-    halo(p, stage, color::CLAUDE_BAR.gamma_multiply(0.06));
-    let pet_area = if f.mood == Mood::Working {
-        Rect::from_min_size(Pos2::new(stage.center().x - 31.0, stage.top() + 8.0), Vec2::new(62.0, 52.0))
-    } else {
-        Rect::from_min_size(Pos2::new(stage.center().x - 36.0, stage.top() + 4.0), Vec2::new(72.0, 60.0))
-    };
-    f.pet.draw(p, pet_area, f.mood);
-    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
-    caption(p, ctx, f.logos, stage.center().x, rect.bottom() - PAD - 6.0, f.mood, activity);
+    let line_y = content.bottom() - 6.0;
+    let above = Rect::from_min_max(content.left_top(), Pos2::new(content.right(), line_y - LINE_H / 2.0 - 2.0));
 
-    // the rows, then the selected service's reset
-    let col_left = content.left() + STAGE.x + 8.0;
-    let mut y = content.center().y - rows_h(rows.len()) / 2.0;
+    let column = Rect::from_min_max(above.left_top(), Pos2::new(above.left() + STAGE.x, above.bottom()));
+    halo(p, column, color::CLAUDE_BAR.gamma_multiply(0.06));
+    f.pet.draw_fit(p, column.shrink2(Vec2::new(2.0, 2.0)), f.mood);
+    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
+    caption(p, ctx, f.logos, column.center().x, line_y, f.mood, activity);
+
+    // the rows, centred on the space above the bottom line
+    let col_left = column.right() + 8.0;
+    let mut y = above.center().y - rows_h(rows.len()) / 2.0;
     for (i, row) in rows.iter().enumerate() {
         let at = Pos2::new(col_left, y);
         if f.snap.loaded {
@@ -79,8 +80,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         y += ROW_H + ROW_GAP;
     }
     if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {
-        let at = Pos2::new(content.right(), y - ROW_GAP + 7.0);
-        p.text(at, Align2::RIGHT_TOP, format!("resets {}", clock(ms)), FontId::proportional(text::TINY), color::FG_RESET);
+        text_mid(p, content.right(), line_y, Align::Max, &format!("resets {}", clock(ms)), text::TINY, color::FG_RESET);
     }
     actions
 }

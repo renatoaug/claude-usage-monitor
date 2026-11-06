@@ -1,16 +1,26 @@
 // The small square buttons of the title band.
 
-use eframe::egui::{CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{CornerRadius, CursorIcon, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2};
+use std::hash::Hash;
 
 use super::icon::{self, Glyph};
 use super::theme::{color, radius};
 
 pub const BUTTON: f32 = 19.0;
 
+/// Anything clickable: a click area that shows the pointing hand on hover.
+pub fn click_area(ui: &Ui, rect: Rect, id: impl Hash + std::fmt::Debug) -> Response {
+    let resp = ui.interact(rect, ui.scope_id().with(id), Sense::click());
+    if resp.hovered() {
+        ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+    }
+    resp
+}
+
 /// A 19 px icon button centred on `center`.
 pub fn icon_button(ui: &Ui, center: Pos2, id: &str, glyph: Glyph) -> Response {
     let rect = Rect::from_center_size(center, Vec2::splat(BUTTON));
-    let resp = ui.interact(rect, ui.scope_id().with(id), Sense::click());
+    let resp = click_area(ui, rect, id);
     let (bg, fg) = if resp.hovered() { (color::CONTROL_HOVER, color::ICON_HOVER) } else { (color::CONTROL, color::ICON) };
     let p = ui.painter();
     p.rect(rect, CornerRadius::same(radius::CONTROL), bg, Stroke::new(1.0, color::CONTROL_EDGE), StrokeKind::Inside);
