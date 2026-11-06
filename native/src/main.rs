@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 mod accounts;
 mod auth;
+mod sprite;
 mod usage;
 
 const SPRITE: [&str; 9] = [
@@ -54,6 +55,7 @@ struct Pet {
     mood: Mood,
     start: Instant,
     shot_sent: bool,
+    sheet: egui::TextureHandle,
 }
 
 impl Pet {
@@ -63,6 +65,9 @@ impl Pet {
 
     // When the next visible change happens, so idle sleeps until the blink.
     fn next_frame(&self) -> Duration {
+        if self.mood == Mood::Working {
+            return Duration::from_secs_f32(sprite::at(self.t()).1);
+        }
         if self.mood.animates() {
             return Duration::from_secs_f32(1.0 / ANIM_FPS);
         }
@@ -78,6 +83,10 @@ impl Pet {
 
     fn draw(&self, painter: &egui::Painter, area: Rect) {
         let t = self.t();
+        if self.mood == Mood::Working {
+            sprite::draw(painter, area, &self.sheet, sprite::at(t).0);
+            return;
+        }
         let cell = (area.width() / 12.0).floor();
         let size = Vec2::new(cell * 10.0, cell * 9.0);
         let mut origin = Pos2::new(area.center().x - size.x / 2.0, area.bottom() - size.y - cell);
@@ -236,7 +245,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Clauddy")
-            .with_inner_size([140.0, 140.0])
+            .with_inner_size([180.0, 180.0])
             .with_transparent(true)
             .with_decorations(false)
             .with_has_shadow(false)
@@ -247,6 +256,9 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Clauddy",
         options,
-        Box::new(|_cc| Ok(Box::new(Pet { mood: Mood::from_env(), start: Instant::now(), shot_sent: false }))),
+        Box::new(|cc| {
+            let sheet = sprite::load(&cc.egui_ctx);
+            Ok(Box::new(Pet { mood: Mood::from_env(), start: Instant::now(), shot_sent: false, sheet }))
+        }),
     )
 }
