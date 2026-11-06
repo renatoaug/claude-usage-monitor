@@ -120,24 +120,61 @@ fn reset_line(reset_ms: Option<i64>, session: bool) -> String {
     if session && ms > 0 { format!("{} left · {at}", countdown(ms)) } else { at }
 }
 
-/// Show a note. On macOS it is sent as the installed Clauddy.app when there
-/// is one, so it carries Clauddy's name and icon.
+/// Show a note. macOS only delivers through UNUserNotificationCenter from a
+/// signed app bundle (see native/scripts/bundle.sh); run loose, as with
+/// `cargo run`, the note is dropped rather than crash.
 pub fn send(note: &Note) {
     #[cfg(target_os = "macos")]
+    mac::send(note);
+    #[cfg(not(target_os = "macos"))]
     {
-        use std::sync::Once;
-        static APP: Once = Once::new();
-        APP.call_once(|| {
-            let id = notify_rust::get_bundle_identifier_or_default("Clauddy");
-            let _ = notify_rust::set_application(&id);
+        let mut n = notify_rust::Notification::new();
+        n.summary(&note.title).body(&note.body).appname("Clauddy");
+        let _ = n.show();
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod mac {
+    use block2::RcBlock;
+    use objc2::runtime::Bool;
+    use objc2_foundation::{NSBundle, NSError, NSString};
+    use objc2_user_notifications::{
+        UNAuthorizationOptions, UNMutableNotificationContent, UNNotificationRequest, UNNotificationSound, UNUserNotificationCenter,
+    };
+    use std::sync::Once;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use super::Note;
+
+    /// The notification centre exists only for a bundled app; asking for it
+    /// from a loose binary throws.
+    fn bundled() -> bool {
+        NSBundle::mainBundle().bundleIdentifier().is_some()
+    }
+
+    pub fn send(note: &Note) {
+        if !bundled() {
+            return;
+        }
+        let center = UNUserNotificationCenter::currentNotificationCenter();
+        // the first time, macOS asks the person; after that it remembers
+        static ASK: Once = Once::new();
+        ASK.call_once(|| {
+            let done = RcBlock::new(|_granted: Bool, _err: *mut NSError| {});
+            center.requestAuthorizationWithOptions_completionHandler(UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound, &done);
         });
+        let content = UNMutableNotificationContent::new();
+        content.setTitle(&NSString::from_str(&note.title));
+        content.setBody(&NSString::from_str(&note.body));
+        if note.sound {
+            content.setSound(Some(&UNNotificationSound::defaultSound()));
+        }
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let id = NSString::from_str(&format!("clauddy-{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        let request = UNNotificationRequest::requestWithIdentifier_content_trigger(&id, &content, None);
+        center.addNotificationRequest_withCompletionHandler(&request, None);
     }
-    let mut n = notify_rust::Notification::new();
-    n.summary(&note.title).body(&note.body).appname("Clauddy");
-    if note.sound {
-        n.sound_name("default");
-    }
-    let _ = n.show();
 }
 
 #[cfg(test)]
