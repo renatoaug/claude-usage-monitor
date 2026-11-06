@@ -351,7 +351,7 @@ impl Tally {
     }
 }
 
-fn local_midnight(now: i64) -> i64 {
+pub fn local_midnight(now: i64) -> i64 {
     let date = Local.timestamp_millis_opt(now).single().map(|d| d.date_naive()).unwrap_or_default();
     Local
         .from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap_or_default())

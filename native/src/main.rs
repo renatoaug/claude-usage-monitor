@@ -9,6 +9,7 @@ mod accounts;
 mod alerts;
 mod app;
 mod auth;
+mod codex;
 mod components;
 mod format;
 mod platform;
@@ -31,6 +32,13 @@ fn main() -> eframe::Result {
         let t = Instant::now();
         reader.get_usage(&cfg);
         eprintln!("cold {cold:?}, warm {:?}", t.elapsed());
+        println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
+    // `clauddy --codex`: one reading of Codex's logs as JSON (dev aid; no live read)
+    if std::env::args().any(|a| a == "--codex") {
+        let mut c = codex::Codex::new(None);
+        let u = c.get_usage(usage::now_ms());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
         return Ok(());
     }
