@@ -35,6 +35,7 @@ fn main() -> eframe::Result {
     }
     // `clauddy --notify`: send a sample alert (dev aid: checks permission and look)
     if std::env::args().any(|a| a == "--notify") {
+        alerts::ask_permission();
         alerts::send(&alerts::Note { title: "Session at 82%".into(), body: "2h 39m left · resets 6:50 PM".into(), sound: false });
         std::thread::sleep(std::time::Duration::from_secs(3)); // let it be delivered before exiting
         return Ok(());

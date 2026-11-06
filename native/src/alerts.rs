@@ -120,9 +120,19 @@ fn reset_line(reset_ms: Option<i64>, session: bool) -> String {
     if session && ms > 0 { format!("{} left · {at}", countdown(ms)) } else { at }
 }
 
-/// Show a note. macOS only delivers through UNUserNotificationCenter from a
-/// signed app bundle (see native/scripts/bundle.sh); run loose, as with
-/// `cargo run`, the note is dropped rather than crash.
+/// Ask macOS, once, for permission to notify, the way the Electron app
+/// does: through UNUserNotificationCenter, with the app in front so macOS
+/// shows its Allow / Don't Allow dialog in the middle of the screen. After
+/// an answer macOS remembers it and this returns at once. Call on the main
+/// thread at launch.
+pub fn ask_permission() {
+    #[cfg(target_os = "macos")]
+    mac::ask_permission();
+}
+
+/// Show a note. macOS only delivers from a signed bundle (see
+/// native/scripts/bundle.sh); run loose, the note is dropped rather than
+/// crash. Windows and Linux go through notify-rust.
 pub fn send(note: &Note) {
     #[cfg(target_os = "macos")]
     mac::send(note);
@@ -135,16 +145,15 @@ pub fn send(note: &Note) {
 }
 
 #[cfg(target_os = "macos")]
-#[allow(deprecated)] // NSUserNotification: what macOS still allows a bundle unasked
 mod mac {
     use block2::RcBlock;
+    use objc2::MainThreadMarker;
     use objc2::runtime::Bool;
-    #[allow(deprecated)]
-    use objc2_foundation::{NSBundle, NSError, NSString, NSUserNotification, NSUserNotificationCenter, NSUserNotificationDefaultSoundName};
+    use objc2_app_kit::NSApplication;
+    use objc2_foundation::{NSBundle, NSError, NSString};
     use objc2_user_notifications::{
         UNAuthorizationOptions, UNMutableNotificationContent, UNNotificationRequest, UNNotificationSound, UNUserNotificationCenter,
     };
-    use std::sync::Once;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::Note;
@@ -155,36 +164,24 @@ mod mac {
         NSBundle::mainBundle().bundleIdentifier().is_some()
     }
 
-    /// As the Electron app does: NSUserNotificationCenter. For a signed
-    /// bundle macOS allows it without asking, so alerts just arrive.
+    pub fn ask_permission() {
+        if !bundled() {
+            return;
+        }
+        // a widget lives outside the Dock; come to the front for the moment
+        // of asking, so the question is the centred dialog, not a passing banner
+        if let Some(mtm) = MainThreadMarker::new() {
+            NSApplication::sharedApplication(mtm).activate();
+        }
+        let done = RcBlock::new(|_granted: Bool, _err: *mut NSError| {});
+        UNUserNotificationCenter::currentNotificationCenter()
+            .requestAuthorizationWithOptions_completionHandler(UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound, &done);
+    }
+
     pub fn send(note: &Note) {
         if !bundled() {
             return;
         }
-        let n = NSUserNotification::new();
-        n.setTitle(Some(&NSString::from_str(&note.title)));
-        n.setInformativeText(Some(&NSString::from_str(&note.body)));
-        if note.sound {
-            // SAFETY: a constant string the framework exports
-            n.setSoundName(Some(unsafe { NSUserNotificationDefaultSoundName }));
-        }
-        NSUserNotificationCenter::defaultUserNotificationCenter().deliverNotification(&n);
-    }
-
-    /// The current API: asks for permission the first time. Kept for when
-    /// the legacy one goes away.
-    #[allow(dead_code)]
-    pub fn send_current(note: &Note) {
-        if !bundled() {
-            return;
-        }
-        let center = UNUserNotificationCenter::currentNotificationCenter();
-        // the first time, macOS asks the person; after that it remembers
-        static ASK: Once = Once::new();
-        ASK.call_once(|| {
-            let done = RcBlock::new(|_granted: Bool, _err: *mut NSError| {});
-            center.requestAuthorizationWithOptions_completionHandler(UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound, &done);
-        });
         let content = UNMutableNotificationContent::new();
         content.setTitle(&NSString::from_str(&note.title));
         content.setBody(&NSString::from_str(&note.body));
@@ -194,7 +191,7 @@ mod mac {
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let id = NSString::from_str(&format!("clauddy-{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
         let request = UNNotificationRequest::requestWithIdentifier_content_trigger(&id, &content, None);
-        center.addNotificationRequest_withCompletionHandler(&request, None);
+        UNUserNotificationCenter::currentNotificationCenter().addNotificationRequest_withCompletionHandler(&request, None);
     }
 }
 

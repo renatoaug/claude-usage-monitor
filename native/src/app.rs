@@ -84,6 +84,7 @@ pub fn open_url(url: &str) {
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         theme::install_font(&cc.egui_ctx);
+        crate::alerts::ask_permission();
         let settings = Settings::load();
         let (data, commands) = poller::spawn(cc.egui_ctx.clone(), settings.clone());
         App {
