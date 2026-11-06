@@ -45,7 +45,7 @@ fn height(meter_count: usize, view: &View, models: usize, projects: usize) -> f3
 /// shape: two meters and Details as it was left.
 pub fn size(snap: &Snapshot, view: &View) -> [f32; 2] {
     let usage = snap.usage.as_ref();
-    let m = if snap.loaded { meters(snap.limits.as_ref(), snap.limits_at, usage, snap.connected).len() } else { 2 };
+    let m = if snap.loaded { meters(snap).len() } else { 2 };
     let models = usage.map(|u| u.by_model.len()).unwrap_or(0);
     let projects = usage.map(|u| u.by_project.len()).unwrap_or(0);
     [CARD_W + 2.0 * MARGIN, height(m, view, models, projects) + 2.0 * MARGIN]
@@ -99,7 +99,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     hairline(p, left, right, y);
 
     // the meters, or the way in when no account is connected
-    let list = meters(f.snap.limits.as_ref(), f.snap.limits_at, usage, f.snap.connected);
+    let list = meters(f.snap);
     if !f.snap.loaded {
         for i in 0..2 {
             meter_skeleton(p, left, right, y, i == 0);

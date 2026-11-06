@@ -115,14 +115,14 @@ pub struct Tokens {
     pub expires_at: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Window {
     pub pct: f64,
     pub reset_ms: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Scoped {
     pub label: String,
@@ -130,14 +130,14 @@ pub struct Scoped {
     pub reset_ms: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Limits {
     pub session: Window,
     pub week: Window,
     pub scoped: Vec<Scoped>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Profile {
     pub email: Option<String>,
     pub name: Option<String>,

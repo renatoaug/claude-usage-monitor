@@ -4,13 +4,13 @@
 use eframe::egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Vec2};
 use std::time::Instant;
 
-use crate::auth::{Limits, Window};
-use crate::format::{reset_in, tokens};
+use crate::auth::Window;
+use crate::format::{countdown, reset_in, tokens};
+use crate::poller::Snapshot;
 use crate::ui::bar::bar;
 use crate::ui::skeleton::sk_line;
 use crate::ui::text::bold;
 use crate::ui::theme::{color, text};
-use crate::usage::Usage;
 
 pub const METER_H: f32 = 54.0;
 // the session's meter leads with a big number
@@ -53,12 +53,17 @@ pub fn level(pct: f64) -> (Color32, Color32) {
 
 /// The session, the week, and any per-model weekly limits. Connected but not
 /// read yet (or throttled): the meters stay, empty, rather than ask to log in.
-pub fn meters(limits: Option<&Limits>, at: Option<Instant>, usage: Option<&Usage>, connected: bool) -> Vec<Meter> {
+pub fn meters(snap: &Snapshot) -> Vec<Meter> {
+    let (limits, at, usage) = (snap.limits.as_ref(), snap.limits_at, snap.usage.as_ref());
     let Some(l) = limits else {
-        if !connected {
+        if !snap.connected {
             return vec![];
         }
-        let waiting = |label: &str| Meter { label: label.into(), pct: None, sub: "waiting for a reading".into() };
+        let sub = match snap.retry_at {
+            Some(t) => format!("rate limited · retrying in {}", countdown(t.saturating_duration_since(Instant::now()).as_millis() as i64 + 59_999)),
+            None => "waiting for a reading".into(),
+        };
+        let waiting = |label: &str| Meter { label: label.into(), pct: None, sub: sub.clone() };
         return vec![waiting("current session"), waiting("weekly · all models")];
     };
     let session_tokens = usage.map(|u| u.session.tokens).unwrap_or(0);
@@ -152,8 +157,8 @@ mod tests {
 
     #[test]
     fn no_account_means_no_meters() {
-        assert!(meters(None, None, None, false).is_empty());
-        let waiting = meters(None, None, None, true);
+        assert!(meters(&Snapshot::default()).is_empty());
+        let waiting = meters(&Snapshot { connected: true, ..Default::default() });
         assert_eq!(waiting.len(), 2);
         assert!(waiting.iter().all(|m| m.pct.is_none()));
     }

@@ -51,6 +51,7 @@ fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
         profile: Some(Profile { email: Some("you@example.com".into()), name: Some("Re".into()), plan: Some("Max".into()) }),
         error: None,
         loaded: true,
+        retry_at: None,
     }
 }
 
