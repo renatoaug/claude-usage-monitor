@@ -1,0 +1,133 @@
+// The expanded panel's meters: label and % on top, a bar, a subtitle with
+// the reset and the tokens behind it.
+
+use eframe::egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Vec2};
+use std::time::Instant;
+
+use crate::auth::{Limits, Window};
+use crate::format::{reset_in, tokens};
+use crate::ui::bar::bar;
+use crate::ui::text::bold;
+use crate::ui::theme::{color, text};
+use crate::usage::Usage;
+
+pub const METER_H: f32 = 54.0;
+
+pub struct Meter {
+    pub label: String,
+    pub pct: Option<f64>,
+    pub sub: String,
+}
+
+/// A limits window still in force, its countdown rebased to now. A reading
+/// whose reset already passed proves nothing about the new window: None,
+/// never zero.
+pub fn live(w: &Window, at: Option<Instant>) -> Option<(f64, Option<i64>)> {
+    let elapsed = at.map(|a| a.elapsed().as_millis() as i64).unwrap_or(0);
+    match w.reset_ms {
+        Some(ms) if ms - elapsed <= 0 => None,
+        Some(ms) => Some((w.pct, Some(ms - elapsed))),
+        None => Some((w.pct, None)),
+    }
+}
+
+/// One ramp for every meter: plain below 60, warm to 85, hot past it.
+/// Returns (bar, number) colours.
+pub fn level(pct: f64) -> (Color32, Color32) {
+    if pct >= 85.0 {
+        (color::HOT, color::HOT)
+    } else if pct >= 60.0 {
+        (color::WARM, color::WARM)
+    } else {
+        (color::ACCENT, color::FG)
+    }
+}
+
+/// The session, the week, and any per-model weekly limits. Connected but not
+/// read yet (or throttled): the meters stay, empty, rather than ask to log in.
+pub fn meters(limits: Option<&Limits>, at: Option<Instant>, usage: Option<&Usage>, connected: bool) -> Vec<Meter> {
+    let Some(l) = limits else {
+        if !connected {
+            return vec![];
+        }
+        let waiting = |label: &str| Meter { label: label.into(), pct: None, sub: "waiting for a reading".into() };
+        return vec![waiting("current session"), waiting("weekly · all models")];
+    };
+    let session_tokens = usage.map(|u| u.session.tokens).unwrap_or(0);
+    let week_tokens = usage.map(|u| u.week.tokens).unwrap_or(0);
+    let session = live(&l.session, at);
+    let week = live(&l.week, at);
+    let mut out = vec![
+        Meter {
+            label: "current session".into(),
+            pct: session.map(|s| s.0),
+            sub: match session {
+                Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(session_tokens)),
+                _ => "no active session".into(),
+            },
+        },
+        Meter {
+            label: "weekly · all models".into(),
+            pct: week.map(|w| w.0),
+            sub: match week {
+                Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(week_tokens)),
+                _ => format!("{} tokens · last 7 days", tokens(week_tokens)),
+            },
+        },
+    ];
+    // per-model limits pair with that model family's local tokens
+    for sc in &l.scoped {
+        let Some((pct, reset)) = live(&Window { pct: sc.pct, reset_ms: sc.reset_ms }, at) else { continue };
+        let key = sc.label.to_lowercase();
+        let family: u64 = usage
+            .map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum())
+            .unwrap_or(0);
+        out.push(Meter {
+            label: format!("weekly · {key}"),
+            pct: Some(pct),
+            sub: match reset {
+                Some(ms) => format!("resets in {} · {} tokens", reset_in(ms), tokens(family)),
+                None => format!("{} tokens", tokens(family)),
+            },
+        });
+    }
+    out
+}
+
+/// Draw `m` between `left` and `right`, starting at `y`.
+pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter) {
+    let top = y + 19.0;
+    p.text(Pos2::new(left, top), Align2::LEFT_CENTER, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+    let (fill, num) = level(m.pct.unwrap_or(0.0));
+    let value = m.pct.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into());
+    bold(p, Pos2::new(right, top), Align2::RIGHT_CENTER, &value, text::VALUE, num);
+    let track = Rect::from_min_size(Pos2::new(left, top + 14.0), Vec2::new(right - left, 4.0));
+    bar(p, track, m.pct.map(|v| (v / 100.0) as f32), fill, color::TRACK);
+    p.text(Pos2::new(left, track.bottom() + 5.0), Align2::LEFT_TOP, &m.sub, FontId::proportional(text::SMALL), color::FG_SUB);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_expired_window_is_no_reading_not_zero() {
+        assert_eq!(live(&Window { pct: 80.0, reset_ms: Some(-5) }, None), None);
+        assert_eq!(live(&Window { pct: 80.0, reset_ms: Some(60_000) }, None).map(|r| r.0), Some(80.0));
+    }
+
+    #[test]
+    fn the_ramp_is_plain_then_warm_then_hot() {
+        assert_eq!(level(10.0).1, color::FG);
+        assert_eq!(level(60.0).0, color::WARM);
+        assert_eq!(level(85.0).0, color::HOT);
+    }
+
+    #[test]
+    fn no_account_means_no_meters() {
+        assert!(meters(None, None, None, false).is_empty());
+        let waiting = meters(None, None, None, true);
+        assert_eq!(waiting.len(), 2);
+        assert!(waiting.iter().all(|m| m.pct.is_none()));
+    }
+}

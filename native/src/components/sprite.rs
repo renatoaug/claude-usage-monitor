@@ -4,7 +4,7 @@
 
 use eframe::egui::{self, ColorImage, Pos2, Rect, TextureHandle, TextureOptions, Vec2};
 
-static SHEET: &[u8] = include_bytes!("../assets/working-sheet.png");
+static SHEET: &[u8] = include_bytes!("../../assets/working-sheet.png");
 const COLS: usize = 4;
 const ROWS: usize = 2;
 
@@ -74,7 +74,7 @@ pub fn draw(painter: &egui::Painter, area: Rect, tex: &TextureHandle, frame: usi
         Pos2::new(c / COLS as f32, r / ROWS as f32),
         Vec2::new(1.0 / COLS as f32, 1.0 / ROWS as f32),
     );
-    painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+    painter.image(tex.id(), rect, uv, crate::ui::theme::color::NO_TINT);
 }
 
 #[cfg(test)]

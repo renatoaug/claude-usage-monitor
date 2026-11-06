@@ -49,6 +49,16 @@ bun run test:coverage
 
 > Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't reliably cross-build them from macOS. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs semantic-release for real). Details in [`docs/design/07-releases.md`](docs/design/07-releases.md) and [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md).
 
+## Native app (Rust)
+
+`native/` is the Rust rewrite (eframe/egui, no webview), on the `feat/native-rust` branch until it reaches parity. `cargo test --release` and `cargo build --release` run from `native/`.
+
+- **Layout**: `src/ui/` holds generic pieces that know nothing about Clauddy (theme, icon, controls, surface, bar, tag, text); `src/components/` holds Clauddy's own pieces (pet, logos, account, service row, meter, status, breakdown, heat map); `src/screens/` holds the compact and expanded layouts; `src/app.rs` is the shell; `src/format.rs` is how numbers and times read. Data: `usage.rs`, `auth.rs`, `accounts.rs`, `poller.rs`. Look in `ui/` and `components/` before writing a piece: it usually exists.
+- **Tokens**: `src/ui/theme.rs`. The raw palette is private to that file; everything else uses `color::*`, `text::*` and `radius::*`. Corners come in three sizes by role: `radius::TAG` (badges), `radius::CONTROL` (buttons, bars, boxes inside the card) and `radius::CARD`; no other radius. A test fails on a raw colour (`Color32::from_*`, `WHITE`, `BLACK`) anywhere else.
+- **Screens** draw only from the `Frame` they get and return `Action`s for the app to apply. They never read the poller, the disk or the clock on their own (`format::now` is pinned in tests).
+- **Snapshots**: `src/screens/snapshots.rs` renders every screen state from fixtures into `native/tests/snapshots/*.png`, and the tests fail when a render drifts. They are the gallery: a new state gets a new case. After an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
+- **Art**: new pet art is generated (Codex `gpt-6-astra`), not drawn in code; Clauddy stays square and blocky like the classic sprite.
+
 ## Tests
 
 `bun run test` — three processes, not plain `bun test`:

@@ -3,9 +3,11 @@
 // next visible change is due, so a resting pet costs nothing between blinks.
 
 use eframe::egui::{self, Color32, Pos2, Rect, Shape, Stroke, TextureHandle, Vec2, epaint::QuadraticBezierShape};
+
+use crate::ui::theme::color;
 use std::time::{Duration, Instant};
 
-use crate::sprite;
+use super::sprite;
 
 const SPRITE: [&str; 9] = [
     ".########.",
@@ -18,9 +20,9 @@ const SPRITE: [&str; 9] = [
     ".#.#..#.#.",
     ".#.#..#.#.",
 ];
-const PIXEL: Color32 = Color32::from_rgb(0xd5, 0x76, 0x58);
-const EYE: Color32 = Color32::from_rgb(0x22, 0x1b, 0x16);
-const SWEAT: Color32 = Color32::from_rgb(0x8e, 0xc9, 0xf0);
+const PIXEL: Color32 = color::PET_BODY;
+const EYE: Color32 = color::PET_EYE;
+const SWEAT: Color32 = color::PET_SWEAT;
 
 // pixel art doesn't need 60 fps: the motion is a few device pixels at most
 const ANIM_FPS: f32 = 12.0;
@@ -56,15 +58,23 @@ impl Mood {
 pub struct Pet {
     start: Instant,
     sheet: TextureHandle,
+    /// a fixed moment, for snapshots
+    frozen: Option<f32>,
 }
 
 impl Pet {
     pub fn new(ctx: &egui::Context) -> Self {
-        Pet { start: Instant::now(), sheet: sprite::load(ctx) }
+        Pet { start: Instant::now(), sheet: sprite::load(ctx), frozen: None }
+    }
+
+    /// A pet held at `t` seconds into its loops, so snapshots are stable.
+    #[cfg(test)]
+    pub fn frozen(ctx: &egui::Context, t: f32) -> Self {
+        Pet { start: Instant::now(), sheet: sprite::load(ctx), frozen: Some(t) }
     }
 
     fn t(&self) -> f32 {
-        self.start.elapsed().as_secs_f32()
+        self.frozen.unwrap_or_else(|| self.start.elapsed().as_secs_f32())
     }
 
     /// How long until the next visible change.
@@ -142,10 +152,10 @@ impl Pet {
 // The four flame tongues from the Electron sprite (viewBox 0 0 100 110), swaying.
 fn draw_flames(painter: &egui::Painter, area: Rect, t: f32) {
     let tongues: [(&[[f32; 2]], Color32, f32); 4] = [
-        (&[[12., 106.], [-5., 84.], [13., 35.], [9., 70.], [26., 80.], [40., 102.], [12., 106.]], Color32::from_rgb(0xed, 0x64, 0x30), 0.0),
-        (&[[28., 108.], [7., 75.], [37., 12.], [29., 48.], [47., 62.], [65., 86.], [47., 108.]], Color32::from_rgb(0xf3, 0x91, 0x35), 0.2),
-        (&[[48., 108.], [35., 76.], [68., 16.], [62., 51.], [79., 68.], [98., 91.], [77., 108.]], Color32::from_rgb(0xed, 0x68, 0x30), 0.4),
-        (&[[77., 108.], [66., 86.], [91., 36.], [85., 74.], [96., 87.], [103., 101.], [89., 108.]], Color32::from_rgb(0xef, 0xa1, 0x40), 0.6),
+        (&[[12., 106.], [-5., 84.], [13., 35.], [9., 70.], [26., 80.], [40., 102.], [12., 106.]], color::FLAMES[0], 0.0),
+        (&[[28., 108.], [7., 75.], [37., 12.], [29., 48.], [47., 62.], [65., 86.], [47., 108.]], color::FLAMES[1], 0.2),
+        (&[[48., 108.], [35., 76.], [68., 16.], [62., 51.], [79., 68.], [98., 91.], [77., 108.]], color::FLAMES[2], 0.4),
+        (&[[77., 108.], [66., 86.], [91., 36.], [85., 74.], [96., 87.], [103., 101.], [89., 108.]], color::FLAMES[3], 0.6),
     ];
     let side = area.width().min(area.height());
     let left = area.center().x - side / 2.0;

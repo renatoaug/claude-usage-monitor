@@ -23,4 +23,5 @@ strip = true
 opt-level = "s"
 
 [dev-dependencies]
+egui_kittest = { version = "0.37.0", features = ["snapshot", "wgpu"] }
 tempfile = "3.27.0"

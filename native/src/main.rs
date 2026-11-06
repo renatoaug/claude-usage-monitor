@@ -6,13 +6,14 @@ use eframe::egui;
 use std::time::Instant;
 
 mod accounts;
+mod app;
 mod auth;
-mod logos;
-mod pet;
+mod components;
+mod format;
 mod poller;
-mod sprite;
+mod screens;
+mod ui;
 mod usage;
-mod widget;
 
 fn main() -> eframe::Result {
     // `clauddy --usage`: print one reading of the local logs as JSON (dev aid)
@@ -60,6 +61,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Clauddy",
         options,
-        Box::new(|cc| Ok(Box::new(widget::Widget::new(cc)))),
+        Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
     )
 }

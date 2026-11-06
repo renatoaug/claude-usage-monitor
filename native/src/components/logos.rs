@@ -3,6 +3,8 @@
 
 use eframe::egui::{self, Color32, ColorImage, Rect, TextureHandle, TextureOptions};
 
+use crate::ui::theme::color;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Provider {
     Claude,
@@ -21,24 +23,24 @@ impl Provider {
     /// The logo tint on a selected row and in the activity line.
     pub fn tint(self) -> Color32 {
         match self {
-            Provider::Claude => Color32::from_rgb(0xe4, 0xa1, 0x7c),
-            Provider::Codex => Color32::from_rgb(0xb9, 0xc8, 0xb0),
-            Provider::Cursor => Color32::from_rgb(0xb8, 0xc4, 0xdc),
+            Provider::Claude => color::CLAUDE,
+            Provider::Codex => color::CODEX,
+            Provider::Cursor => color::CURSOR,
         }
     }
     /// The usage bar.
     pub fn bar(self) -> Color32 {
         match self {
-            Provider::Claude => Color32::from_rgb(0xd9, 0x77, 0x57),
-            Provider::Codex => Color32::from_rgb(0xa7, 0xba, 0xa1),
-            Provider::Cursor => Color32::from_rgb(0x9f, 0xb2, 0xd6),
+            Provider::Claude => color::CLAUDE_BAR,
+            Provider::Codex => color::CODEX_BAR,
+            Provider::Cursor => color::CURSOR_BAR,
         }
     }
     fn svg(self) -> &'static str {
         match self {
-            Provider::Claude => include_str!("../assets/logos/claude.svg"),
-            Provider::Codex => include_str!("../assets/logos/openai.svg"),
-            Provider::Cursor => include_str!("../assets/logos/cursor.svg"),
+            Provider::Claude => include_str!("../../assets/logos/claude.svg"),
+            Provider::Codex => include_str!("../../assets/logos/openai.svg"),
+            Provider::Cursor => include_str!("../../assets/logos/cursor.svg"),
         }
     }
 }

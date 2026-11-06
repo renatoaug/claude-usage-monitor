@@ -1,0 +1,90 @@
+// Compact: the pet on the left with what it's up to beneath it, one row per
+// connected service on the right and the selected one's reset under them.
+// With a single service its row sits alone, centred on the pet.
+
+use eframe::egui::{Align2, Context, FontId, Pos2, Rect, Ui, Vec2};
+
+use super::{Action, Frame, MARGIN, Size};
+use crate::components::account::account;
+use crate::components::logos::Provider;
+use crate::components::pet::Mood;
+use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row};
+use crate::components::status::caption;
+use crate::format::clock;
+use crate::ui::controls::button_row;
+use crate::ui::icon;
+use crate::ui::surface::{card, halo};
+use crate::ui::theme::{color, text};
+
+const CARD_W: f32 = 216.0;
+const PAD_TOP: f32 = 32.0;
+const PAD: f32 = 12.0;
+const STAGE: Vec2 = Vec2::new(66.0, 70.0);
+const RESET_H: f32 = 7.0 + 10.0;
+
+fn rows_h(rows: usize) -> f32 {
+    rows as f32 * ROW_H + rows.saturating_sub(1) as f32 * ROW_GAP + RESET_H
+}
+
+/// Window size for `rows` service rows.
+pub fn size(rows: usize) -> [f32; 2] {
+    let card_h = PAD_TOP + rows_h(rows).max(STAGE.y) + PAD;
+    [CARD_W + 2.0 * MARGIN, card_h + 2.0 * MARGIN]
+}
+
+/// The connected services (Codex and Cursor join when they're ported).
+pub fn rows(f: &Frame) -> Vec<ServiceRow> {
+    vec![ServiceRow { provider: Provider::Claude, pct: f.session.map(|s| s.0), reset_ms: f.session.and_then(|s| s.1) }]
+}
+
+pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
+    let mut actions = vec![];
+    let rows = rows(f);
+    let rect = ctx.content_rect().shrink(MARGIN);
+    card(ui, ctx, rect);
+    let p = ui.painter();
+
+    // title band: the account, then pet-only, expand and close
+    let band_y = rect.top() + 15.5;
+    account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref(), false);
+    match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
+        Some(0) => actions.push(Action::Close),
+        Some(1) => actions.push(Action::Resize(Size::Expanded)),
+        _ => {} // pet-only: next
+    }
+
+    // the pet's column, centred on the content
+    let content = Rect::from_min_max(Pos2::new(rect.left() + PAD, rect.top() + PAD_TOP), Pos2::new(rect.right() - PAD, rect.bottom() - PAD));
+    let stage = Rect::from_center_size(Pos2::new(content.left() + STAGE.x / 2.0, content.center().y), STAGE);
+    halo(p, stage, color::CLAUDE_BAR.gamma_multiply(0.06));
+    let pet_area = if f.mood == Mood::Working {
+        Rect::from_min_size(Pos2::new(stage.center().x - 31.0, stage.top() + 8.0), Vec2::new(62.0, 52.0))
+    } else {
+        Rect::from_min_size(Pos2::new(stage.center().x - 36.0, stage.top() + 4.0), Vec2::new(72.0, 60.0))
+    };
+    f.pet.draw(p, pet_area, f.mood);
+    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
+    caption(p, ctx, f.logos, stage.center().x, rect.bottom() - PAD - 6.0, f.mood, activity);
+
+    // the rows, then the selected service's reset
+    let col_left = content.left() + STAGE.x + 8.0;
+    let mut y = content.center().y - rows_h(rows.len()) / 2.0;
+    for (i, row) in rows.iter().enumerate() {
+        service_row(p, f.logos, Pos2::new(col_left, y), content.right() - col_left, row, i == 0);
+        y += ROW_H + ROW_GAP;
+    }
+    if let Some(ms) = rows.first().and_then(|r| r.reset_ms) {
+        let at = Pos2::new(content.right(), y - ROW_GAP + 7.0);
+        p.text(at, Align2::RIGHT_TOP, format!("resets {}", clock(ms)), FontId::proportional(text::TINY), color::FG_RESET);
+    }
+    actions
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn one_service_keeps_the_card_as_tall_as_the_pet() {
+        assert_eq!(super::size(1)[1], super::size(0)[1]);
+        assert!(super::size(3)[1] > super::size(1)[1]);
+    }
+}
