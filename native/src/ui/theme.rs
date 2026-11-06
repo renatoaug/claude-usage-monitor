@@ -41,6 +41,9 @@ mod palette {
     pub const CORAL_350: Color32 = rgb(0xcb8a67);
     pub const CORAL_250: Color32 = rgb(0xce926d);
     pub const CORAL_200: Color32 = rgb(0xe2a07f);
+    pub const CORAL_100: Color32 = rgb(0xf0bc9b);
+    pub const SAND_550: Color32 = rgb(0xada193);
+    pub const SAND_525: Color32 = rgb(0xb0a498);
     pub const PAPER_50: Color32 = rgb(0xf4e8d4);
     pub const PAPER_200: Color32 = rgb(0xe3d0b2);
     pub const PAPER_0: Color32 = rgb(0xfdf6ea);
@@ -153,6 +156,11 @@ pub mod color {
     pub const TILE: Color32 = white(3);
     pub const TILE_ON: Color32 = white(10);
     pub const TILE_EDGE_ON: Color32 = white(56);
+    // a connection card: the service's avatar, its caption, the way out
+    pub const AVATAR_CLAUDE: Color32 = rgba(0x14, 0x0b, 0x08, 0x18);
+    pub const CAPTION: Color32 = SAND_550;
+    pub const REMOVE: Color32 = SAND_525;
+    pub const REMOVE_HOVER: Color32 = CORAL_100;
 
     // the pet's speech bubble (the pet-only glance)
     // drawn like the pet's art: a dark pixel outline, two-tone paper

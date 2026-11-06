@@ -12,7 +12,7 @@ use crate::poller::{Login, Snapshot};
 use crate::prefs::Prefs;
 use crate::ui::controls::click_area;
 use crate::ui::group::{GAP, block_h, group, group_label, row_label};
-use crate::ui::icon::{self, CLOSE};
+use crate::ui::icon;
 use crate::ui::segmented::segmented;
 use crate::ui::stepper::stepper;
 use crate::ui::surface::card;
@@ -35,7 +35,7 @@ const SIDE: f32 = 16.0;
 const BODY_TOP: f32 = 38.0;
 const TABS_H: f32 = 4.0 + 30.0 + 12.0;
 const TILES_H: f32 = 62.0;
-const CONN_H: f32 = 52.0;
+const CONN_H: f32 = 64.0;
 const LOGIN_H: f32 = 112.0;
 const ACTIONS_H: f32 = 14.0 + 30.0;
 const VERSION_H: f32 = 12.0 + 14.0;
@@ -167,28 +167,38 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
         text_mid(&p, tile.center().x, tile.top() + 51.0, Align::Center, state, text::CAPTION, color::FG_MUTED.gamma_multiply(fade));
     }
 
-    // the Claude card: who, the plan, and the way out (or in)
+    // the Claude card: its avatar, who's connected and on what plan, and
+    // the way out (or in)
     let card = Rect::from_min_size(Pos2::new(left, y + TILES_H + 10.0), Vec2::new(right - left, CONN_H));
-    p.rect(card, CornerRadius::same(radius::CONTROL + 4), color::GROUP, Stroke::new(1.0, color::HAIR), StrokeKind::Inside);
-    let x = card.left() + 12.0;
-    let name = bold_mid(&p, x, card.top() + 18.0, Align::Min, "Claude", text::BODY, color::FG);
+    p.rect(card, CornerRadius::same(radius::CONTROL + 2), color::GROUP, Stroke::new(1.0, color::HAIR), StrokeKind::Inside);
+    let avatar = Rect::from_min_size(Pos2::new(card.left() + 10.0, card.center().y - 14.0), Vec2::splat(28.0));
+    p.rect_filled(avatar, CornerRadius::same(radius::CONTROL + 1), color::AVATAR_CLAUDE);
+    f.logos.draw(&p, Provider::Claude, Rect::from_center_size(avatar.center(), Vec2::splat(18.0)), color::CLAUDE);
+    let x = avatar.right() + 10.0;
+    let (head_y, caption_y) = (card.center().y - 8.0, card.center().y + 9.0);
+    let name = bold_mid(&p, x, head_y, Align::Min, "Claude", text::BODY, color::FG);
     if let Some(plan) = f.snap.profile.as_ref().and_then(|pr| pr.plan.as_deref()).filter(|_| f.snap.connected) {
-        let style = TagStyle { fg: color::PLAN, edge: color::PLAN_EDGE, wash: color::PLAN_WASH, pad: Vec2::new(3.0, 2.0) };
-        tag(&p, name.right() + 7.0, card.top() + 18.0, Align::Min, &plan.to_lowercase(), &style);
+        let style = TagStyle { fg: color::PLAN, edge: color::PLAN_EDGE, wash: color::PLAN_WASH, pad: Vec2::new(4.0, 3.0) };
+        tag(&p, name.right() + 6.0, head_y, Align::Min, &plan.to_lowercase(), &style);
     }
-    let caption_y = card.top() + 35.0;
     if !f.snap.loaded && !f.snap.connected {
         crate::ui::skeleton::sk_line(&p, x, caption_y, 120.0, 8.0);
     } else if f.snap.connected {
-        text_mid(&p, x, caption_y, Align::Min, "Connected", text::SMALL, color::SIGNED_IN);
-        let out = Rect::from_center_size(Pos2::new(card.right() - 20.0, card.center().y), Vec2::splat(22.0));
+        // who is connected, not just that someone is
+        let who = f.snap.profile.as_ref().and_then(|pr| pr.email.as_deref()).unwrap_or("Connected");
+        let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(x, card.top()), Pos2::new(card.right() - 44.0, card.bottom())));
+        text_mid(&clip, x, caption_y, Align::Min, who, text::SMALL, color::CAPTION);
+        let out = Rect::from_center_size(Pos2::new(card.right() - 22.0, card.center().y), Vec2::splat(24.0));
         let resp = click_area(ui, out, "logout");
-        icon::draw(&p, out.center(), CLOSE, 10.0, if resp.hovered() { color::FG } else { color::FG_MUTED });
+        if resp.hovered() {
+            p.rect_filled(out, CornerRadius::same(radius::CONTROL), color::MENU_HOVER);
+        }
+        icon::draw(&p, out.center(), icon::LOG_OUT, 13.0, if resp.hovered() { color::REMOVE_HOVER } else { color::REMOVE });
         if resp.clicked() {
             actions.push(Action::Logout);
         }
     } else {
-        text_mid(&p, x, caption_y, Align::Min, "Connect via browser to track your usage.", text::SMALL, color::FG_MUTED);
+        text_mid(&p, x, caption_y, Align::Min, "Connect via browser to track your usage.", text::SMALL, color::CAPTION);
         if !logging_in(f.snap) {
             let btn = Rect::from_min_size(Pos2::new(card.right() - 76.0, card.center().y - 12.0), Vec2::new(64.0, 24.0));
             if action_button(ui, btn, "settings-connect", "Connect", true) {

@@ -46,9 +46,6 @@ pub struct App {
     /// the screen on show (Settings tab, size) and when it came in, to fade it in
     screen: (Option<settings::Tab>, Size),
     entered: Instant,
-    /// the window's size as it eases toward `size`: (from, started)
-    resize: Option<([f32; 2], Instant)>,
-    current: [f32; 2],
     /// the panel fading away on its way to the menu bar
     leaving: Option<Instant>,
 }
@@ -130,8 +127,6 @@ impl App {
             shown: !Prefs::load().menu_bar,
             screen: (None, Size::Expanded),
             entered: Instant::now(),
-            resize: None,
-            current: [0.0, 0.0],
             leaving: None,
         }
     }
@@ -362,25 +357,12 @@ impl eframe::App for App {
         if size != Size::PetOnly {
             self.cursor.watch(None);
         }
-        // the window eases to its new size rather than jumping
+        // the window takes its new size at once: easing it frame by frame
+        // lags the drawing on macOS, so the content tears; the fade carries
+        // the change instead
         if want != self.size {
-            let first = self.current == [0.0, 0.0];
             self.size = want;
-            self.resize = (!first).then(|| (self.current, Instant::now()));
-            if first {
-                self.current = want;
-                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
-            }
-        }
-        if let Some((from, start)) = self.resize {
-            let t = motion::progress(start, motion::RESIZE_S);
-            self.current = motion::lerp_size(from, self.size, t);
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(self.current.into()));
-            if t >= 1.0 {
-                self.resize = None;
-            } else {
-                ctx.request_repaint();
-            }
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
         }
         self.apply(&ctx, actions);
         self.menu_bar(&ctx, &snap, session);
