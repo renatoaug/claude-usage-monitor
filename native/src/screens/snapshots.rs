@@ -85,7 +85,7 @@ fn render_inner(case: Case, draft: Prefs) {
     let session = case.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None));
     let size = |f: &Frame| match (case.view.settings, case.view.size) {
         (Some(tab), _) => settings::size(f.snap, tab, f.view),
-        (None, Size::Compact) => compact::size(compact::rows(f).len()),
+        (None, Size::Compact) => compact::size(compact::rows(f).len(), compact::reminder(f).is_some()),
         (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up),
         (None, Size::PetOnly) => pet_only::size(),
     };
@@ -96,14 +96,14 @@ fn render_inner(case: Case, draft: Prefs) {
         let pet = Pet::frozen(&ctx, 0.3);
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
-        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)) };
+        let f = Frame { area: full, card: full, snap: &case.snap, mood: case.mood, session, view: &case.view, pet: &pet, logos: &logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)), mute: case.name.ends_with("-talking").then_some(false) };
         size(&f)
     };
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         let area = ctx.content_rect().shrink(super::MARGIN);
-        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)) };
+        let f = Frame { area, card: area, snap: &case.snap, mood: case.mood, session, view: &case.view, pet, logos, menu_bar: case.name.ends_with("menu-bar"), heads_up: 80.0, bubble: case.name.ends_with("-talking").then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)), mute: case.name.ends_with("-talking").then_some(false) };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
@@ -438,4 +438,11 @@ fn expanded_talking() {
 #[test]
 fn compact_talking() {
     render(Case { name: "compact-talking", snap: snapshot(usage(false, None), Some(limits(91.0, 68.0))), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn compact_offering_a_reset_reminder() {
+    let mut snap = snapshot(usage(false, None), Some(limits(86.0, 68.0)));
+    snap.limits_at = Some(std::time::Instant::now());
+    render(Case { name: "compact-reminder", snap, mood: Mood::Idle, view: compact_view() });
 }

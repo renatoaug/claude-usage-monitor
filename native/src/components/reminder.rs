@@ -43,11 +43,21 @@ pub fn error(snap: &Snapshot) -> Option<&str> {
 
 /// The button at (left, y). Returns true when clicked.
 pub fn button(ui: &Ui, left: f32, y: f32, on: bool) -> bool {
+    button_at(ui, left, y, on, false)
+}
+
+/// The button with its right edge at `right`.
+pub fn button_right(ui: &Ui, right: f32, y: f32, on: bool) -> bool {
+    button_at(ui, right, y, on, true)
+}
+
+fn button_at(ui: &Ui, x: f32, y: f32, on: bool, from_right: bool) -> bool {
     let p = ui.painter();
     let label = if on { "Reminder on" } else { "Notify at reset" };
     // on: a drawn check before the words (the UI font has no ✓)
     let mark = if on { 12.0 } else { 0.0 };
     let w = p.layout_no_wrap(label.into(), eframe::egui::FontId::proportional(text::SMALL), color::FG).size().x + 14.0 + mark;
+    let left = if from_right { x - w } else { x };
     let r = Rect::from_min_size(Pos2::new(left, y), Vec2::new(w, 22.0));
     let resp = click_area(ui, r, "reminder");
     let bg = if resp.hovered() { color::TILE_ON } else { color::TILE };

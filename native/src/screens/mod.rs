@@ -77,6 +77,8 @@ pub enum Action {
     DismissBubble,
     /// the menu bar's popover goes back into the bar
     HidePopover,
+    /// mute the voice for an hour, or unmute
+    ToggleMute,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
     SaveSettings,
@@ -103,6 +105,8 @@ pub struct Frame<'a> {
     pub heads_up: f64,
     /// what the pet is saying, and how far it has appeared (0..1)
     pub bubble: Option<(&'a str, f32)>,
+    /// the mute button, while the voice can make a sound: whether it's muted
+    pub mute: Option<bool>,
 }
 
 /// The card sits this far inside the window, all round.

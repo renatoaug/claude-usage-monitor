@@ -29,10 +29,21 @@ fn rows_h(rows: usize) -> f32 {
     rows as f32 * ROW_H + rows.saturating_sub(1) as f32 * ROW_GAP
 }
 
-/// Window size for `rows` service rows.
-pub fn size(rows: usize) -> [f32; 2] {
-    let card_h = PAD_TOP + (rows_h(rows) + LINE_H).max(STAGE.y) + PAD;
+// the reset reminder's line under everything, when it's offered
+const REMIND_H: f32 = 28.0;
+
+/// Window size for `rows` service rows, and the reminder's line.
+pub fn size(rows: usize, reminder: bool) -> [f32; 2] {
+    let card_h = PAD_TOP + (rows_h(rows) + LINE_H).max(STAGE.y) + PAD + if reminder { REMIND_H } else { 0.0 };
     [CARD_W + 2.0 * MARGIN, card_h + 2.0 * MARGIN]
+}
+
+/// Whether the shown service's reset reminder is offered (and on).
+pub fn reminder(f: &Frame) -> Option<bool> {
+    if !f.snap.loaded {
+        return None;
+    }
+    crate::components::reminder::state(f.snap, shown(f), f.session, f.heads_up)
 }
 
 /// One row per connected service.
@@ -64,7 +75,14 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     // the content: the pet's column on the left, the rows on the right, and
     // a bottom line with the pet's word under it and the reset at the right
-    let content = Rect::from_min_max(Pos2::new(rect.left() + PAD, rect.top() + PAD_TOP), Pos2::new(rect.right() - PAD, rect.bottom() - PAD));
+    let remind = reminder(f);
+    let below = if remind.is_some() { REMIND_H } else { 0.0 };
+    let content = Rect::from_min_max(Pos2::new(rect.left() + PAD, rect.top() + PAD_TOP), Pos2::new(rect.right() - PAD, rect.bottom() - PAD - below));
+    if let Some(on) = remind {
+        if crate::components::reminder::button_right(ui, content.right(), content.bottom() + 6.0, on) {
+            actions.push(Action::Remind(shown(f), !on));
+        }
+    }
     let line_y = content.bottom() - 6.0;
     let above = Rect::from_min_max(content.left_top(), Pos2::new(content.right(), line_y - LINE_H / 2.0 - 2.0));
 
@@ -110,7 +128,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 mod tests {
     #[test]
     fn one_service_keeps_the_card_as_tall_as_the_pet() {
-        assert_eq!(super::size(1)[1], super::size(0)[1]);
-        assert!(super::size(3)[1] > super::size(1)[1]);
+        assert_eq!(super::size(1, false)[1], super::size(0, false)[1]);
+        assert!(super::size(3, false)[1] > super::size(1, false)[1]);
     }
 }

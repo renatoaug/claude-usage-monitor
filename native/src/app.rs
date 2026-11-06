@@ -123,7 +123,7 @@ pub fn initial_size() -> [f32; 2] {
     let view = load_view();
     let size = if Prefs::load().menu_bar { Size::Expanded } else { view.size };
     match size {
-        Size::Compact => compact::size(1),
+        Size::Compact => compact::size(1, false),
         Size::Expanded => expanded::size(&Snapshot::default(), &view, None, 80.0),
         Size::PetOnly => pet_only::size(),
     }
@@ -261,6 +261,13 @@ impl App {
                 }
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
                 Action::HidePopover => self.close_popover(ctx),
+                Action::ToggleMute => {
+                    let now = crate::usage::now_ms();
+                    let until = if self.prefs.muted_until > now { 0 } else { now + 3_600_000 };
+                    self.prefs.muted_until = until;
+                    self.draft.muted_until = until;
+                    self.prefs.save();
+                }
                 Action::DismissBubble => {
                     if let Some(s) = &mut self.said {
                         s.until = s.until.min(Instant::now());
@@ -464,7 +471,13 @@ impl eframe::App for App {
         // the settled window for this screen
         let want = match screen {
             (Some(tab), _) => settings::size(&snap, tab, &self.view),
-            (None, Size::Compact) => compact::size(crate::screens::connected(&snap).len()),
+            (None, Size::Compact) => {
+                let services = crate::screens::connected(&snap);
+                let shown = if services.contains(&self.view.provider) { self.view.provider } else { crate::components::logos::Provider::Claude };
+                let heads_up = self.prefs.heads_up.min(self.prefs.near_limit) as f64;
+                let remind = snap.loaded && crate::components::reminder::state(&snap, shown, session, heads_up).is_some();
+                compact::size(services.len(), remind)
+            }
             (None, Size::Expanded) => expanded::size(&snap, &self.view, session, self.prefs.heads_up.min(self.prefs.near_limit) as f64),
             (None, Size::PetOnly) => pet_only::size(),
         };
@@ -571,6 +584,7 @@ impl eframe::App for App {
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
             bubble,
+            mute: (self.prefs.talk && self.prefs.sound && !self.prefs.menu_bar).then(|| self.prefs.muted_until > crate::usage::now_ms()),
         };
 
         // the areas that take the pointer; clicks anywhere else fall through

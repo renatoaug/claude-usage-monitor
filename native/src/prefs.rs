@@ -87,6 +87,7 @@ impl Prefs {
         v["zoom"] = json!(self.zoom);
         v["talk"] = json!(self.talk);
         v["sound"] = json!(self.sound);
+        v["soundMutedUntil"] = json!(self.muted_until);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
             if !v[key].is_object() {
