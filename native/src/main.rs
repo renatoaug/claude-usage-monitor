@@ -5,6 +5,8 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Shape, Stroke, Vec2, epaint::QuadraticBezierShape};
 use std::time::{Duration, Instant};
 
+mod usage;
+
 const SPRITE: [&str; 9] = [
     ".########.",
     ".########.",
@@ -198,6 +200,21 @@ impl eframe::App for Pet {
 }
 
 fn main() -> eframe::Result {
+    // `clauddy --usage`: print one reading of the local logs as JSON (dev aid)
+    if std::env::args().any(|a| a == "--usage") {
+        let path = std::env::home_dir().unwrap_or_default().join(".claude-usage-monitor/config.json");
+        let cfg: usage::Config =
+            std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+        let mut reader = usage::Reader::new(None);
+        let t = Instant::now();
+        let u = reader.get_usage(&cfg);
+        let cold = t.elapsed();
+        let t = Instant::now();
+        reader.get_usage(&cfg);
+        eprintln!("cold {cold:?}, warm {:?}", t.elapsed());
+        println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
+        return Ok(());
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Clauddy")
