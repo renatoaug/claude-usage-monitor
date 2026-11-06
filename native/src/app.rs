@@ -273,13 +273,16 @@ impl App {
     fn close_popover(&mut self, ctx: &Context) {
         self.popover = false;
         self.view.account_menu = false;
-        self.show(ctx, false);
+        // always say it: eframe shows a window after its first frame even
+        // when it was built hidden, so `shown` can't be trusted here
+        self.shown = false;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
     }
 
     /// Floating or in the menu bar: put the icon up or take it down, and
     /// answer what was clicked there.
     fn menu_bar(&mut self, ctx: &Context, snap: &Snapshot, session: Option<(f64, Option<i64>)>) {
-        use crate::platform::tray::{Tray, TrayEvent, line, title};
+        use crate::platform::tray::{Tray, TrayEvent, line};
         let wanted = self.prefs.menu_bar && self.leaving.is_none();
         if wanted && self.tray.is_none() {
             self.tray = Tray::new(ctx);
@@ -292,13 +295,9 @@ impl App {
             self.show(ctx, true);
         }
         let Some(tray) = &mut self.tray else { return };
-        // one service: its %; several: "C 64% · X 28%"; 🔥 when one is past the fire threshold
-        let services: Vec<_> = crate::screens::sessions(snap, session).into_iter().map(|s| (s.0, s.1)).collect();
-        let text = if services.len() > 1 {
-            crate::platform::tray::title_many(&services, self.settings.fire_threshold)
-        } else {
-            title(session.map(|s| s.0), self.settings.fire_threshold)
-        };
+        // the session closest to its limit; 🔥 past the fire threshold
+        let sessions: Vec<_> = crate::screens::sessions(snap, session).into_iter().map(|s| s.1).collect();
+        let text = crate::platform::tray::title_hottest(&sessions, self.settings.fire_threshold);
         tray.set_title(&text);
         // the menu leads with the limits, as the panel does
         let mut lines = vec![line("Session", session.map(|s| s.0), session.and_then(|s| s.1))];

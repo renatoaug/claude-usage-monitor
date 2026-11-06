@@ -39,14 +39,6 @@ impl Provider {
             Provider::Cursor => Tint::Cursor,
         }
     }
-    /// One letter for the menu bar's "C 64% · X 28%".
-    pub fn initial(self) -> &'static str {
-        match self {
-            Provider::Claude => "C",
-            Provider::Codex => "X",
-            Provider::Cursor => "Cu",
-        }
-    }
 
     /// The usage bar.
     pub fn bar(self) -> Color32 {

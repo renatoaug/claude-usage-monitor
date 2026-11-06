@@ -147,25 +147,20 @@ pub fn title(session_pct: Option<f64>, fire: f64) -> String {
     }
 }
 
-/// Several services: "C 64% · X 28%", with 🔥 in front when any is past
-/// the fire threshold.
-pub fn title_many(services: &[(crate::components::logos::Provider, Option<f64>)], fire: f64) -> String {
-    let parts: Vec<String> = services
-        .iter()
-        .map(|(p, v)| format!("{} {}", p.initial(), v.map(|v| format!("{v:.0}%")).unwrap_or_else(|| "—".into())))
-        .collect();
-    let hot = services.iter().any(|(_, v)| v.is_some_and(|v| v >= fire));
-    format!("{}{}", if hot { "🔥 " } else { "" }, parts.join(" · "))
+/// Several services: one number, the session closest to its limit. A
+/// title per service grew wide enough to land behind the notch, where
+/// macOS hides it; the menu lists each one.
+pub fn title_hottest(sessions: &[Option<f64>], fire: f64) -> String {
+    title(sessions.iter().flatten().copied().reduce(f64::max), fire)
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn several_services_read_by_initial_and_catch_fire_together() {
-        use crate::components::logos::Provider::{Claude, Codex};
-        assert_eq!(super::title_many(&[(Claude, Some(64.0)), (Codex, Some(28.0))], 90.0), "C 64% · X 28%");
-        assert_eq!(super::title_many(&[(Claude, Some(20.0)), (Codex, Some(93.0))], 90.0), "🔥 C 20% · X 93%");
-        assert_eq!(super::title_many(&[(Claude, None), (Codex, Some(5.0))], 90.0), "C — · X 5%");
+    fn several_services_show_the_hottest() {
+        assert_eq!(super::title_hottest(&[Some(64.0), Some(28.0), None], 90.0), "64%");
+        assert_eq!(super::title_hottest(&[Some(20.0), Some(93.0)], 90.0), "🔥 93%");
+        assert_eq!(super::title_hottest(&[None, None], 90.0), "");
     }
 
     #[test]
