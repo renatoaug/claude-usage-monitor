@@ -3,6 +3,12 @@ name = "clauddy"
 version = "0.1.0"
 edition = "2024"
 
+
+[lints.clippy]
+# egui draws in place: a drawing function takes the ui, where to draw and
+# what, and bundling those into a struct only to satisfy this reads worse
+too_many_arguments = "allow"
+
 [dependencies]
 base64 = "0.23.1"
 chrono = "0.4.45"

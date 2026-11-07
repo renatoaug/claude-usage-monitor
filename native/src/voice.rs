@@ -10,6 +10,8 @@ pub const SPREAD_HZ: f64 = 250.0;
 pub const STEP_MS: f64 = 115.0;
 /// a sentence is a babble, not a recital
 pub const MAX_BLIPS: usize = 14;
+// only macOS plays the blips for now
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 const GAIN: f64 = 0.05;
 
 /// The tone doubles as state: hot is faster and higher, sleepy slower and lower.
@@ -72,6 +74,7 @@ pub fn blip_plan(text: &str, tone: Tone) -> Vec<Blip> {
 
 /// The blips as a mono 16-bit WAV: square waves with a quick attack and an
 /// exponential decay, or every note clicks.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn wav(plan: &[Blip]) -> Vec<u8> {
     const RATE: u32 = 22_050;
     let end_ms = plan.iter().map(|b| b.at + b.dur + 10).max().unwrap_or(0) + 20;
@@ -112,11 +115,10 @@ pub fn wav(plan: &[Blip]) -> Vec<u8> {
 /// Play a line's blips, without waiting. Quiet where there's no way to.
 pub fn play(text: &str, tone: Tone) {
     let plan = blip_plan(text, tone);
-    if plan.is_empty() {
-        return;
-    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = plan;
     #[cfg(target_os = "macos")]
-    {
+    if !plan.is_empty() {
         use objc2::AnyThread;
         use objc2_app_kit::NSSound;
         use objc2_foundation::NSData;

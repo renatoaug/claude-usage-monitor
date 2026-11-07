@@ -260,11 +260,12 @@ impl Talk {
             }
         }
 
-        if out.is_none() && !self.told.already("record", now) {
-            if let Some(l) = voice::record(&u.days30, &fmt) {
-                self.told.mark("record", now);
-                out = remark(l, false, tone);
-            }
+        if out.is_none()
+            && !self.told.already("record", now)
+            && let Some(l) = voice::record(&u.days30, &fmt)
+        {
+            self.told.mark("record", now);
+            out = remark(l, false, tone);
         }
         out
     }

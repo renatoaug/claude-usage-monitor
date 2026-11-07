@@ -16,6 +16,7 @@ cd native
 cargo run --release                       # dev run
 CLAUDDY_STATE=fire cargo run --release    # pin a mood: idle, working, fire, tired, sleeping
 cargo fmt                                 # format (native/rustfmt.toml)
+cargo clippy --release --all-targets -- -D warnings   # lint; pull requests fail on any warning
 cargo test --release                      # unit tests + snapshot gallery
 UPDATE_SNAPSHOTS=1 cargo test --release   # rewrite the gallery after an intended visual change
 scripts/bundle.sh                         # native/target/Clauddy.app (macOS, app.clauddy.dev)
@@ -56,7 +57,7 @@ bun run test       # the launcher's test
 
 ## Code style
 
-- Rust: `cargo fmt` with `native/rustfmt.toml`; pull requests check it.
+- Rust: `cargo fmt` with `native/rustfmt.toml` and `cargo clippy` with no warnings; pull requests check both. `too_many_arguments` is allowed in `Cargo.toml`: drawing functions take the ui, where and what.
 - The launcher: Biome, **single quotes**, **no semicolons**, **2-space** indent, LF. A pre-commit hook (`.githooks/pre-commit`) formats staged files and blocks on lint errors; `bun install` wires it up.
 - Match the surrounding style; keep comments short and in English.
 
@@ -110,7 +111,7 @@ Claude Code as the product Clauddy tracks is fine to name. PR descriptions and c
 
 ## Before finishing a change
 
-1. `cargo fmt --check` and `cargo test --release` pass in `native/`, and `native/scripts/bundle.sh` builds an app that launches.
+1. `cargo fmt --check`, `cargo clippy --release --all-targets -- -D warnings` and `cargo test --release` pass in `native/`, and `native/scripts/bundle.sh` builds an app that launches.
 2. A change to the launcher passes `bun run check` and `bun run test`.
 3. The design note it touches is updated, and a structural decision has its record.
 4. Commit follows the convention above.

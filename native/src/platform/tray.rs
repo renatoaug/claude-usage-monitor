@@ -124,7 +124,7 @@ impl Tray {
         }
         self.title = title.to_string();
         #[cfg(target_os = "macos")]
-        self.icon.set_title(Some(format!(" {title}")).filter(|_| !title.is_empty()));
+        self.icon.set_title((!title.is_empty()).then(|| format!(" {title}")));
         let _ = self.icon.set_tooltip(Some(if title.is_empty() { "Clauddy".to_string() } else { format!("Clauddy · {title}") }));
     }
 }

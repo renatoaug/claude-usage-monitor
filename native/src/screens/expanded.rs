@@ -327,11 +327,11 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
     let glyphs: Vec<_> = buttons.iter().map(|b| (b.0, b.1)).collect();
     let row_right = rect.right() - 8.0;
     // a newer release: a dot on the gear, where Settings offers it
-    if matches!(f.update, crate::updates::Update::Available(_)) {
-        if let Some(i) = glyphs.iter().position(|g| g.0 == "settings") {
-            let x = row_right - crate::ui::controls::BUTTON / 2.0 - i as f32 * (crate::ui::controls::BUTTON + 4.0);
-            ui.painter().circle_filled(Pos2::new(x + 7.0, rect.top() + 12.0), 3.0, color::ACCENT);
-        }
+    if matches!(f.update, crate::updates::Update::Available(_))
+        && let Some(i) = glyphs.iter().position(|g| g.0 == "settings")
+    {
+        let x = row_right - crate::ui::controls::BUTTON / 2.0 - i as f32 * (crate::ui::controls::BUTTON + 4.0);
+        ui.painter().circle_filled(Pos2::new(x + 7.0, rect.top() + 12.0), 3.0, color::ACCENT);
     }
     if let Some(i) = button_row(ui, row_right, rect.top() + 19.0, &glyphs) {
         actions.push(buttons.swap_remove(i).2);

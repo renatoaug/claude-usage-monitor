@@ -1,7 +1,6 @@
 // Port of test/unit/codex.test.js.
 
 use super::*;
-use std::os::unix::fs::PermissionsExt;
 use std::time::SystemTime;
 use tempfile::TempDir;
 
@@ -47,6 +46,7 @@ impl Fx {
         f
     }
     // a stand-in app-server: answers initialize, then the given read response
+    #[cfg(unix)]
     fn stub_bin(&self, read_response: Value) -> PathBuf {
         let f = self.root.path().join(format!("stub-{}", rand_suffix()));
         let script = format!(
@@ -54,6 +54,7 @@ impl Fx {
             read_response
         );
         fs::write(&f, script).unwrap();
+        use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&f, fs::Permissions::from_mode(0o755)).unwrap();
         f
     }
@@ -71,12 +72,14 @@ impl Fx {
     }
 }
 
+#[cfg(unix)]
 fn rand_suffix() -> String {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     format!("{}-{}", std::process::id(), N.fetch_add(1, Ordering::SeqCst))
 }
 
+#[cfg(unix)]
 fn live_result() -> Value {
     let n = now() as f64 / 1000.0;
     json!({"rateLimitsByLimitId": {"codex": {"planType": "prolite",
@@ -238,6 +241,7 @@ fn detect_a_session_without_limits_is_found_plan_unknown() {
 }
 
 #[test]
+#[cfg(unix)] // the stub app-server is a shell script
 fn a_live_reading_beats_an_older_rollout() {
     let mut fx = Fx::new();
     fx.stale();
@@ -254,6 +258,7 @@ fn a_live_reading_beats_an_older_rollout() {
 }
 
 #[test]
+#[cfg(unix)] // the stub app-server is a shell script
 fn falls_back_to_the_single_bucket_when_it_is_not_keyed() {
     let mut fx = Fx::new();
     fx.stale();
@@ -264,6 +269,7 @@ fn falls_back_to_the_single_bucket_when_it_is_not_keyed() {
 }
 
 #[test]
+#[cfg(unix)] // the stub app-server is a shell script
 fn a_rollout_newer_than_the_live_read_wins() {
     let mut fx = Fx::new();
     fx.write("rollout-l.jsonl", &[token_count("2026-09-12T19:30:00Z", 10, codex_limits())], now() - 10_000);
@@ -276,6 +282,7 @@ fn a_rollout_newer_than_the_live_read_wins() {
 }
 
 #[test]
+#[cfg(unix)] // the stub app-server is a shell script
 fn a_failed_read_keeps_the_last_good_one() {
     let mut fx = Fx::new();
     fx.stale();
@@ -298,6 +305,7 @@ fn a_missing_binary_falls_back_to_the_logs() {
 }
 
 // wait (up to 5 s) for `ok`, polling: a fixed sleep is flaky under load
+#[cfg(unix)]
 fn eventually(mut ok: impl FnMut() -> bool) -> bool {
     let until = Instant::now() + Duration::from_secs(5);
     while Instant::now() < until {
@@ -310,6 +318,7 @@ fn eventually(mut ok: impl FnMut() -> bool) -> bool {
 }
 
 #[test]
+#[cfg(unix)] // the stub app-server is a shell script
 fn get_usage_asks_at_most_once_per_interval() {
     let mut fx = Fx::new();
     fx.stale();

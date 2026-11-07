@@ -28,7 +28,7 @@ CLAUDDY_STATE=fire cargo run --release   # forces a mood
 
 Before a pull request:
 
-1. `cargo fmt --check` and `cargo test --release` pass in `native/`. A visual change updates the snapshot gallery (`UPDATE_SNAPSHOTS=1 cargo test --release`), and a new state gets a new case.
+1. `cargo fmt --check`, `cargo clippy --release --all-targets -- -D warnings` and `cargo test --release` pass in `native/`. A visual change updates the snapshot gallery (`UPDATE_SNAPSHOTS=1 cargo test --release`), and a new state gets a new case.
 2. `native/scripts/bundle.sh` builds an app that launches.
 3. A change to the npm launcher passes `bun run check` and `bun run test`.
 4. A change to how something works updates its note in [`docs/design/`](docs/design/) in the same pull request, and a structural decision gets a record in [`docs/decisions/`](docs/decisions/).

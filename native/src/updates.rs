@@ -70,10 +70,10 @@ impl Updater {
                 }
                 std::thread::sleep(FIRST);
                 loop {
-                    if let Ok(tag) = latest_tag() {
-                        if newer(&tag, env!("CARGO_PKG_VERSION")) {
-                            quiet.set(Update::Available(tag));
-                        }
+                    if let Ok(tag) = latest_tag()
+                        && newer(&tag, env!("CARGO_PKG_VERSION"))
+                    {
+                        quiet.set(Update::Available(tag));
                     }
                     std::thread::sleep(EVERY);
                 }
