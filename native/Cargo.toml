@@ -1,0 +1,40 @@
+[package]
+name = "clauddy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.23.1"
+chrono = "0.4.45"
+eframe = "0.37.0"
+getrandom = "0.4.3"
+memchr = "2.8.3"
+png = "0.18.1"
+resvg = "0.49.0"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+tray-icon = "0.26.1"
+ureq = { version = "3.5.1", features = ["json"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "s"
+
+[dev-dependencies]
+egui_kittest = { version = "0.37.0", features = ["snapshot", "wgpu"] }
+tempfile = "3.27.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
+objc2 = "0.6.5"
+objc2-app-kit = { version = "0.3.2", features = ["NSApplication", "NSEvent", "NSResponder", "NSScreen", "NSWindow"] }
+objc2-foundation = { version = "0.3.2", features = ["NSString", "NSBundle", "NSError", "NSGeometry", "NSArray", "NSTimer", "NSDate", "block2"] }
+objc2-service-management = { version = "0.3.2", features = ["SMAppService"] }
+objc2-user-notifications = { version = "0.3.2", features = ["UNUserNotificationCenter", "UNNotificationContent", "UNNotificationRequest", "UNNotificationSound", "UNNotificationTrigger", "block2"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+notify-rust = "4.18.2"

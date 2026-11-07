@@ -1,80 +1,63 @@
 # AGENTS.md
 
-Clauddy is a pixel-art desktop pet (Electron) that tracks Claude Code usage: the real session and weekly % from the account (OAuth) and the token counts from local logs, plus Codex and Cursor when connected. macOS first, with Windows and Linux (x64) builds. How it works is in [`docs/design/`](docs/design/); why it is like this, in [`docs/decisions/`](docs/decisions/).
-
-## Stack
-
-- **Electron** (frameless, transparent, always-on-top widget)
-- **Bun** for install/scripts, **Node 24** (pinned in `.nvmrc`)
-- **Biome** for format + lint
-- Vanilla JS in `renderer/` (SVG sprite + CSS/WAAPI animations) — no framework
+Clauddy is a pixel-art desktop pet that tracks Claude Code usage: the real session and weekly % from the account (OAuth) and the token counts from local logs, plus Codex and Cursor when connected. It is a native app in Rust (`native/`), macOS first, with Windows and Linux (x64) builds; the `clauddy` npm package is a launcher that downloads it. How it works is in [`docs/design/`](docs/design/); why it is like this, in [`docs/decisions/`](docs/decisions/).
 
 ## Layout
 
-- `main.js` — Electron main process (window, usage polling, notifications, file watchers)
-- `preload.js` — `contextBridge` API exposed to the renderer
-- `usage.js` — reads `~/.claude/projects/**/*.jsonl` (tokens, session window, activity)
-- `auth.js` — OAuth (PKCE) login + authoritative usage % fetch
-- `accounts.js` — the account list (several subscriptions, one active at a time)
-- `codex.js` — reads Codex's `~/.codex/sessions/**/rollout-*.jsonl` (limits %, tokens, 30-day history) and asks `codex app-server` for the current limits, which other ChatGPT products also spend. Opt-in from Settings (`config.codex.enabled`); with more than one service connected, tabs under the pet pick which one the whole panel shows
-- `cursor.js` — Cursor: usage % from Cursor's (unofficial) dashboard API with the token the Cursor app keeps in its `state.vscdb` (read via `node:sqlite`, `bun:sqlite` in tests), activity from the agent transcripts under `~/.cursor/projects`. Monthly billing cycle, no tokens. Opt-in from Settings (`config.cursor.enabled`)
-- `reminders.js` — persistent, one-shot session reset reminders, keyed by provider and Claude account
-- `renderer/pets.js` + `renderer/pets.css` — the selectable pets beyond the classic sprite (vector SVG drawn in code, grouped in packs) and the holiday rule. The chosen id is `config.pet`
-- `renderer/` — `index.html`, `pet.js`, `style.css` (the pet + UI)
-- `renderer/companion.js` — provider activity transitions, with a shared cooldown
-- `renderer/voice.js` — the pet's voice: remark lines for the speech bubble and the chiptune blips (Web Audio square waves, no assets). Talk is on by default, sound is opt-in (`config.sound`) and silent in menu-bar mode, collapsed, or muted
-- `make-icon.js` — generates the macOS `.icns` from the pixel sprite
-- `make-ico.js` — packs the Windows `.ico` (`build-icon.sh` drives both + the Linux `.png`)
-- `make-tray.js` — generates the menu-bar (tray) template icon from the same sprite
-- `scripts/adhoc-sign.js` — `afterPack` hook: ad-hoc signs the macOS bundle with the real appId, without which macOS silently drops the app's notifications
-- `pet` — dev script to simulate pet states (writes `~/.claude-usage-monitor/debug.json`)
+- `native/` — the app (Rust, eframe/egui, no webview). Everything below under "Native app"
+- `bin/clauddy.js` — the npm launcher: downloads the release build for the OS into `~/.claude-usage-monitor/bin/<version>/` and starts it ([ADR-014](docs/decisions/ADR-014-npm-launches-the-native-app.md)); `test/launcher.test.js` is its test
+- `install.sh` — the macOS installer (latest release into `/Applications`)
+- `.github/workflows/` — `pull_request.yml` (launcher lint and test, native build on 3 OS, fmt, tests on macOS) and `release.yml`
 
 ## Commands
 
 ```bash
-bun start          # dev run
-bun run pack       # build dist/mac-arm64/Clauddy.app
-bun run dist       # macOS zip (used by the release pipeline)
-bun run dist:win   # Windows zip — run on Windows/CI (needs a native runner)
-bun run dist:linux # Linux tar.gz + AppImage (run on Linux/CI)
-bun run icon       # regenerate build/icon.{icns,ico,png} from the sprite
+cd native
+cargo run --release                       # dev run
+CLAUDDY_STATE=fire cargo run --release    # pin a mood: idle, working, fire, tired, sleeping
+cargo fmt                                 # format (native/rustfmt.toml)
+cargo test --release                      # unit tests + snapshot gallery
+UPDATE_SNAPSHOTS=1 cargo test --release   # rewrite the gallery after an intended visual change
+scripts/bundle.sh                         # native/target/Clauddy.app (macOS, app.clauddy.dev)
+scripts/package.sh <version>              # the release artifact for this OS, into dist/
+
+# at the root, for the launcher
+bun install        # Biome, semantic-release, and the pre-commit hook
 bun run check      # Biome format + lint (autofix)
-bun test           # the suite — but prefer `bun run test` (see below)
-bun run test       # all three groups, each in its own process
-bun run test:coverage
-./pet <state>      # simulate a state, e.g. ./pet fire
+bun run test       # the launcher's test
 ```
 
-`./pet <state>` states: `fire`, `sleeping`, `working`, `tired`, `idle`, `poke`, `celebrate`, `say`, `auto`, plus the activity scenes `reading`, `editing`, `running`, `planning`, `researching`, `delegating`, `waiting`.
+> Each platform's app is built on its own runner. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each running `native/scripts/package.sh` with the computed version) → `publish` (downloads every artifact and runs semantic-release for real). Details in [`docs/design/07-releases.md`](docs/design/07-releases.md), [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md) and [ADR-012](docs/decisions/ADR-012-the-native-app-replaces-electron.md).
 
-> Windows/Linux artifacts must be built on their own OS (or CI runner) — electron-builder can't reliably cross-build them from macOS. `release.yml` handles that in three stages: `version` (semantic-release dry-run) → `build` (matrix on macOS/Windows/Linux, each stamping the computed version via `scripts/set-version.js`) → `publish` (downloads every artifact and runs semantic-release for real). Details in [`docs/design/07-releases.md`](docs/design/07-releases.md) and [ADR-010](docs/decisions/ADR-010-build-on-each-platform.md).
+## Native app (Rust)
+
+`native/` is the app (eframe/egui, no webview; [ADR-012](docs/decisions/ADR-012-the-native-app-replaces-electron.md), [design/08-native.md](docs/design/08-native.md)). `cargo test --release` and `cargo build --release` run from `native/`; `cargo fmt` follows `native/rustfmt.toml`, and pull requests check it.
+
+- **Layout**: `src/ui/` holds generic pieces that know nothing about Clauddy (theme, icon, controls, surface, bar, tag, text); `src/components/` holds Clauddy's own pieces (pet, logos, account, service row, meter, status, breakdown, heat map); `src/screens/` holds the compact and expanded layouts; `src/app.rs` is the shell; `src/format.rs` is how numbers and times read. Data: `usage.rs`, `auth.rs`, `accounts.rs`, `poller.rs`. Look in `ui/` and `components/` before writing a piece: it usually exists.
+- **Tokens**: `src/ui/theme.rs`. The raw palette is private to that file; everything else uses `color::*`, `text::*` and `radius::*`. Corners come in three sizes by role: `radius::TAG` (badges), `radius::CONTROL` (buttons, bars, boxes inside the card) and `radius::CARD`; no other radius. A test fails on a raw colour (`Color32::from_*`, `WHITE`, `BLACK`) anywhere else.
+- **Screens** draw only from the `Frame` they get and return `Action`s for the app to apply. They never read the poller, the disk or the clock on their own (`format::now` is pinned in tests).
+- **Snapshots**: `src/screens/snapshots.rs` renders every screen state from fixtures into `native/tests/snapshots/*.png`, and the tests fail when a render drifts. They are the gallery: a new state gets a new case. After an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
+- **Icon**: `native/assets/icon.png` (1024 px, on the macOS template, generated in the pet's art style); `native/scripts/icon.sh` turns it into `native/assets/icon.icns`.
+- **Bundle**: `native/scripts/bundle.sh` builds `native/target/Clauddy.app` (Info.plist, icon, no Dock icon, ad-hoc signed as `app.clauddy.dev`, so a development build never mixes with the installed app). `native/scripts/package.sh <version>` builds what a release ships on the current OS, as `app.clauddy`. Notifications go through UNUserNotificationCenter: at launch the app comes to the front and asks for permission, which macOS shows as its Allow / Don't Allow prompt until answered. The loose binary can't notify, so test them with `open native/target/Clauddy.app`. Never send through NSUserNotificationCenter as well: macOS refuses a bundle id that mixes the two APIs.
+- **Art**: new pet art is generated (Codex `gpt-6-astra`), not drawn in code; Clauddy stays square and blocky like the classic sprite.
 
 ## Tests
 
-`bun run test` — three processes, not plain `bun test`:
+- `cargo test --release` in `native/`: each reader (`usage.rs`, `auth.rs`, `codex.rs`, `cursor.rs`, `reminders.rs`, ...) has its unit tests, and `src/screens/snapshots.rs` is the snapshot gallery. A new state gets a new case.
+- `bun run test` at the root: the launcher.
 
-- `test/unit/` — `usage.js`, `auth.js`, `codex.js`, `cursor.js`, `renderer/burn.js`, `renderer/voice.js`, `renderer/companion.js`, `renderer/pets.js` (no mocks)
-- `test/main/` — `main.js`, with `reminders.js` through it (mocks `electron`, `./usage`, `./auth`, `./codex`, `./cursor`)
-- `test/dom/` — `renderer/pet.js`, `preload.js` (happy-dom)
-
-Split because bun mocks are per-runtime and it loads every test file before running any, so a mock in one file reaches the others. Each group must be run by its own path — `bun test` (or `bun test test/`) globs all three into one process and fails.
-
-`bun run test:coverage` gates: 80% total, 60% per file, and no shipped `.js` without coverage. Runs on every PR.
-
-`pet.js`, `burn.js`, `voice.js`, `companion.js` and `pets.js` end with a `module.exports` guard so one file works as a `<script>` in the widget and as an import in the tests.
-
-> `main.js`'s update path spawns `curl … | bash` — always stub `child_process.spawn`, or it installs over the running app.
+> `updates.rs`'s install path spawns `curl … | bash` — never call `Updater::install` from a test, or it installs over the running app.
 
 ## Data & secrets
 
-- All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json` (OAuth token, mode 600), `config.json` (settings), `debug.json` (simulator), `alerts.json` (which notifications are already armed, so restarts don't repeat them), `reset-reminders.json` (one-shot deadlines and recently delivered reminders), `accounts.json` (the account list + the active one).
-- Extra accounts nest their own `auth.json`/`alerts.json` under `accounts/<id>/`; the first account keeps the top-level paths, so existing installs are untouched. Switching rebinds `auth.setDataDir`, `usage.setClaudeDir` and the alert state — only the active account is polled, so only it can notify.
+- All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json` (OAuth token, mode 600), `config.json` (settings), `alerts.json` (which notifications are already armed, so restarts don't repeat them), `reset-reminders.json` (one-shot deadlines and recently delivered reminders), `accounts.json` (the account list + the active one), `native-ui.json`, `native-voice.json`, `limits-cache.json` (the app's own state), `bin/` (the launcher's downloads).
+- Extra accounts nest their own `auth.json`/`alerts.json` under `accounts/<id>/`; the first account keeps the top-level paths, so existing installs are untouched. Switching rebinds the token, the Claude logs directory and the alert state — only the active account is polled, so only it can notify.
 - **Never commit** `auth.json` or any token/credential. It's gitignored — keep it that way.
 
 ## Code style
 
-- Enforced by Biome: **single quotes**, **no semicolons**, **2-space** indent, LF.
-- Run `bun run check` before committing. A pre-commit hook (`.githooks/pre-commit`) auto-formats staged files and blocks on lint errors; it's wired up on `bun install`.
+- Rust: `cargo fmt` with `native/rustfmt.toml`; pull requests check it.
+- The launcher: Biome, **single quotes**, **no semicolons**, **2-space** indent, LF. A pre-commit hook (`.githooks/pre-commit`) formats staged files and blocks on lint errors; `bun install` wires it up.
 - Match the surrounding style; keep comments short and in English.
 
 ## Documentation
@@ -103,7 +86,7 @@ Examples:
 
 - `feat: add confetti burst on session reset`
 - `fix(auth): use platform.claude.com token endpoint`
-- `chore: bump Electron to 42.4.1`
+- `chore: bump eframe to 0.37`
 - `docs: document the ./pet simulator`
 
 ## Pull requests and commits
@@ -127,20 +110,17 @@ Claude Code as the product Clauddy tracks is fine to name. PR descriptions and c
 
 ## Before finishing a change
 
-1. `bun run check` is clean.
-2. `bun run test:coverage` passes.
-3. `bun run pack` builds successfully (the app still launches).
-4. The design note it touches is updated, and a structural decision has its record.
-5. Commit follows the convention above.
+1. `cargo fmt --check` and `cargo test --release` pass in `native/`, and `native/scripts/bundle.sh` builds an app that launches.
+2. A change to the launcher passes `bun run check` and `bun run test`.
+3. The design note it touches is updated, and a structural decision has its record.
+4. Commit follows the convention above.
 
 ## Companion behavior
 
-- Widget sizes: expanded, compact, and pet-only. `clauddy.size` in localStorage remembers the choice. Pet-only is floating-mode only; hovering over the pet (or focusing it) shows a usage glance above it, drawn as the pet's own speech bubble and placed once per show just over the pet's head, within fixed window bounds, without resizing or moving the window.
-- In pet-only mode, the sprite is a native Electron drag region. The expand button inside the glance opens compact, and so does Enter on the focused pet. Pointer clicks on the sprite do not change size. Main sends window-relative cursor coordinates only in this mode, and only when they change: native drag regions suppress DOM hover events. Keep logo descriptions accessible, without visible activity captions or native title tooltips.
+- Widget sizes: expanded, compact, and pet-only; `native-ui.json` remembers the choice. Pet-only is floating-mode only; hovering over the pet shows a usage glance above it, drawn as the pet's own speech bubble, within the fixed window canvas, without resizing or moving the window. Dragging the pet moves the window; a click on it does not change size, and the expand button inside the glance opens compact.
 - Session reset reminders are explicitly requested, separate from threshold notifications. They run while Clauddy is open and catch up after sleep/restart. They persist before firing, cancel on disconnect/removal, and are account-scoped.
 - A deadline alone does not prove a new budget. Only a fresh, lower reading after that deadline earns “budget is back”; otherwise say the reset time arrived. Codex logs and Cursor fetches can be stale. Never substitute an expired reading with zero.
 - Compact and pet-only moods follow activity across connected providers, independently of the selected usage tab. Logos identify the workers; simultaneous work uses a stable generic working animation. With no active sources, the hottest connected session sets the mood: on fire past the fire threshold, maxed out at 100%, otherwise rest. The logo of the service on fire (or maxed out) takes the status dot's place. Cursor's session is its billing month. An expired Codex or Cursor reading doesn't count. Stale activity and disconnected sources are ignored.
 - Working means an open turn, not a recent write: Claude Code and Cursor write nothing while a command runs or the model thinks. Claude's turn closes on a final answer (`end_turn`, then `system/turn_duration`) or `[Request interrupted by user`; Cursor's on `turn_ended`. Slash commands, `!` shell input, task notices and meta lines open nothing. An open turn untouched for 30 minutes counts as abandoned; a tail that says nothing falls back to the recent-write window.
-- Pets: the classic sprite stays in `#claude`; another pet is drawn inside it as `#skin`, so the mood animations on `#claude` keep working. While working, a pet swaps the shared hop for its own move (`pet-move-*`). Its parts only animate under `#skin`, so Settings thumbnails stay still. Seasonal packs override the saved pick on their days (Halloween 10/31, Christmas 12/24–25), one pet per pack and year, picked by a hash and not stored.
-- Provider cues are a glance of the pet's eyes toward the provider, never a caption. They preserve manual selection and do not claim task completion from inactivity. First reads establish a baseline; cues share a 30-second cooldown.
+- Pets: each is a pair of sprite sheets in the classic sprite's layout (`native/src/components/skins.rs`), with boxes that keep it the same size and baseline across moods ([design/06-pets.md](docs/design/06-pets.md)). Seasonal packs override the saved pick on their days (Halloween 10/31, Christmas 12/24–25), one pet per pack and year, picked by a hash and not stored.
 - `AGENTS.md` is the single source of project instructions.

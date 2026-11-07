@@ -10,8 +10,7 @@
         "assets": [
           { "path": "dist/*-mac-*.zip", "label": "macOS app (Apple Silicon)" },
           { "path": "dist/*-win-*.zip", "label": "Windows app (x64)" },
-          { "path": "dist/*-linux-*.tar.gz", "label": "Linux tarball (x64)" },
-          { "path": "dist/*-linux-*.AppImage", "label": "Linux AppImage (x64)" }
+          { "path": "dist/*-linux-*.tar.gz", "label": "Linux tarball (x64)" }
         ],
         "successComment": false,
         "failComment": false,

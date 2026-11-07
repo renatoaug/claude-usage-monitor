@@ -1,6 +1,6 @@
 # ADR-008: Pets are drawn in code and ship inside the app
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-013
 - **Date**: 2026-10-29
 - **Related**: [design/06-pets.md](../design/06-pets.md), [#65](https://github.com/renatoaug/claude-usage-monitor/issues/65)
 

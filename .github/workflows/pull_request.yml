@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   check:
-    name: Lint, test, coverage
+    name: Launcher · lint and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -32,5 +32,44 @@ jobs:
       - name: Lint
         run: bunx biome ci .
 
-      - name: Test with coverage
-        run: bun run test:coverage
+      - name: Test
+        run: bun run test
+
+  native:
+    name: Native app · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libxdo-dev libayatana-appindicator3-dev
+
+      - name: Format
+        if: runner.os == 'Linux'
+        run: cargo fmt --check
+
+      - name: Build
+        run: cargo build --release
+
+      # the snapshot gallery renders through wgpu, which a macOS runner has
+      - name: Test
+        if: runner.os == 'macOS'
+        run: cargo test --release

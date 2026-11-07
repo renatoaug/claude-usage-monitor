@@ -15,12 +15,12 @@ Work on an issue someone else is already on only after asking in it.
 ## Running it
 
 ```bash
-bun install     # dependencies, and turns on the pre-commit hook
-bun start       # the widget, from source
-./pet fire      # forces a pet state (./pet auto to go back)
+cd native
+cargo run --release                      # the app, from source
+CLAUDDY_STATE=fire cargo run --release   # forces a mood
 ```
 
-[`docs/design/03-setup.md`](docs/design/03-setup.md) has the rest: Node 24, every setting and the simulator's states. [`docs/README.md`](docs/README.md) indexes the other docs.
+[`docs/design/03-setup.md`](docs/design/03-setup.md) has the rest: the Linux build dependencies, every setting and the moods you can force. [`docs/README.md`](docs/README.md) indexes the other docs.
 
 ## Rules and checks
 
@@ -28,15 +28,14 @@ bun start       # the widget, from source
 
 Before a pull request:
 
-1. `bun run check` is clean. The pre-commit hook runs it on the staged files.
-2. `bun run test:coverage` passes: 80% overall, 60% per file, and no file that ships without coverage ([ADR-003](docs/decisions/ADR-003-coverage-counts-every-file.md)). A new file in the app needs its test.
-3. `bun run pack` builds and the app still launches.
+1. `cargo fmt --check` and `cargo test --release` pass in `native/`. A visual change updates the snapshot gallery (`UPDATE_SNAPSHOTS=1 cargo test --release`), and a new state gets a new case.
+2. `native/scripts/bundle.sh` builds an app that launches.
+3. A change to the npm launcher passes `bun run check` and `bun run test`.
 4. A change to how something works updates its note in [`docs/design/`](docs/design/) in the same pull request, and a structural decision gets a record in [`docs/decisions/`](docs/decisions/).
 
-Three things that bite:
+Two things that bite:
 
-- **`bun run test`, never bare `bun test`.** The suite is three processes; bare `bun test` mixes their mocks and fails for reasons unrelated to the change ([ADR-002](docs/decisions/ADR-002-three-test-processes.md)).
-- **`main.js`'s update path runs `curl … | bash`.** A test that reaches `do-update` must stub `child_process.spawn`, or it installs over the app you are running.
+- **Updating runs `curl … | bash`.** Never call `Updater::install` from a test: it installs over the app you are running.
 - **Never commit `auth.json`** or paste its token anywhere: it lives in `~/.claude-usage-monitor/` and is gitignored.
 
 Windows and Linux artifacts build only on their own runners ([ADR-010](docs/decisions/ADR-010-build-on-each-platform.md)); do not try to reproduce them on a Mac.

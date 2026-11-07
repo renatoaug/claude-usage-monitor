@@ -1,6 +1,6 @@
 # 🟫 Clauddy
 
-A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real session and weekly % from your account, the tokens from your local logs, and a pet that works, sleeps and catches fire along with it. It can follow Codex and Cursor too, and you can dress it as a pumpkin, a ghost or Santa.
+A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real session and weekly % from your account, the tokens from your local logs, and a pet that works, sleeps and catches fire along with it. It can follow Codex and Cursor too, and you can dress it as a wizard, Santa or a gingerbread cookie.
 
 <p align="center">
   <a href="#running">📚 Get started</a> ·
@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/be8d339c-ac69-4980-96a7-8e286f8b080f
 
 ## Stack
 
-An Electron widget in vanilla JS, with Bun for the scripts and the tests, and Biome for format and lint.
+A native app in Rust with egui, no browser engine: about 1–2% CPU and a 20 MB app. The `clauddy` command on npm is a small launcher that downloads it.
 
 More details, with every tool and version, in [`docs/design/01-architecture.md`](docs/design/01-architecture.md#stack).
 
@@ -22,7 +22,8 @@ More details, with every tool and version, in [`docs/design/01-architecture.md`]
 
 - macOS on Apple Silicon (the first-class build), Windows x64 or Linux x64
 - [Claude Code](https://claude.com/claude-code), whose logs in `~/.claude/projects` give the token counts; a Claude login, done once in Settings, gives the real %
-- [Bun](https://bun.sh), or Node 24 for `npx`, only to run it without installing or to work on the code
+- [Bun](https://bun.sh), or Node 18+ for `npx`, only to run it with `bunx clauddy`
+- [Rust](https://rustup.rs), only to work on the code
 - Optional: [Codex](https://openai.com/codex) or the [Cursor](https://cursor.com) app on the same machine, to follow them too
 
 ## Running
@@ -44,14 +45,14 @@ bunx clauddy
 ## Test
 
 ```bash
-bun run check            # Biome format and lint (autofix)
-bun run test             # the three test groups, each in its own process
-bun run test:coverage    # the same, failing under 80% overall or 60% per file
-bun run pack             # builds dist/mac-arm64/Clauddy.app
-./pet fire               # forces a pet state in the running widget (./pet auto to go back)
+cd native
+cargo fmt --check                  # formatting
+cargo test --release               # unit tests and the snapshot gallery
+scripts/bundle.sh                  # builds target/Clauddy.app (macOS)
+CLAUDDY_STATE=fire cargo run --release   # forces a mood: idle, working, fire, tired, sleeping
 ```
 
-Never run bare `bun test`: the groups under `test/` must each run in their own process ([ADR-002](docs/decisions/ADR-002-three-test-processes.md)). `bun install` turns on a pre-commit hook that formats the staged files and blocks on lint errors. CI runs the coverage gate on every pull request.
+The snapshot gallery renders every screen state into `native/tests/snapshots/`; after an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites it. At the root, `bun run test` tests the npm launcher, and `bun install` turns on a pre-commit hook that formats it. CI runs all of it on every pull request.
 
 ## Releases
 

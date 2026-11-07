@@ -1,6 +1,6 @@
 # Features
 
-What Clauddy shows and does: the panel, its sizes, the pet's moods and activity scenes, and what the pet says.
+What Clauddy shows and does: the panel, its sizes, the pet's moods and what the pet says.
 
 ## The panel
 
@@ -19,13 +19,14 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 
 | Size | What it is | How to get there |
 |---|---|---|
-| Expanded | The scene, the session, the week and the details | The default; **⤢** or a double-click on the pet from compact |
+| Expanded | The scene, the session, the week and the details | The default; **⤢** from compact |
 | Compact | The pet in a ring of the live session %, or one line per service when more than one is connected | **–** in the title bar |
 | Just the pet | The pet alone, floating; hovering it (or focusing it) shows the usage as the pet's own speech bubble, one bar per service | The pet icon in the compact header (floating mode only) |
 
 - **Drag** the widget anywhere; in pet-only mode drag the pet itself. Enter on the focused pet opens compact.
-- **⚙** opens Settings: **Accounts**, **Alerts** and **Appearance** tabs.
+- **⚙** opens Settings: **Accounts**, **Alerts** and **Appearance** tabs; a dot on it means an update is out.
 - **↗** opens the official Usage page of the service on screen. **×** quits.
+- **Notify at reset**, under the session, arms a one-shot notification for when the session resets ([alerts](05-alerts.md)).
 - The chosen size is remembered.
 
 ### Floating or menu bar
@@ -33,53 +34,20 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 **⚙ Settings → Appearance → Lives in** picks where Clauddy lives:
 
 - **Floating**: the always-on widget in a corner (the default).
-- **Menu bar**: a pet icon in the macOS menu bar with the live session % (🔥 near the limit; with Codex or Cursor too it reads `C 64% · X 28% · Cu 5%`). A click opens the panel as a popover pointing at the icon; a click away closes it; a right-click opens a quick menu. On Windows and Linux the icon lives in the system tray and the % shows in its tooltip.
+- **Menu bar**: a pet icon in the menu bar with the hottest session % beside it (🔥 near the limit). Its menu opens the panel under the icon, switches back to floating or quits; a click away closes the panel, and **–** in its title band hides it. On Windows and Linux the icon lives in the system tray and the % shows in its tooltip.
 
 Switching takes effect at once, with no restart.
 
 ## Moods
 
-<table>
-  <tr>
-    <td align="center"><img src="../media/idle.gif" width="280" alt="idle" /><br /><b>idle</b><br /><sub>breathes and blinks</sub></td>
-    <td align="center"><img src="../media/working.gif" width="280" alt="working" /><br /><b>working</b><br /><sub>hops and eats token coins</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="../media/on-fire.gif" width="280" alt="on fire" /><br /><b>on fire</b><br /><sub>session ≥ 90%: red, shivers, flames</sub></td>
-    <td align="center"><img src="../media/tired.gif" width="280" alt="maxed out" /><br /><b>maxed out</b><br /><sub>session at 100%: drained, slumped, sweating</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="../media/sleeping.gif" width="280" alt="sleeping" /><br /><b>sleeping</b><br /><sub>idle 5+ min: blue zzz and moonlight</sub></td>
-    <td align="center"><img src="../media/poke.gif" width="280" alt="poke" /><br /><b>poke</b><br /><sub>click the pet: squish and hearts</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><img src="../media/celebrate.gif" width="280" alt="celebrate" /><br /><b>celebrate</b><br /><sub>the session resets: jump and confetti</sub></td>
-  </tr>
-</table>
+| | | |
+|---|---|---|
+| ![idle](../../native/tests/snapshots/expanded-idle.png) | ![working](../../native/tests/snapshots/expanded-working-details.png) | ![on fire](../../native/tests/snapshots/compact-urgent.png) |
+| **idle**: breathes and blinks | **working**: types at the desk | **on fire**: session past the fire threshold (90% by default), flames |
 
-Plus a welcome **wave** on launch. The GIFs show the classic sprite; the other pets keep every mood with their own look ([pets](06-pets.md)).
+**Maxed out** (the session at 100%) slumps and sweats, and **sleeping** (idle 5+ minutes) closes its eyes under a "Z z". The pictures come from the snapshot gallery in `native/tests/snapshots/`, which has every state; the other pets have every mood in their own look ([pets](06-pets.md)).
 
-In compact and pet-only sizes the mood follows whichever connected service is working, with provider logos naming the workers. With none active, the hottest session sets the mood: on fire past the fire threshold, maxed out at 100%, resting otherwise; the logo of the service on fire takes the status dot's place. "Working" means a turn is open, not that a file was written recently ([ADR-006](../decisions/ADR-006-working-means-an-open-turn.md)).
-
-### What Claude is up to
-
-While Claude Code works, the pet sets up a small scene that mirrors what it is doing now, read from the last tool it used:
-
-<table>
-  <tr>
-    <td align="center"><img src="../media/reading.gif" width="280" alt="reading" /><br /><b>reading</b><br /><sub>an open book under the lamp</sub></td>
-    <td align="center"><img src="../media/editing.gif" width="280" alt="editing" /><br /><b>editing</b><br /><sub>types at the desk, coffee in reach</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><img src="../media/running.gif" width="280" alt="running" /><br /><b>running</b><br /><sub>watches a task log tick through its checks</sub></td>
-  </tr>
-</table>
-
-**Planning**, **researching**, **delegating** and **waiting** show in the status line. When Claude goes quiet the pet goes back to plain working or idle.
-
-### Provider reactions
-
-When a service's activity changes, the pet's eyes glance toward it, with no caption. The glance never changes the selected service, and glances share a 30-second cooldown. A first reading only sets the baseline, and going quiet counts as a pause, not a finished task.
+In compact and pet-only sizes the mood follows whichever connected service is working, with provider logos naming the workers. With none active, the hottest session sets the mood: on fire past the fire threshold, maxed out at 100%, resting otherwise; the logo of the service on fire takes the status dot's place. "Working" means a turn is open, not that a file was written recently ([ADR-006](../decisions/ADR-006-working-means-an-open-turn.md)). What Claude is doing (reading, editing, running, planning, researching, delegating, waiting) shows in the status line.
 
 ## The pet talks
 
@@ -101,10 +69,9 @@ The greeting follows the clock (_Good morning_, _Good afternoon_, _Good evening_
 
 ### The voice
 
-Optionally the pet **blips** as it talks: short chiptune notes, one per letter, made live with Web Audio (square waves, no sound files). Faster and higher on fire, slower and lower when sleepy. Only the headline moments blip (the ✓ rows), because a sound on every remark wears out fast.
+Optionally the pet **blips** as it talks: short chiptune notes, one per letter, made live (square waves, no sound files). macOS only for now. Faster and higher on fire, slower and lower when sleepy. Only the headline moments blip (the ✓ rows), because a sound on every remark wears out fast.
 
 - **Off by default.** **⚙ Settings → Appearance → Chiptune voice** turns it on and plays a sample.
-- **One-click mute.** While the voice is on, a 🔊 button in the title bar mutes it for an hour.
-- **Always silent** in menu-bar mode and while the pet is minimized.
+- **Always silent** in menu-bar mode and outside the expanded size.
 
-**Speech bubbles** can be turned off in the same place. `bunx clauddy say <kind>` plays any remark ([setup](03-setup.md#play-with-the-pet)).
+**Speech bubbles** can be turned off in the same place.
