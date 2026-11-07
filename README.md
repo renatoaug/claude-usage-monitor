@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/be8d339c-ac69-4980-96a7-8e286f8b080f
 
 ## Stack
 
-A native app in Rust with egui, no browser engine: about 1% CPU at rest and a 13 MB app. The `clauddy` command on npm is a small launcher that downloads it.
+A native app in Rust with egui, no browser engine: about 1–2% CPU and a 20 MB app. The `clauddy` command on npm is a small launcher that downloads it.
 
 More details, with every tool and version, in [`docs/design/01-architecture.md`](docs/design/01-architecture.md#stack).
 
