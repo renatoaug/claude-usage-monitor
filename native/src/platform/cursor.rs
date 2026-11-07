@@ -9,7 +9,6 @@
 use eframe::egui::{Context, Rect};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 #[derive(Clone)]
 pub struct Watch {
@@ -30,7 +29,7 @@ impl Watch {
                 .spawn(move || {
                     loop {
                         if !t.on.load(Ordering::Relaxed) {
-                            std::thread::sleep(Duration::from_millis(200));
+                            std::thread::sleep(std::time::Duration::from_millis(200));
                             continue;
                         }
                         let at = mac::cursor(height);
@@ -38,7 +37,7 @@ impl Watch {
                         if t.inside.swap(inside, Ordering::Relaxed) != inside {
                             ctx.request_repaint();
                         }
-                        std::thread::sleep(Duration::from_millis(40));
+                        std::thread::sleep(std::time::Duration::from_millis(40));
                     }
                 })
                 .expect("cursor thread");

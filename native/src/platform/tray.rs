@@ -59,8 +59,13 @@ impl Tray {
         let (open, floating, quit) =
             (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit Clauddy", true, None));
         let menu = build_menu(&[], &open, &floating, &quit)?;
-        let icon = TrayIconBuilder::new()
-            .with_icon_templated(decode(ICON)?)
+        let builder = TrayIconBuilder::new();
+        // macOS tints a template icon for the menu bar's theme
+        #[cfg(target_os = "macos")]
+        let builder = builder.with_icon_templated(decode(ICON)?);
+        #[cfg(not(target_os = "macos"))]
+        let builder = builder.with_icon(decode(ICON)?);
+        let icon = builder
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(true)
             .with_tooltip("Clauddy")

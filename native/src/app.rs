@@ -200,7 +200,15 @@ impl App {
         for a in actions {
             match a {
                 Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-                Action::Resize(s) => self.view.size = s,
+                Action::Resize(s) => {
+                    // from Settings, minimize and pet-only leave it the way Cancel does
+                    if self.view.settings.take().is_some() {
+                        self.draft = self.prefs.clone();
+                        self.view.pet_picker = false;
+                        self.view.account_menu = false;
+                    }
+                    self.view.size = s;
+                }
                 Action::OpenUsagePage => open_url("https://claude.ai/settings/usage"),
                 Action::ToggleDetails => self.view.details = !self.view.details,
                 Action::ToggleModels => self.view.models = !self.view.models,
