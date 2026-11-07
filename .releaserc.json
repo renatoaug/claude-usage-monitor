@@ -1,16 +1,35 @@
 {
   "branches": ["main"],
   "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
     "@semantic-release/npm",
     [
       "@semantic-release/github",
       {
         "assets": [
-          { "path": "dist/*-mac-*.zip", "label": "macOS app (Apple Silicon)" },
-          { "path": "dist/*-win-*.zip", "label": "Windows app (x64)" },
-          { "path": "dist/*-linux-*.tar.gz", "label": "Linux tarball (x64)" }
+          {
+            "path": "dist/*-mac-*.zip",
+            "label": "macOS app (Apple Silicon)"
+          },
+          {
+            "path": "dist/*-win-*.zip",
+            "label": "Windows app (x64)"
+          },
+          {
+            "path": "dist/*-linux-*.tar.gz",
+            "label": "Linux tarball (x64)"
+          }
         ],
         "successComment": false,
         "failComment": false,
