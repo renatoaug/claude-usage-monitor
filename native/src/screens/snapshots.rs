@@ -545,6 +545,26 @@ fn gingerbread_compact_on_fire() {
 }
 
 #[test]
+fn pumpkin_expanded_working() {
+    render(Case { name: "pumpkin-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn pumpkin_compact_on_fire() {
+    render(Case { name: "pumpkin-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn astronaut_expanded() {
+    render(Case { name: "astronaut-expanded", snap: pet_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn astronaut_pet_only() {
+    render(Case { name: "astronaut-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
 fn settings_picking_a_pet() {
     let draft = Prefs { pet: "wizard".into(), ..Prefs::default() };
     render_with(

@@ -146,6 +146,8 @@ pub mod color {
     pub const MENU: Color32 = CLAY_700;
     pub const MENU_EDGE: Color32 = white(20);
     pub const MENU_HOVER: Color32 = white(12);
+    /// dims the card under a modal
+    pub const SCRIM: Color32 = rgba(0, 0, 0, 0x99);
     pub const ADD: Color32 = CORAL_350;
     pub const FIELD: Color32 = white(8);
     pub const FIELD_EDGE: Color32 = white(24);

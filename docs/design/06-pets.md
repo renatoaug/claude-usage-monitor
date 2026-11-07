@@ -4,13 +4,13 @@ The pets Clauddy can wear besides the classic sprite: the catalog and its packs,
 
 ## Overview
 
-**⚙ Settings → Appearance → pet** shows the current pet and **Change**, which opens a picker with each pet's idle pose. A pick previews at once; **Save** keeps it as `config.pet`, **Cancel** puts the saved one back. An unknown id falls back to the classic sprite and is kept in `config.json` as it was.
+**⚙ Settings → Appearance → pet** shows the current pet and **Change**, which opens a modal over the card with each pet's idle pose. A pick previews at once and closes it (so do Esc, ✕ and a click outside); **Save** keeps it as `config.pet`, **Cancel** puts the saved one back. An unknown id falls back to the classic sprite and is kept in `config.json` as it was.
 
 | Pack | Pets | Its days |
 |---|---|---|
-| Everyday | Clauddy (the classic sprite), Wizard | — |
+| Everyday | Clauddy (the classic sprite), Wizard, Astronaut | — |
 | Christmas | Santa, Reindeer, Gingerbread | December 24 and 25 |
-| Halloween | none yet | October 31 |
+| Halloween | Pumpkin | October 31 |
 
 ![The pet picker](../../native/tests/snapshots/settings-pet-picker.png)
 
@@ -29,7 +29,7 @@ On a pack's days, one of its pets takes over ([ADR-009](../decisions/ADR-009-hol
 
 - **One per pack and year**, chosen by a hash of the year and the pack, so the pick holds all day and across restarts without being stored, and changes from year to year.
 - The pet is chosen again every frame, so the switch happens at midnight with the app open.
-- The saved pick is untouched and comes back the next day. A pack with no pets leaves the saved pick alone.
+- The saved pick is untouched and comes back the next day. A pack with no pets would leave the saved pick alone.
 
 ## Adding a pet
 

@@ -55,6 +55,17 @@ pub const SKINS: &[Skin] = &[
         stand_box: [0.059, 0.07, 0.852, 0.828],
     },
     Skin {
+        id: "astronaut",
+        name: "Astronaut",
+        pack: "everyday",
+        working: include_bytes!("../../assets/astronaut-working.png"),
+        moods: include_bytes!("../../assets/astronaut-moods.png"),
+        work_box: [0.047, 0.039, 0.961, 0.934],
+        fire_box: [0.09, 0.062, 0.898, 0.883],
+        // the helmet and the backpack stand with it
+        stand_box: [0.164, 0.172, 0.891, 0.848],
+    },
+    Skin {
         id: "santa",
         name: "Santa",
         pack: "christmas",
@@ -84,6 +95,16 @@ pub const SKINS: &[Skin] = &[
         work_box: [0.047, 0.145, 0.965, 0.938],
         fire_box: [0.082, 0.062, 0.91, 0.816],
         stand_box: [0.121, 0.238, 0.875, 0.793],
+    },
+    Skin {
+        id: "pumpkin",
+        name: "Pumpkin",
+        pack: "halloween",
+        working: include_bytes!("../../assets/pumpkin-working.png"),
+        moods: include_bytes!("../../assets/pumpkin-moods.png"),
+        work_box: [0.047, 0.109, 0.969, 0.934],
+        fire_box: [0.082, 0.0, 0.91, 0.785],
+        stand_box: [0.176, 0.16, 0.93, 0.785],
     },
 ];
 
@@ -140,9 +161,8 @@ mod tests {
     }
 
     #[test]
-    fn a_pack_without_pets_leaves_the_choice_alone() {
-        let halloween = SKINS.iter().any(|s| s.pack == "halloween");
-        assert_eq!(seasonal(2026, 10, 31).is_some(), halloween);
+    fn halloween_brings_the_pumpkin_and_other_days_nothing() {
+        assert_eq!(seasonal(2026, 10, 31).unwrap().id, "pumpkin");
         assert!(seasonal(2026, 11, 6).is_none());
     }
 
