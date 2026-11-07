@@ -56,6 +56,8 @@ A pet is a pair of sprite sheets listed in `src/components/skins.rs`; the catalo
 
 The same as the Electron app's, in `~/.claude-usage-monitor/`: `config.json` (only the keys the native app edits are rewritten), `accounts.json`, `auth.json` and `alerts.json` per account, `reset-reminders.json`. Its own: `native-ui.json` (size, open sections, the service shown), `native-voice.json` (once-a-day remarks), and `limits-cache.json` per account (the last reading and the polling schedule).
 
+What only the Electron app used goes at launch (`platform/leftovers.rs`): its Chromium profile under the OS's app-data folder (`clauddy`, and the earlier `claude-usage-monitor` and `claude-usage-pet`; a folder by those names that isn't a Chromium profile stays), and `window.json`, `debug.json`, `icon.png` and `electron/` in the data dir. The released app does it; a development build leaves them, so the upgrade from Electron can still be tried.
+
 ## Tests
 
 `cargo test --release` in `native/` runs the unit tests (each reader is a port of its JS module and of its tests) and the snapshot gallery: `src/screens/snapshots.rs` renders every screen state into `native/tests/snapshots/*.png` and fails when a render drifts. After an intended change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
