@@ -19,7 +19,7 @@
       {
         "assets": [
           {
-            "path": "dist/*-mac-*.zip",
+            "path": "dist/*-arm64-mac.zip",
             "label": "macOS app (Apple Silicon)"
           },
           {
