@@ -1,4 +1,4 @@
-// Line glyphs (lucide's, as the Electron controls used) drawn as strokes in a
+// Line glyphs (lucide's) drawn as strokes in a
 // 24-unit box.
 
 use eframe::egui::{Color32, Painter, Pos2, Shape, Stroke, Vec2};

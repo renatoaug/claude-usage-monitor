@@ -1,6 +1,6 @@
 # ADR-002: The tests run as three processes
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-014
 - **Date**: 2026-08-15
 - **Related**: [design/01-architecture.md](../design/01-architecture.md#tests)
 

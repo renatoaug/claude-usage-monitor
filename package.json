@@ -1,38 +1,18 @@
 {
   "name": "clauddy",
-  "desktopName": "clauddy.desktop",
   "version": "0.1.0",
-  "description": "A cute desktop pet that tracks your Claude Code usage",
-  "main": "main.js",
+  "description": "A desktop pet that tracks your Claude Code usage",
   "bin": {
     "clauddy": "bin/clauddy.js"
   },
   "files": [
-    "bin",
-    "main.js",
-    "preload.js",
-    "usage.js",
-    "auth.js",
-    "accounts.js",
-    "codex.js",
-    "cursor.js",
-    "reminders.js",
-    "config.json",
-    "renderer"
+    "bin"
   ],
   "scripts": {
-    "start": "electron .",
-    "pack": "node scripts/build-app.js --dir",
-    "dist": "node scripts/build-app.js --mac zip --publish never",
-    "dist:win": "node scripts/build-app.js --win zip --publish never",
-    "dist:linux": "node scripts/build-app.js --linux --publish never",
-    "icon": "bash build-icon.sh",
-    "gifs": "electron tools/capture/capture.js",
-    "test": "bun test test/unit/ && bun test test/main/ && bun test test/dom/",
-    "test:coverage": "node scripts/check-coverage.js",
-    "format": "biome format --write .",
-    "lint": "biome lint .",
+    "test": "bun test test/",
     "check": "biome check --write .",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "author": "Renato",
@@ -51,7 +31,6 @@
     "usage",
     "monitor",
     "desktop-pet",
-    "electron",
     "macos",
     "menubar",
     "widget"
@@ -61,62 +40,10 @@
   },
   "packageManager": "bun@1.3.14",
   "engines": {
-    "node": ">=24"
-  },
-  "build": {
-    "appId": "app.clauddy",
-    "afterPack": "scripts/adhoc-sign.js",
-    "productName": "Clauddy",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "usage.js",
-      "auth.js",
-      "accounts.js",
-      "codex.js",
-      "cursor.js",
-      "reminders.js",
-      "config.json",
-      "renderer/**",
-      "build/trayTemplate.png",
-      "build/trayTemplate@2x.png",
-      "build/trayColor.png",
-      "build/trayColor@2x.png",
-      "build/icon.png"
-    ],
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": "dir",
-      "identity": null,
-      "icon": "build/icon.icns",
-      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
-    },
-    "win": {
-      "target": "zip",
-      "icon": "build/icon.ico",
-      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
-    },
-    "linux": {
-      "target": [
-        "tar.gz",
-        "AppImage"
-      ],
-      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
-      "category": "Utility",
-      "icon": "build/icon.png",
-      "syncDesktopName": true
-    }
-  },
-  "dependencies": {
-    "electron": "^42.4.1"
+    "node": ">=18"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
-    "@happy-dom/global-registrator": "^20.11.2",
-    "electron-builder": "^26.15.3",
-    "semantic-release": "^25.0.5"
+    "@biomejs/biome": "^2.6.6",
+    "semantic-release": "^25.0.9"
   }
 }

@@ -1,4 +1,4 @@
-// Provider logos (the same glyphs the Electron widget uses), rasterized once
+// Provider logos, rasterized once
 // at start-up into white masks and tinted when drawn.
 
 use eframe::egui::{self, Color32, ColorImage, Rect, TextureHandle, TextureOptions};

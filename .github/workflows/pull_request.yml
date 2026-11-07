@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   check:
-    name: Lint, test, coverage
+    name: Launcher · lint and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -32,8 +32,8 @@ jobs:
       - name: Lint
         run: bunx biome ci .
 
-      - name: Test with coverage
-        run: bun run test:coverage
+      - name: Test
+        run: bun run test
 
   native:
     name: Native app · ${{ matrix.os }}

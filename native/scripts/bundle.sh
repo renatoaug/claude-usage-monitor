@@ -10,7 +10,7 @@ set -euo pipefail
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" # cargo on PATH in a plain shell too
 cd "$(dirname "$0")/.."
 
-ID="${BUNDLE_ID:-app.clauddy.dev}" # its own id until it replaces the Electron app
+ID="${BUNDLE_ID:-app.clauddy.dev}" # a dev build never mixes with the installed app.clauddy
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 APP=target/Clauddy.app
 

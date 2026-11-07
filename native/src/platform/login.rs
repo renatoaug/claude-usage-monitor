@@ -1,4 +1,4 @@
-// Open at login, as the Electron app does, for the released app only: a
+// Open at login, for the released app only: a
 // development build (its own bundle id, or a binary under target/) never
 // adds itself.
 

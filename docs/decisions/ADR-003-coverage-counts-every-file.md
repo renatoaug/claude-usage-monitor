@@ -1,6 +1,6 @@
 # ADR-003: The coverage gate counts every file that ships
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-014
 - **Date**: 2026-08-15
 - **Related**: `scripts/check-coverage.js`
 

@@ -5,7 +5,7 @@ use eframe::egui::{Painter, Pos2, Rect, Vec2};
 
 use crate::ui::theme::color;
 
-// drawn in a 216 x 135 box stretched to the pane, as the Electron SVG was
+// drawn in a 216 x 135 box stretched to the pane
 const BOX: Vec2 = Vec2::new(216.0, 135.0);
 const STARS: [(f32, f32); 8] = [(100., 16.), (60., 22.), (150., 100.), (196., 56.), (205., 98.), (128., 26.), (182., 22.), (202., 14.)];
 

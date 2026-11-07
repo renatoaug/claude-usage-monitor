@@ -1,9 +1,9 @@
-// The notifications Clauddy sends on its own. Port of the Electron rules:
+// The notifications Clauddy sends on its own:
 //
 // - a limit crossing a threshold (80% and 95% by default) notifies once;
 //   only the highest threshold makes a sound;
 // - an alert re-arms when usage drops back below it, and what is armed is
-//   kept in alerts.json (the Electron app's file, per account), so a relaunch
+//   kept in alerts.json (the same file older versions wrote, per account), so a relaunch
 //   at 85% doesn't repeat the 80% alert;
 // - changing the thresholds re-arms everything;
 // - a session pushed past 80% that rolls over to ~0 says the budget is back;
@@ -123,8 +123,7 @@ fn reset_line(reset_ms: Option<i64>, session: bool) -> String {
     if session && ms > 0 { format!("{} left · {at}", countdown(ms)) } else { at }
 }
 
-/// Ask macOS, once, for permission to notify, the way the Electron app
-/// does: through UNUserNotificationCenter, with the app in front so macOS
+/// Ask macOS, once, for permission to notify: through UNUserNotificationCenter, with the app in front so macOS
 /// shows its Allow / Don't Allow dialog in the middle of the screen. After
 /// an answer macOS remembers it and this returns at once. Call on the main
 /// thread at launch.

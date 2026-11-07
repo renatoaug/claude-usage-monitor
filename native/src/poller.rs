@@ -23,7 +23,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// ~/.claude-usage-monitor/config.json, the file the Electron app writes.
+    /// ~/.claude-usage-monitor/config.json.
     pub fn load() -> Self {
         let path = crate::auth::default_data_dir().join("config.json");
         let raw: Value = std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null);
@@ -105,7 +105,7 @@ pub fn spawn(ctx: egui::Context, settings: Settings) -> (Shared, Sender<Command>
 // The account's % only moves when tokens are spent, and the local logs show
 // that within a poll. So ask when the session's tokens grew, but never more
 // than once per 90 s; otherwise a heartbeat every 5 min. A 429 doubles the
-// heartbeat, up to 30 min. (The Electron app's policy.)
+// heartbeat, up to 30 min.
 const FLOOR_MS: i64 = 90_000;
 const HEARTBEAT_MS: i64 = 5 * 60_000;
 const MAX_BACKOFF_MS: i64 = 30 * 60_000;
@@ -546,7 +546,7 @@ impl Worker {
     }
 
     /// The account's real % when there's a reading still in force, else the
-    /// local estimate (as the Electron app did).
+    /// local estimate.
     fn scopes(&self, reading: &usage::Usage) -> Vec<Scope> {
         let now = now_ms();
         let live = |w: &crate::auth::Window, at: i64| -> Option<(f64, Option<i64>)> {

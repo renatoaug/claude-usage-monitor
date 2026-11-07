@@ -46,8 +46,8 @@ The first records were written after the fact, from the code and the pull reques
 | Record | Title | Status |
 |---|---|---|
 | [ADR-001](ADR-001-percent-from-the-account.md) | The % comes from the account, the tokens from the local logs | Accepted |
-| [ADR-002](ADR-002-three-test-processes.md) | The tests run as three processes | Accepted |
-| [ADR-003](ADR-003-coverage-counts-every-file.md) | The coverage gate counts every file that ships | Accepted |
+| [ADR-002](ADR-002-three-test-processes.md) | The tests run as three processes | Superseded by ADR-014 |
+| [ADR-003](ADR-003-coverage-counts-every-file.md) | The coverage gate counts every file that ships | Superseded by ADR-014 |
 | [ADR-004](ADR-004-codex-and-cursor-are-opt-in.md) | Codex and Cursor are opt-in and read-only | Accepted |
 | [ADR-005](ADR-005-burn-rate-on-tokens.md) | The burn rate is fitted on tokens and anchored on the account % | Accepted |
 | [ADR-006](ADR-006-working-means-an-open-turn.md) | Working means an open turn, not a recent write | Accepted |
@@ -58,3 +58,4 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-011](ADR-011-codex-limits-from-the-app-server.md) | Codex limits come from its app-server | Accepted |
 | [ADR-012](ADR-012-the-native-app-replaces-electron.md) | The native app replaces the Electron one | Accepted |
 | [ADR-013](ADR-013-pets-are-generated-sprite-sheets.md) | Pets are generated sprite sheets | Accepted |
+| [ADR-014](ADR-014-npm-launches-the-native-app.md) | The npm package launches the native app, and the Electron code is gone | Accepted |

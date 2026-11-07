@@ -1,6 +1,6 @@
 # The native app
 
-How the app in `native/` is built: Rust with eframe/egui, no webview ([ADR-012](../decisions/ADR-012-the-native-app-replaces-electron.md)). It reads and writes the same files as the Electron app, so the notes on [usage](04-usage.md) and [alerts](05-alerts.md) hold for both; this note covers what is particular to it.
+How the app in `native/` is built: Rust with eframe/egui, no webview ([ADR-012](../decisions/ADR-012-the-native-app-replaces-electron.md)). It reads and writes the same files the Electron app did, so an upgrade keeps every setting and account. The notes on [usage](04-usage.md) and [alerts](05-alerts.md) say where the numbers come from and when it notifies; this note covers how the app is built.
 
 ## Overview
 
@@ -17,7 +17,7 @@ flowchart LR
     poller --> notes["notifications"]
 ```
 
-- **The poller** (`poller.rs`) reads the Claude logs (`usage.rs`), the account's % (`auth.rs`, on the Electron app's schedule), Codex (`codex.rs`) and Cursor (`cursor.rs`), checks the alerts (`alerts.rs`) and the reset reminders (`reminders.rs`), and publishes a `Snapshot`. Commands from the window (switch account, log in, save settings, arm a reminder) reach it over a channel and are answered at once, followed by a fresh poll.
+- **The poller** (`poller.rs`) reads the Claude logs (`usage.rs`), the account's % (`auth.rs`), Codex (`codex.rs`) and Cursor (`cursor.rs`), checks the alerts (`alerts.rs`) and the reset reminders (`reminders.rs`), and publishes a `Snapshot`. Commands from the window (switch account, log in, save settings, arm a reminder) reach it over a channel and are answered at once, followed by a fresh poll.
 - **The app** (`app.rs`) holds what is on screen: the size, the open tab, the settings draft, the speech bubble. Each frame it builds a `Frame` from the latest snapshot and hands it to the screen.
 - **The screens** (`screens/`) draw only from the `Frame` and return `Action`s for the app to apply. They never read the poller, the disk or the clock on their own, which is what lets the snapshot gallery render every state from fixtures.
 
@@ -44,9 +44,7 @@ A hidden window gets no frames, so anything that must happen while it is hidden 
 
 ## Pets
 
-A pet is a pair of sprite sheets in Clauddy's layout, working (4 × 2) and moods (4 × 4), listed in `src/components/skins.rs` with where the art sits in each frame ([ADR-013](../decisions/ADR-013-pets-are-generated-sprite-sheets.md)). Settings > Appearance > Change opens a picker with each pet's idle pose; the choice is `config.json`'s `pet`, previewed while Settings is open. On a pack's days (Halloween, Christmas) one of its pets takes over, picked by a hash of the year, as in the Electron app; a pack with no native pets yet leaves the choice alone.
-
-To add a pet: generate both sheets from `assets/working-sheet.png` and `assets/moods-sheet.png` as reference (same frames, same size and position), clear the flat background, resize to 1024 × 512 and 1024 × 1024, measure the art's box per row, and add a `Skin`. A snapshot case shows it in every size.
+A pet is a pair of sprite sheets listed in `src/components/skins.rs`; the catalog, the holiday rule and how to add one are in [pets](06-pets.md).
 
 ## Notifications, login and updates
 
@@ -56,7 +54,7 @@ To add a pet: generate both sheets from `assets/working-sheet.png` and `assets/m
 
 ## Files
 
-Shared with the Electron app, in `~/.claude-usage-monitor/`: `config.json` (only the keys the native app edits are rewritten), `accounts.json`, `auth.json` and `alerts.json` per account, `reset-reminders.json`. Its own: `native-ui.json` (size, open sections, the service shown), `native-voice.json` (once-a-day remarks), and `limits-cache.json` per account (the last reading and the polling schedule).
+The same as the Electron app's, in `~/.claude-usage-monitor/`: `config.json` (only the keys the native app edits are rewritten), `accounts.json`, `auth.json` and `alerts.json` per account, `reset-reminders.json`. Its own: `native-ui.json` (size, open sections, the service shown), `native-voice.json` (once-a-day remarks), and `limits-cache.json` per account (the last reading and the polling schedule).
 
 ## Tests
 

@@ -1,6 +1,6 @@
 // The settings people change, kept in ~/.claude-usage-monitor/config.json,
-// the file the Electron app writes too. Saving rewrites only these keys, so
-// everything else in it (budgets, notes, the Electron-only keys) is left as it was.
+// shared with older versions. Saving rewrites only these keys, so everything
+// else in it (budgets, notes, keys only older versions read) is left as it was.
 
 use serde_json::{Value, json};
 
@@ -24,7 +24,7 @@ pub struct Prefs {
     pub talk: bool,
     /// the chiptune blips (opt-in)
     pub sound: bool,
-    /// a mute in force until then (epoch ms); the Electron app sets it
+    /// a mute in force until then (epoch ms)
     pub muted_until: i64,
     /// the pet picked in Settings (a seasonal one may take over on its days)
     pub pet: String,
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn saving_keeps_every_other_key() {
-        // a pet only the Electron app draws is kept as it was, not reset
+        // a pet this version doesn't have is kept as it was, not reset
         let mut v = json!({"plan": "max5x", "pet": "pumpkin", "fireThreshold": 90});
         Prefs { fire: 75, ..Prefs::from_value(&v) }.merge_into(&mut v);
         assert_eq!(v["fireThreshold"], 75);

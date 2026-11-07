@@ -1,87 +1,90 @@
 #!/usr/bin/env node
 
-// `clauddy`            → launch the widget (spawns Electron on main.js)
-// `clauddy <state>`    → poke the running widget for fun/demo (writes the state
-//                        to the data dir the app watches; the app reacts live)
-const path = require('node:path')
+// `clauddy` launches the native app (native/, Rust). The first run of each
+// version downloads that version's release build for this OS into
+// ~/.claude-usage-monitor/bin/<version>/; later runs open it straight away.
+// The app runs on its own: this launcher exits as soon as it has started it.
 const fs = require('node:fs')
 const os = require('node:os')
+const path = require('node:path')
+const { spawn, execFileSync } = require('node:child_process')
 
-// same data dir the app uses (respects CLAUDE_CONFIG_DIR for multi-account)
-const dataDir = process.env.CLAUDE_CONFIG_DIR
-  ? path.join(process.env.CLAUDE_CONFIG_DIR, 'usage-monitor')
-  : path.join(os.homedir(), '.claude-usage-monitor')
+const REPO = 'renatoaug/claude-usage-monitor'
 
-const STATES = [
-  'fire',
-  'sleeping',
-  'working',
-  'tired',
-  'idle',
-  'poke',
-  'celebrate',
-  'say',
-  'auto',
-  'clear',
-  // activity states (what Claude Code is doing)
-  'editing',
-  'reading',
-  'planning',
-  'running',
-  'researching',
-  'delegating',
-  'waiting',
-]
-// `clauddy say <kind>` previews one of the pet's remarks
-const REMARKS = [
-  'greeting',
-  'fire',
-  'reset',
-  'maxed',
-  'welcome',
-  'streak',
-  'record',
-  'codex',
-  'cursor',
-]
-const arg = process.argv[2]
-const kind = arg === 'say' ? process.argv[3] || 'greeting' : undefined
-
-if (!arg) {
-  // no argument → launch the app
-  const { spawn } = require('node:child_process')
-  const electron = require('electron')
-  const child = spawn(electron, [path.join(__dirname, '..', 'main.js')], { stdio: 'inherit' })
-  child.on('close', (code) => process.exit(code ?? 0))
-} else if (arg === '--help' || arg === '-h') {
-  console.log(
-    [
-      'clauddy — a cute desktop pet that tracks your Claude Code usage',
-      '',
-      'Usage:',
-      '  clauddy            launch the widget',
-      '  clauddy <state>    poke the running widget (just for fun)',
-      '  clauddy say [kind] make the pet say one of its remarks',
-      '',
-      'States: fire, sleeping, working, tired, idle, poke, celebrate, auto',
-      `Remarks: ${REMARKS.join(', ')}`,
-      '(the widget must be running for a state to show)',
-    ].join('\n'),
-  )
-} else if (kind && !REMARKS.includes(kind)) {
-  console.error(`clauddy: unknown remark "${kind}"`)
-  console.error(`try: ${REMARKS.join(', ')}`)
-  process.exit(1)
-} else if (STATES.includes(arg)) {
-  // write the state for the running app to pick up
-  fs.mkdirSync(dataDir, { recursive: true })
-  fs.writeFileSync(
-    path.join(dataDir, 'debug.json'),
-    `${JSON.stringify({ state: arg, kind, t: Date.now() })}\n`,
-  )
-  console.log(`clauddy → ${arg}${kind ? ` ${kind}` : ''} (the running widget will react)`)
-} else {
-  console.error(`clauddy: unknown command "${arg}"`)
-  console.error('try: fire, sleeping, working, tired, idle, poke, celebrate, auto — or --help')
-  process.exit(1)
+// the release asset for an OS, and the file inside it to start
+function assetFor(platform, arch, version) {
+  if (platform === 'darwin' && arch === 'arm64')
+    return { file: `Clauddy-${version}-arm64-mac.zip`, app: 'Clauddy.app' }
+  if (platform === 'win32' && arch === 'x64')
+    return { file: `Clauddy-${version}-win-x64.zip`, app: 'Clauddy.exe' }
+  if (platform === 'linux' && arch === 'x64')
+    return { file: `Clauddy-${version}-linux-x64.tar.gz`, app: path.join('Clauddy', 'clauddy') }
+  return undefined
 }
+
+function dataDir() {
+  return process.env.CLAUDE_CONFIG_DIR
+    ? path.join(process.env.CLAUDE_CONFIG_DIR, 'usage-monitor')
+    : path.join(os.homedir(), '.claude-usage-monitor')
+}
+
+async function install(asset, version, dir) {
+  const url = `https://github.com/${REPO}/releases/download/v${version}/${asset.file}`
+  console.log(`clauddy: downloading ${asset.file}…`)
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`download failed (${res.status}): ${url}`)
+  const tmp = `${dir}.tmp`
+  fs.rmSync(tmp, { recursive: true, force: true })
+  fs.mkdirSync(tmp, { recursive: true })
+  const archive = path.join(tmp, asset.file)
+  fs.writeFileSync(archive, Buffer.from(await res.arrayBuffer()))
+  // ditto keeps the app bundle's signature; tar reads zips on Windows 10+
+  if (process.platform === 'darwin') execFileSync('ditto', ['-x', '-k', archive, tmp])
+  else execFileSync('tar', ['-xf', archive, '-C', tmp])
+  fs.rmSync(archive)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.renameSync(tmp, dir)
+}
+
+// older versions' builds are dead weight once a newer one is in
+function prune(root, keep) {
+  for (const name of fs.readdirSync(root)) {
+    if (name !== keep) fs.rmSync(path.join(root, name), { recursive: true, force: true })
+  }
+}
+
+async function main() {
+  const arg = process.argv[2]
+  if (arg === '--help' || arg === '-h') {
+    console.log(
+      'clauddy — a desktop pet that tracks your Claude Code usage\n\nUsage:\n  clauddy    launch the app',
+    )
+    return
+  }
+  const { version } = require('../package.json')
+  const asset = assetFor(process.platform, process.arch, version)
+  if (!asset) {
+    console.error(
+      `clauddy: no build for ${process.platform}-${process.arch} (macOS arm64, Windows x64, Linux x64)`,
+    )
+    process.exit(1)
+  }
+  const root = path.join(dataDir(), 'bin')
+  const dir = path.join(root, version)
+  const app = path.join(dir, asset.app)
+  if (!fs.existsSync(app)) {
+    await install(asset, version, dir)
+    prune(root, version)
+  }
+  const [cmd, args] = process.platform === 'darwin' ? ['open', [app]] : [app, []]
+  spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref()
+}
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(`clauddy: ${e.message}`)
+    process.exit(1)
+  })
+}
+
+module.exports = { assetFor }

@@ -49,7 +49,7 @@ body:
       options:
         - install.sh (the one-line installer)
         - bunx clauddy / npx clauddy
-        - Downloaded zip / AppImage / tar.gz
+        - Downloaded zip / tar.gz
         - Built from source
     validations:
       required: true

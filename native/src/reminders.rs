@@ -1,6 +1,6 @@
 // One-shot reset reminders, asked for by hand and separate from the
-// threshold alerts. Port of reminders.js; the file is the Electron app's
-// `reset-reminders.json`, so a reminder armed in one fires in the other.
+// threshold alerts, kept in `reset-reminders.json` (the file older versions
+// wrote, so a reminder armed before an upgrade still fires).
 //
 // A reminder is saved before it can fire and consumed before it's delivered,
 // so a restart neither loses nor repeats it. Claude's are per account
@@ -45,7 +45,7 @@ impl Reminders {
     pub fn load(dir: &Path) -> Self {
         let path = dir.join("reset-reminders.json");
         let file: File = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
-        // a row that doesn't parse is dropped, as the Electron app does
+        // a row that doesn't parse is dropped
         let pending =
             file.pending.into_iter().filter_map(|v| serde_json::from_value::<Reminder>(v).ok()).filter(|r| r.at.is_positive() && r.pct.is_finite()).collect();
         let delivered = file.delivered.into_iter().filter_map(|(k, v)| Some((k, v.as_f64()? as i64))).collect();

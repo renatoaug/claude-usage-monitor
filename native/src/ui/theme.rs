@@ -267,13 +267,13 @@ pub mod radius {
     pub const CARD: u8 = 10; // the widget's card
 }
 
-/// The system UI font, as the Electron panel used (-apple-system). Falls back
+/// The system UI font (-apple-system). Falls back
 /// to egui's own where the system font isn't found.
 pub fn install_font(ctx: &egui::Context) {
     let Ok(bytes) = std::fs::read("/System/Library/Fonts/SFNS.ttf") else { return };
     let mut fonts = egui::FontDefinitions::default();
     // egui sizes a font by its whole line (ascent to descent), CSS by its em:
-    // SF's line is 1.19 em, so scale it up to read at the Electron sizes
+    // SF's line is 1.19 em, so scale it up to read at the design's sizes
     let data = egui::FontData::from_owned(bytes).tweak(egui::FontTweak { scale: 1.19, ..Default::default() });
     fonts.font_data.insert("system".into(), std::sync::Arc::new(data));
     fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "system".into());

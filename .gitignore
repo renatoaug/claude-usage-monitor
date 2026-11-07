@@ -4,17 +4,8 @@ dist/
 # local OAuth token — never commit
 auth.json
 
-# dev scratch for ./pet simulator
-debug.json
-
 .DS_Store
 *.log
-
-# showcase video workspace — frames, generated clips and music
-tools/showcase/tmp/
-tools/showcase/.hyperframes/
-tools/showcase/assets/clips/
-tools/showcase/assets/music.wav
 
 # native (Rust) build output
 native/target/
