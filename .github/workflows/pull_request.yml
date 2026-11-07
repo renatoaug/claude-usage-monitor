@@ -52,7 +52,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -65,6 +65,10 @@ jobs:
       - name: Format
         if: runner.os == 'Linux'
         run: cargo fmt --check
+
+      # lint on every OS: each compiles its own platform code
+      - name: Lint
+        run: cargo clippy --release --all-targets -- -D warnings
 
       - name: Build
         run: cargo build --release

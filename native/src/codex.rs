@@ -214,16 +214,16 @@ fn ingest_line(sum: &mut Summary, line: &[u8]) {
     }
     // totals are cumulative per session and often emitted twice: the delta is
     // what this event spent, on the model and project in effect now
-    if let Some(total) = p.pointer("/info/total_token_usage/total_tokens").and_then(Value::as_u64) {
-        if total > sum.last_total {
-            sum.events.push(Event { ts, tokens: total - sum.last_total, model: sum.model.clone(), cwd: sum.cwd.clone() });
-            sum.last_total = total;
-        }
+    if let Some(total) = p.pointer("/info/total_token_usage/total_tokens").and_then(Value::as_u64)
+        && total > sum.last_total
+    {
+        sum.events.push(Event { ts, tokens: total - sum.last_total, model: sum.model.clone(), cwd: sum.cwd.clone() });
+        sum.last_total = total;
     }
-    if let Some(lim) = p.get("rate_limits").and_then(|rl| limits_of(rl, ts)) {
-        if sum.limits.as_ref().is_none_or(|l| lim.ts >= l.ts) {
-            sum.limits = Some(lim);
-        }
+    if let Some(lim) = p.get("rate_limits").and_then(|rl| limits_of(rl, ts))
+        && sum.limits.as_ref().is_none_or(|l| lim.ts >= l.ts)
+    {
+        sum.limits = Some(lim);
     }
 }
 
@@ -240,7 +240,7 @@ fn window_now(w: Option<&RawWindow>, now: i64) -> Option<Window> {
 fn ranked(map: HashMap<String, u64>, order: &[String]) -> Vec<Labeled> {
     // first-seen order breaks ties, as a JS Map does
     let mut rows: Vec<Labeled> = order.iter().filter_map(|k| map.get(k).map(|&t| Labeled { label: k.clone(), tokens: t })).collect();
-    rows.sort_by(|a, b| b.tokens.cmp(&a.tokens));
+    rows.sort_by_key(|r| std::cmp::Reverse(r.tokens));
     rows
 }
 
@@ -333,12 +333,13 @@ impl Codex {
                 let p = k.path();
                 if ft.is_dir() && depth < 3 {
                     walk(&p, depth + 1, since, out);
-                } else if ft.is_file() && p.extension().is_some_and(|e| e == "jsonl") {
-                    if let Ok(meta) = k.metadata() {
-                        let m = mtime_ms(&meta);
-                        if m >= since {
-                            out.push((p, meta.len(), m));
-                        }
+                } else if ft.is_file()
+                    && p.extension().is_some_and(|e| e == "jsonl")
+                    && let Ok(meta) = k.metadata()
+                {
+                    let m = mtime_ms(&meta);
+                    if m >= since {
+                        out.push((p, meta.len(), m));
                     }
                 }
             }
@@ -353,23 +354,22 @@ impl Codex {
         if size < sum.offset {
             *sum = Summary::default(); // shrunk or replaced: start over
         }
-        if size > sum.offset {
-            if let Ok(mut f) = File::open(path) {
-                if f.seek(SeekFrom::Start(sum.offset)).is_ok() {
-                    let mut buf = std::mem::take(&mut sum.rest);
-                    if f.take(size - sum.offset).read_to_end(&mut buf).is_ok() {
-                        sum.offset = size;
-                        // the last piece may be a line still being written
-                        let end = memchr::memrchr(b'\n', &buf);
-                        let (whole, rest) = match end {
-                            Some(e) => (buf[..e].to_vec(), buf[e + 1..].to_vec()),
-                            None => (vec![], buf),
-                        };
-                        sum.rest = rest;
-                        for line in whole.split(|&b| b == b'\n').filter(|l| !l.is_empty()) {
-                            ingest_line(sum, line);
-                        }
-                    }
+        if size > sum.offset
+            && let Ok(mut f) = File::open(path)
+            && f.seek(SeekFrom::Start(sum.offset)).is_ok()
+        {
+            let mut buf = std::mem::take(&mut sum.rest);
+            if f.take(size - sum.offset).read_to_end(&mut buf).is_ok() {
+                sum.offset = size;
+                // the last piece may be a line still being written
+                let end = memchr::memrchr(b'\n', &buf);
+                let (whole, rest) = match end {
+                    Some(e) => (buf[..e].to_vec(), buf[e + 1..].to_vec()),
+                    None => (vec![], buf),
+                };
+                sum.rest = rest;
+                for line in whole.split(|&b| b == b'\n').filter(|l| !l.is_empty()) {
+                    ingest_line(sum, line);
                 }
             }
         }
@@ -416,10 +416,10 @@ impl Codex {
         for (p, size, m) in files {
             seen.insert(p.clone());
             let sum = self.read_file(&p, size, m);
-            if let Some(l) = &sum.limits {
-                if limits.as_ref().is_none_or(|x| l.ts > x.ts) {
-                    limits = Some(l.clone());
-                }
+            if let Some(l) = &sum.limits
+                && limits.as_ref().is_none_or(|x| l.ts > x.ts)
+            {
+                limits = Some(l.clone());
             }
             if latest.is_none_or(|t| sum.mtime > t) {
                 latest = Some(sum.mtime);
@@ -447,10 +447,10 @@ impl Codex {
             }
         }
         // whichever is newer: a rollout written after the live read beats it
-        if let Some(live) = &self.live {
-            if limits.as_ref().is_none_or(|l| live.ts >= l.ts) {
-                limits = Some(live.clone());
-            }
+        if let Some(live) = &self.live
+            && limits.as_ref().is_none_or(|l| live.ts >= l.ts)
+        {
+            limits = Some(live.clone());
         }
         self.files.retain(|f, _| seen.contains(f)); // forget files that aged out
 

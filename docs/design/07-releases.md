@@ -48,6 +48,6 @@ The macOS bundle is built by `native/scripts/bundle.sh` and ad-hoc signed under 
 
 The app checks the latest release 8 seconds after launch and every 6 hours, marking the gear when one is newer; Settings > Check for updates asks at once. On macOS, updating runs `install.sh` and quits so it can replace the app; on Windows and Linux it opens the release page.
 
-Pull requests build the native app on all three platforms, check its formatting, and run its tests (with the snapshot gallery) on macOS; they also lint and test the launcher.
+Pull requests build and lint (clippy, no warnings) the native app on all three platforms, check its formatting, and run its tests (with the snapshot gallery) on macOS; they also lint and test the launcher.
 
 Locally, `native/scripts/bundle.sh` builds `native/target/Clauddy.app`, and `native/scripts/package.sh <version>` the artifact a release would ship.

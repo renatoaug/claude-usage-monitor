@@ -47,6 +47,7 @@ bunx clauddy
 ```bash
 cd native
 cargo fmt --check                  # formatting
+cargo clippy --release --all-targets -- -D warnings   # lint
 cargo test --release               # unit tests and the snapshot gallery
 scripts/bundle.sh                  # builds target/Clauddy.app (macOS)
 CLAUDDY_STATE=fire cargo run --release   # forces a mood: idle, working, fire, tired, sleeping

@@ -78,10 +78,10 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let remind = reminder(f);
     let below = if remind.is_some() { REMIND_H } else { 0.0 };
     let content = Rect::from_min_max(Pos2::new(rect.left() + PAD, rect.top() + PAD_TOP), Pos2::new(rect.right() - PAD, rect.bottom() - PAD - below));
-    if let Some(on) = remind {
-        if crate::components::reminder::button_right(ui, content.right(), content.bottom() + 6.0, on) {
-            actions.push(Action::Remind(shown(f), !on));
-        }
+    if let Some(on) = remind
+        && crate::components::reminder::button_right(ui, content.right(), content.bottom() + 6.0, on)
+    {
+        actions.push(Action::Remind(shown(f), !on));
     }
     let line_y = content.bottom() - 6.0;
     let above = Rect::from_min_max(content.left_top(), Pos2::new(content.right(), line_y - LINE_H / 2.0 - 2.0));

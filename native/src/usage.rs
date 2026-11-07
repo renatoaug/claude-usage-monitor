@@ -335,7 +335,7 @@ impl Tally {
     }
     fn ranked(&self) -> Vec<Labeled> {
         let mut rows = self.rows.clone();
-        rows.sort_by(|a, b| b.tokens.cmp(&a.tokens)); // stable
+        rows.sort_by_key(|r| std::cmp::Reverse(r.tokens)); // stable
         rows
     }
 }
@@ -530,11 +530,6 @@ pub fn tokens_of(usage: &Value) -> u64 {
         .sum()
 }
 
-#[cfg(test)]
-fn str_of<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
-    v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
-}
-
 #[derive(Deserialize)]
 struct RawLine<'a> {
     #[serde(rename = "type", borrow)]
@@ -679,12 +674,13 @@ pub fn detect_activity(path: &Path) -> Option<String> {
             perm_mode =
                 ["mode", "permissionMode", "value"].iter().find_map(|k| o.get(*k).filter(|v| truthy(Some(v)))).and_then(|v| v.as_str().map(str::to_string));
         }
-        if activity.is_none() && kind == Some("assistant") {
-            if let Some(blocks) = o.pointer("/message/content").and_then(Value::as_array) {
-                let last_tool = blocks.iter().rev().find(|b| b.get("type").and_then(Value::as_str) == Some("tool_use"));
-                if let Some(tool) = last_tool {
-                    activity = Some(activity_by_tool(tool.get("name").and_then(Value::as_str).unwrap_or("")));
-                }
+        if activity.is_none()
+            && kind == Some("assistant")
+            && let Some(blocks) = o.pointer("/message/content").and_then(Value::as_array)
+        {
+            let last_tool = blocks.iter().rev().find(|b| b.get("type").and_then(Value::as_str) == Some("tool_use"));
+            if let Some(tool) = last_tool {
+                activity = Some(activity_by_tool(tool.get("name").and_then(Value::as_str).unwrap_or("")));
             }
         }
         if activity.is_some() && perm_mode.is_some() {
@@ -747,10 +743,10 @@ pub fn turn_open(lines: &[String]) -> Option<bool> {
             }
             Some("user") => {
                 let content = o.pointer("/message/content");
-                if let Some(Value::Array(blocks)) = content {
-                    if blocks.iter().any(|b| b.get("type").and_then(Value::as_str) == Some("tool_result")) {
-                        return Some(true);
-                    }
+                if let Some(Value::Array(blocks)) = content
+                    && blocks.iter().any(|b| b.get("type").and_then(Value::as_str) == Some("tool_result"))
+                {
+                    return Some(true);
                 }
                 if truthy(o.get("isMeta")) || truthy(o.get("isCompactSummary")) {
                     continue;

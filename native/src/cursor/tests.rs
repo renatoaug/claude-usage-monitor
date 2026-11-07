@@ -24,11 +24,14 @@ enum Answer {
     Offline,
 }
 
+/// a request the double saw: the endpoint and its headers
+type Call = (String, Vec<(String, String)>);
+
 // a fetch double: answers per endpoint, and remembers what it was asked
 #[derive(Default)]
 struct Api {
     answers: HashMap<&'static str, Answer>,
-    calls: Mutex<Vec<(String, Vec<(String, String)>)>>,
+    calls: Mutex<Vec<Call>>,
 }
 
 impl Api {
