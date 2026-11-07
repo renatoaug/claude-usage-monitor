@@ -54,6 +54,37 @@ pub const SKINS: &[Skin] = &[
         // the hat, wand and owl stand with it
         stand_box: [0.059, 0.07, 0.852, 0.828],
     },
+    Skin {
+        id: "santa",
+        name: "Santa",
+        pack: "christmas",
+        working: include_bytes!("../../assets/santa-working.png"),
+        moods: include_bytes!("../../assets/santa-moods.png"),
+        work_box: [0.043, 0.035, 0.965, 0.934],
+        fire_box: [0.09, 0.074, 0.941, 0.875],
+        // the hat, the gift and the sack stand with it
+        stand_box: [0.141, 0.172, 0.941, 0.871],
+    },
+    Skin {
+        id: "reindeer",
+        name: "Reindeer",
+        pack: "christmas",
+        working: include_bytes!("../../assets/reindeer-working.png"),
+        moods: include_bytes!("../../assets/reindeer-moods.png"),
+        work_box: [0.043, 0.07, 0.965, 0.934],
+        fire_box: [0.086, 0.059, 0.906, 0.832],
+        stand_box: [0.176, 0.152, 0.836, 0.812],
+    },
+    Skin {
+        id: "gingerbread",
+        name: "Gingerbread",
+        pack: "christmas",
+        working: include_bytes!("../../assets/gingerbread-working.png"),
+        moods: include_bytes!("../../assets/gingerbread-moods.png"),
+        work_box: [0.047, 0.145, 0.965, 0.938],
+        fire_box: [0.082, 0.062, 0.91, 0.816],
+        stand_box: [0.121, 0.238, 0.875, 0.793],
+    },
 ];
 
 pub fn find(id: &str) -> Option<&'static Skin> {
@@ -97,6 +128,15 @@ mod tests {
     fn the_saved_pet_shows_and_an_unknown_one_falls_back() {
         assert_eq!(active("clauddy", 2026, 11, 6).id, "clauddy");
         assert_eq!(active("nope", 2026, 11, 6).id, DEFAULT);
+    }
+
+    #[test]
+    fn christmas_picks_one_of_its_pets_for_both_days() {
+        let eve = seasonal(2026, 12, 24).unwrap();
+        assert_eq!(eve.pack, "christmas");
+        assert_eq!(seasonal(2026, 12, 25).unwrap().id, eve.id);
+        assert_eq!(active("wizard", 2026, 12, 25).id, eve.id);
+        assert_eq!(active("wizard", 2026, 12, 26).id, "wizard");
     }
 
     #[test]

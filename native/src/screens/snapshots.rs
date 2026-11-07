@@ -94,8 +94,8 @@ fn render_inner(case: Case, draft: Prefs) {
     let window = {
         let ctx = egui::Context::default();
         let pet = Pet::frozen(&ctx, 0.3);
-        if case.name.contains("wizard") {
-            pet.set_skin(crate::components::skins::find("wizard").unwrap());
+        if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
+            pet.set_skin(skin);
         }
         let logos = Logos::load(&ctx);
         let full = eframe::egui::Rect::NOTHING;
@@ -121,8 +121,8 @@ fn render_inner(case: Case, draft: Prefs) {
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
-        if case.name.contains("wizard") {
-            pet.set_skin(crate::components::skins::find("wizard").unwrap());
+        if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
+            pet.set_skin(skin);
         }
         let area = ctx.content_rect().shrink(super::MARGIN);
         let f = Frame {
@@ -490,28 +490,58 @@ fn settings_offering_an_update() {
     });
 }
 
-fn wizard_snap(session: f64, working: bool) -> Snapshot {
+fn pet_snap(session: f64, working: bool) -> Snapshot {
     snapshot(usage(working, working.then_some("editing")), Some(limits(session, 68.0)))
 }
 
 #[test]
 fn wizard_expanded() {
-    render(Case { name: "wizard-expanded", snap: wizard_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+    render(Case { name: "wizard-expanded", snap: pet_snap(42.0, false), mood: Mood::Idle, view: View::default() });
 }
 
 #[test]
 fn wizard_expanded_working() {
-    render(Case { name: "wizard-expanded-working", snap: wizard_snap(42.0, true), mood: Mood::Working, view: View::default() });
+    render(Case { name: "wizard-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
 }
 
 #[test]
 fn wizard_compact_on_fire() {
-    render(Case { name: "wizard-compact-fire", snap: wizard_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+    render(Case { name: "wizard-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
 }
 
 #[test]
 fn wizard_pet_only() {
-    render(Case { name: "wizard-pet-only", snap: wizard_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+    render(Case { name: "wizard-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn santa_expanded_working() {
+    render(Case { name: "santa-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn santa_compact_on_fire() {
+    render(Case { name: "santa-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn reindeer_expanded_working() {
+    render(Case { name: "reindeer-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn reindeer_pet_only() {
+    render(Case { name: "reindeer-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn gingerbread_expanded() {
+    render(Case { name: "gingerbread-expanded", snap: pet_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn gingerbread_compact_on_fire() {
+    render(Case { name: "gingerbread-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
 }
 
 #[test]
