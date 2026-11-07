@@ -115,11 +115,10 @@ pub fn wav(plan: &[Blip]) -> Vec<u8> {
 /// Play a line's blips, without waiting. Quiet where there's no way to.
 pub fn play(text: &str, tone: Tone) {
     let plan = blip_plan(text, tone);
-    if plan.is_empty() {
-        return;
-    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = plan;
     #[cfg(target_os = "macos")]
-    {
+    if !plan.is_empty() {
         use objc2::AnyThread;
         use objc2_app_kit::NSSound;
         use objc2_foundation::NSData;
