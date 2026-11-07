@@ -22,7 +22,6 @@ impl Watch {
         let w = Watch { hot: Arc::default(), inside: Arc::default(), on: Arc::default() };
         #[cfg(target_os = "macos")]
         {
-            let height = mac::primary_height();
             let (t, ctx) = (w.clone(), ctx.clone());
             std::thread::Builder::new()
                 .name("cursor".into())
@@ -32,7 +31,7 @@ impl Watch {
                             std::thread::sleep(std::time::Duration::from_millis(200));
                             continue;
                         }
-                        let at = mac::cursor(height);
+                        let at = mac::cursor();
                         let inside = t.hot.lock().map(|h| h.iter().any(|r| r.contains(at))).unwrap_or(false);
                         if t.inside.swap(inside, Ordering::Relaxed) != inside {
                             ctx.request_repaint();
@@ -65,17 +64,13 @@ impl Watch {
 #[cfg(target_os = "macos")]
 mod mac {
     use eframe::egui::Pos2;
-    use objc2::MainThreadMarker;
-    use objc2_app_kit::{NSEvent, NSScreen};
+    use objc2_core_graphics::CGEvent;
 
-    /// The primary screen's height: AppKit counts y up from its bottom edge,
-    /// windows (and egui) count down from its top.
-    pub fn primary_height() -> f64 {
-        MainThreadMarker::new().and_then(|mtm| NSScreen::screens(mtm).firstObject()).map(|s| s.frame().size.height).unwrap_or(0.0)
-    }
-
-    pub fn cursor(height: f64) -> Pos2 {
-        let p = NSEvent::mouseLocation();
-        Pos2::new(p.x as f32, (height - p.y) as f32)
+    /// The cursor in global points from the primary screen's top-left, as
+    /// windows (and egui) count them. Asked fresh each time, so screens
+    /// plugged in or rearranged after launch are no trouble.
+    pub fn cursor() -> Pos2 {
+        let p = CGEvent::location(CGEvent::new(None).as_deref());
+        Pos2::new(p.x as f32, p.y as f32)
     }
 }
