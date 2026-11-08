@@ -160,6 +160,7 @@ impl App {
         theme::install_font(&cc.egui_ctx);
         crate::alerts::ask_permission();
         crate::platform::login::open_at_login();
+        crate::platform::leftovers::clear();
         let settings = Settings::load();
         let (data, commands) = poller::spawn(cc.egui_ctx.clone(), settings.clone());
         App {
