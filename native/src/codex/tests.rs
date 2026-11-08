@@ -333,3 +333,49 @@ fn get_usage_asks_at_most_once_per_interval() {
     fx.codex.get_usage(now() + 120_000);
     assert!(eventually(|| runs() == 2));
 }
+
+fn task(kind: &str) -> String {
+    json!({"timestamp": "2026-09-12T19:50:00Z", "type": "event_msg", "payload": {"type": kind}}).to_string()
+}
+
+#[test]
+fn an_open_task_keeps_codex_working_through_a_quiet_stretch() {
+    let mut fx = Fx::new();
+    // a long command: nothing written for five minutes, the task still open
+    fx.write("rollout-a.jsonl", &[task("task_started"), token_count("2026-09-12T19:54:00Z", 10, codex_limits())], now() - 5 * 60_000);
+    assert!(fx.codex.get_usage(now()).unwrap().active);
+}
+
+#[test]
+fn a_finished_or_interrupted_task_rests_at_once() {
+    for end in ["task_complete", "turn_aborted"] {
+        let mut fx = Fx::new();
+        fx.write("rollout-a.jsonl", &[task("task_started"), task(end)], now() - 5_000);
+        assert!(!fx.codex.get_usage(now()).unwrap().active, "{end}");
+    }
+}
+
+#[test]
+fn any_recent_session_with_an_open_task_counts() {
+    let mut fx = Fx::new();
+    fx.write("rollout-a.jsonl", &[task("task_started")], now() - 10 * 60_000);
+    fx.write("rollout-b.jsonl", &[task("task_started"), task("task_complete")], now() - 5_000);
+    assert!(fx.codex.get_usage(now()).unwrap().active);
+}
+
+#[test]
+fn an_open_task_untouched_for_half_an_hour_was_abandoned() {
+    let mut fx = Fx::new();
+    fx.write("rollout-a.jsonl", &[task("task_started")], now() - 31 * 60_000);
+    assert!(!fx.codex.get_usage(now()).unwrap().active);
+}
+
+#[test]
+fn a_rollout_without_tasks_falls_back_to_the_last_minute() {
+    let mut fx = Fx::new();
+    fx.write("rollout-a.jsonl", &[token_count("2026-09-12T19:59:30Z", 10, codex_limits())], now() - 30_000);
+    assert!(fx.codex.get_usage(now()).unwrap().active);
+    let mut fx = Fx::new();
+    fx.write("rollout-a.jsonl", &[token_count("2026-09-12T19:58:00Z", 10, codex_limits())], now() - 2 * 60_000);
+    assert!(!fx.codex.get_usage(now()).unwrap().active);
+}

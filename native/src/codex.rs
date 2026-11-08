@@ -20,8 +20,13 @@ use crate::usage::{Labeled, local_midnight, parse_date};
 const DAY: i64 = 86_400_000;
 const DAYS: usize = 30;
 const WEEK: i64 = 7 * DAY;
-/// a rollout touched within the last minute: Codex is working
+/// a rollout touched within the last minute: Codex is working, when its
+/// tail doesn't say whether a task is open
 const ACTIVE_MS: i64 = 60_000;
+/// an open task untouched this long was abandoned
+const OPEN_TURN_MS: i64 = 30 * 60_000;
+/// how many of the newest rollouts to look for an open task in
+const RECENT_ROLLOUTS: usize = 8;
 const DAY_MIN: i64 = 24 * 60;
 const TOP_PROJECTS: usize = 5;
 /// how often to ask the app-server for the limits
@@ -92,6 +97,8 @@ struct Summary {
     limits: Option<Limits>,
     model: Option<String>,
     cwd: Option<String>,
+    /// the last task: open (`task_started`) or closed; None before any
+    task: Option<bool>,
     mtime: i64,
 }
 
@@ -194,7 +201,7 @@ fn read_live(bin: &Path, codex_home: &Path, ts: i64) -> Option<Limits> {
 fn ingest_line(sum: &mut Summary, line: &[u8]) {
     // cheap filter before parsing: rollouts are mostly message bodies
     let has = |needle: &[u8]| memchr::memmem::find(line, needle).is_some();
-    if !has(b"\"token_count\"") && !has(b"\"turn_context\"") {
+    if !has(b"\"token_count\"") && !has(b"\"turn_context\"") && !has(b"\"task_") && !has(b"\"turn_aborted\"") {
         return;
     }
     let Ok(o) = serde_json::from_slice::<Value>(line) else { return };
@@ -208,6 +215,11 @@ fn ingest_line(sum: &mut Summary, line: &[u8]) {
             sum.cwd = Some(c.into());
         }
         return;
+    }
+    match p.get("type").and_then(Value::as_str) {
+        Some("task_started") => sum.task = Some(true),
+        Some("task_complete" | "turn_aborted") => sum.task = Some(false),
+        _ => {}
     }
     if p.get("type").and_then(Value::as_str) != Some("token_count") {
         return;
@@ -225,6 +237,22 @@ fn ingest_line(sum: &mut Summary, line: &[u8]) {
     {
         sum.limits = Some(lim);
     }
+}
+
+/// Working means a task is open in one of the newest rollouts (each one's
+/// last task and when it was written), even when a long command or a slow
+/// answer kept it quiet. A rollout with no task in it falls back to:
+/// written in the last minute.
+fn working(recent: &mut [(Option<bool>, i64)], now: i64) -> bool {
+    recent.sort_by_key(|r| std::cmp::Reverse(r.1));
+    for (i, &(task, mtime)) in recent.iter().take(RECENT_ROLLOUTS).enumerate() {
+        match task {
+            Some(true) => return true,
+            None if i == 0 => return now - mtime < ACTIVE_MS,
+            _ => {}
+        }
+    }
+    false
 }
 
 fn mtime_ms(meta: &fs::Metadata) -> i64 {
@@ -413,9 +441,13 @@ impl Codex {
             }
             *map.entry(k).or_insert(0) += t;
         };
+        let mut recent: Vec<(Option<bool>, i64)> = vec![];
         for (p, size, m) in files {
             seen.insert(p.clone());
             let sum = self.read_file(&p, size, m);
+            if now - m <= OPEN_TURN_MS {
+                recent.push((sum.task, m));
+            }
             if let Some(l) = &sum.limits
                 && limits.as_ref().is_none_or(|x| l.ts > x.ts)
             {
@@ -462,7 +494,7 @@ impl Codex {
         }
         let weekly_only = limits.as_ref().is_some_and(|l| l.weekly.is_some() && l.session.is_none());
         Some(CodexUsage {
-            active: latest.is_some_and(|t| now - t < ACTIVE_MS),
+            active: working(&mut recent, now),
             last_seen: latest,
             plan: limits.as_ref().and_then(|l| l.plan.clone()),
             session: limits.as_ref().and_then(|l| window_now(if weekly_only { l.weekly.as_ref() } else { l.session.as_ref() }, now)),
