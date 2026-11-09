@@ -44,6 +44,7 @@ The **percentages** come from each service's own account ([usage](04-usage.md)).
 | `native/tests/snapshots/` | The snapshot gallery: every screen state as a PNG |
 | `bin/clauddy.js` | The npm launcher |
 | `install.sh` | The macOS installer ([setup](03-setup.md#macos)) |
+| `tools/showcase/` | The README's product video ([how to render it](../../tools/showcase/README.md)) |
 
 ## Data on disk
 

@@ -8,6 +8,8 @@ pub mod expanded;
 pub mod pet_only;
 pub mod settings;
 #[cfg(test)]
+mod showcase;
+#[cfg(test)]
 mod snapshots;
 
 use crate::components::logos::{Logos, Provider};

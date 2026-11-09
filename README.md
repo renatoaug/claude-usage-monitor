@@ -1,4 +1,4 @@
-# 🟫 Clauddy
+# <img src="https://github.com/user-attachments/assets/e5487d3e-aadb-466d-bd2b-cfba5476d3db" alt="" width="40" align="top"> Clauddy
 
 A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real session and weekly % from your account, the tokens from your local logs, and a pet that works, sleeps and catches fire along with it. It can follow Codex and Cursor too, and you can dress it as a wizard, Santa or a gingerbread cookie.
 
@@ -10,7 +10,7 @@ A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real se
   <a href="docs/decisions/">🧭 Decisions</a>
 </p>
 
-https://github.com/user-attachments/assets/be8d339c-ac69-4980-96a7-8e286f8b080f
+https://github.com/user-attachments/assets/036dc92e-44f1-41d0-9463-a52879007e4d
 
 ## Stack
 

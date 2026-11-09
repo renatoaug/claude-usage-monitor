@@ -7,6 +7,7 @@ Clauddy is a pixel-art desktop pet that tracks Claude Code usage: the real sessi
 - `native/` — the app (Rust, eframe/egui, no webview). Everything below under "Native app"
 - `bin/clauddy.js` — the npm launcher: downloads the release build for the OS into `~/.claude-usage-monitor/bin/<version>/` and starts it ([ADR-014](docs/decisions/ADR-014-npm-launches-the-native-app.md)); `test/launcher.test.js` is its test
 - `install.sh` — the macOS installer (latest release into `/Applications`)
+- `tools/showcase/` — the README's product video: a HyperFrames composition over clips the app draws frame by frame (`native/src/screens/showcase.rs`); its README says how to render it
 - `.github/workflows/` — `pull_request.yml` (launcher lint and test, native build on 3 OS, fmt, tests on macOS) and `release.yml`
 
 ## Commands

@@ -61,13 +61,13 @@ pub struct Pet {
     sheets: RefCell<HashMap<&'static str, std::rc::Rc<Sheets>>>,
     /// the pet on screen
     skin: Cell<&'static Skin>,
-    /// a fixed moment, for snapshots
-    frozen: Option<f32>,
+    /// a fixed moment, for snapshots and the showcase's frames
+    frozen: Cell<Option<f32>>,
 }
 
 impl Pet {
     pub fn new(ctx: &egui::Context) -> Self {
-        Pet { ctx: ctx.clone(), start: Instant::now(), sheets: RefCell::default(), skin: Cell::new(&skins::SKINS[0]), frozen: None }
+        Pet { ctx: ctx.clone(), start: Instant::now(), sheets: RefCell::default(), skin: Cell::new(&skins::SKINS[0]), frozen: Cell::new(None) }
     }
 
     /// Show this pet from now on (the saved choice, or the season's).
@@ -91,11 +91,17 @@ impl Pet {
     /// A pet held at `t` seconds into its loops, so snapshots are stable.
     #[cfg(test)]
     pub fn frozen(ctx: &egui::Context, t: f32) -> Self {
-        Pet { frozen: Some(t), ..Pet::new(ctx) }
+        Pet { frozen: Cell::new(Some(t)), ..Pet::new(ctx) }
+    }
+
+    /// Move a frozen pet to `t` seconds (the showcase, frame by frame).
+    #[cfg(test)]
+    pub fn set_time(&self, t: f32) {
+        self.frozen.set(Some(t));
     }
 
     fn t(&self) -> f32 {
-        self.frozen.unwrap_or_else(|| self.start.elapsed().as_secs_f32())
+        self.frozen.get().unwrap_or_else(|| self.start.elapsed().as_secs_f32())
     }
 
     /// How long until the next visible change.
