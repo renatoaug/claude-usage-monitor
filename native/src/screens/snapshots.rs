@@ -15,12 +15,12 @@ use crate::usage::{Labeled, Reader, Usage};
 
 const H: i64 = 3_600_000;
 
-fn freeze_clock() {
+pub(super) fn freeze_clock() {
     let t = chrono::DateTime::parse_from_rfc3339("2026-11-06T14:27:00+00:00").unwrap();
     let _ = crate::format::FROZEN.set(t);
 }
 
-fn usage(active: bool, activity: Option<&str>) -> Usage {
+pub(super) fn usage(active: bool, activity: Option<&str>) -> Usage {
     let mut u = Reader::new(Some(std::env::temp_dir().join("clauddy-no-such-dir"))).get_usage(&Default::default());
     u.active = active;
     u.activity = activity.map(str::to_string);
@@ -35,7 +35,7 @@ fn usage(active: bool, activity: Option<&str>) -> Usage {
     u
 }
 
-fn limits(session: f64, week: f64) -> Limits {
+pub(super) fn limits(session: f64, week: f64) -> Limits {
     Limits {
         session: Window { pct: session, reset_ms: Some(2 * H + 13 * 60_000) },
         week: Window { pct: week, reset_ms: Some(25 * H) },
@@ -43,7 +43,7 @@ fn limits(session: f64, week: f64) -> Limits {
     }
 }
 
-fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
+pub(super) fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
     Snapshot {
         usage: Some(u),
         connected: l.is_some(),
@@ -315,7 +315,7 @@ fn pet_only_working_with_its_glance() {
     });
 }
 
-fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
+pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
     use crate::codex::{CodexUsage, Window};
     let l = |label: &str, tokens: u64| Labeled { label: label.into(), tokens };
     snap.codex = Some(CodexUsage {
@@ -390,7 +390,7 @@ fn pet_only_glance_with_codex() {
     });
 }
 
-fn with_cursor(mut snap: Snapshot, working: bool) -> Snapshot {
+pub(super) fn with_cursor(mut snap: Snapshot, working: bool) -> Snapshot {
     use crate::codex::Window;
     snap.cursor = Some(crate::cursor::CursorUsage {
         active: working,

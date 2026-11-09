@@ -12,3 +12,9 @@ native/target/
 native/tests/snapshots/*.diff.png
 native/tests/snapshots/*.new.png
 native/tests/snapshots/*.old.png
+
+# the showcase video: rendered frames, clips and music are generated
+tools/showcase/tmp/
+tools/showcase/assets/clips/
+tools/showcase/assets/music.wav
+tools/showcase/.hyperframes/
