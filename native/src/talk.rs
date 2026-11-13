@@ -283,7 +283,12 @@ mod tests {
         u.days30 = days30;
         Snapshot {
             usage: Some(u),
-            limits: Some(Limits { session: Window { pct: 0.0, reset_ms: None }, week: Window { pct: 0.0, reset_ms: None }, scoped: vec![] }),
+            limits: Some(Limits {
+                session: Window { pct: 0.0, reset_ms: None },
+                week: Window { pct: 0.0, reset_ms: None },
+                scoped: vec![],
+                weekly_only: false,
+            }),
             ..Default::default()
         }
     }

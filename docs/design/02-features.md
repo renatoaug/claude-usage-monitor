@@ -13,6 +13,8 @@ What Clauddy shows and does: the panel, its sizes, the pet's moods and what the 
 | By project · 7 days | Which repo used the week, ranked, the tail folded into `other` | Local logs |
 | 30-day map | One square per day, green (light) to red (heavy), with the monthly total | Local logs |
 
+On a Claude plan with no 5-hour window (the usage response has no `five_hour`), the week takes the session's place: it leads the panel once, and the compact rows, the pet's glance, the menu bar, the mood and the alerts follow it. An idle session that only lacks a reset time is still a session.
+
 Everything is in tokens and percent, never in dollars. Without a connected account the limits area asks to connect instead of guessing a % ([usage](04-usage.md)).
 
 ## Sizes and controls

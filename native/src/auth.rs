@@ -124,9 +124,13 @@ pub struct Scoped {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Limits {
+    /// the 5-hour window; on a weekly-only plan, the week in its place
     pub session: Window,
     pub week: Window,
     pub scoped: Vec<Scoped>,
+    /// the plan has no 5-hour window, only weekly ones
+    #[serde(default)]
+    pub weekly_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -182,6 +186,21 @@ fn encode_uri_component(s: &str) -> String {
         }
     }
     out
+}
+
+/// The usage response as limits. A plan without the 5-hour window (no
+/// `five_hour` at all, not an idle one with no `resets_at`) shows its week in
+/// the session's place.
+fn limits(j: &Value) -> Limits {
+    let empty = || Window { pct: 0.0, reset_ms: None };
+    let week = j.get("seven_day").and_then(window);
+    let weekly_only = j.get("five_hour").is_none_or(Value::is_null) && week.is_some();
+    Limits {
+        session: if weekly_only { week.clone() } else { j.get("five_hour").and_then(window) }.unwrap_or_else(empty),
+        week: week.unwrap_or_else(empty),
+        scoped: scoped_weeks(j),
+        weekly_only,
+    }
 }
 
 fn window(o: &Value) -> Option<Window> {
@@ -392,12 +411,7 @@ impl Auth {
             self.rate_limit = rl;
         }
         let j = res.json();
-        let empty = || Window { pct: 0.0, reset_ms: None };
-        Ok(Limits {
-            session: j.get("five_hour").and_then(window).unwrap_or_else(empty),
-            week: j.get("seven_day").and_then(window).unwrap_or_else(empty),
-            scoped: scoped_weeks(&j),
-        })
+        Ok(limits(&j))
     }
 
     /// The account's identity, cached until logout.
