@@ -378,10 +378,13 @@ impl App {
         let text = crate::platform::tray::title_hottest(&sessions, self.settings.fire_threshold);
         tray.set_title(&text);
         // the menu leads with the limits, as the panel does
-        let mut lines = vec![line("Session", session.map(|s| s.0), session.and_then(|s| s.1))];
+        let weekly_only = snap.limits.as_ref().is_some_and(|l| l.weekly_only);
+        let mut lines = vec![line(if weekly_only { "Weekly" } else { "Session" }, session.map(|s| s.0), session.and_then(|s| s.1))];
         if let Some(l) = &snap.limits {
-            let week = live(&l.week, snap.limits_at);
-            lines.push(line("Weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
+            if !l.weekly_only {
+                let week = live(&l.week, snap.limits_at);
+                lines.push(line("Weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
+            }
             for sc in &l.scoped {
                 let w = live(&crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms }, snap.limits_at);
                 lines.push(line(&format!("{} weekly", sc.label), w.map(|w| w.0), w.and_then(|w| w.1)));

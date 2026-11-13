@@ -256,6 +256,33 @@ fn maps_the_api_windows_into_percentages_and_countdowns() {
     assert_eq!(u.week.pct, 7.0);
     // no `limits` array: the legacy per-model windows are the fallback
     assert_eq!(u.scoped, vec![Scoped { label: "Opus".into(), pct: 3.0, reset_ms: None }]);
+    assert!(!u.weekly_only);
+}
+
+#[test]
+fn a_plan_without_the_5_hour_window_puts_its_week_in_the_sessions_place() {
+    let mut f = fx();
+    f.seed(live());
+    f.mock.route("/oauth/usage", ok(json!({"five_hour": null, "seven_day": {"utilization": 64, "resets_at": iso_in(48 * 3_600_000)}})));
+    let u = f.auth.fetch_usage().unwrap();
+    assert!(u.weekly_only);
+    assert_eq!(u.session.pct, 64.0);
+    assert!(u.session.reset_ms.is_some());
+    assert_eq!(u.week.pct, 64.0);
+}
+
+#[test]
+fn an_idle_session_with_no_reset_is_still_a_session() {
+    let mut f = fx();
+    f.seed(live());
+    f.mock.route(
+        "/oauth/usage",
+        ok(json!({"five_hour": {"utilization": 0, "resets_at": null}, "seven_day": {"utilization": 30, "resets_at": iso_in(48 * 3_600_000)}})),
+    );
+    let u = f.auth.fetch_usage().unwrap();
+    assert!(!u.weekly_only);
+    assert_eq!(u.session.pct, 0.0);
+    assert_eq!(u.week.pct, 30.0);
 }
 
 #[test]

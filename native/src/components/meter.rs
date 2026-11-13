@@ -123,24 +123,30 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
     let week_tokens = usage.map(|u| u.week.tokens).unwrap_or(0);
     let session = live(&l.session, at);
     let week = live(&l.week, at);
-    let mut out = vec![
-        Meter {
-            label: "current session".into(),
-            pct: session.map(|s| s.0),
-            sub: match session {
-                Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(session_tokens)),
-                _ => "no active session".into(),
-            },
+    let weekly = |week: Option<(f64, Option<i64>)>| Meter {
+        label: "weekly · all models".into(),
+        pct: week.map(|w| w.0),
+        sub: match week {
+            Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(week_tokens)),
+            _ => format!("{} tokens · last 7 days", tokens(week_tokens)),
         },
-        Meter {
-            label: "weekly · all models".into(),
-            pct: week.map(|w| w.0),
-            sub: match week {
-                Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(week_tokens)),
-                _ => format!("{} tokens · last 7 days", tokens(week_tokens)),
+    };
+    // a weekly-only plan: the week leads, once
+    let mut out = if l.weekly_only {
+        vec![weekly(session)]
+    } else {
+        vec![
+            Meter {
+                label: "current session".into(),
+                pct: session.map(|s| s.0),
+                sub: match session {
+                    Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(session_tokens)),
+                    _ => "no active session".into(),
+                },
             },
-        },
-    ];
+            weekly(week),
+        ]
+    };
     // per-model limits pair with that model family's local tokens
     for sc in &l.scoped {
         let Some((pct, reset)) = live(&Window { pct: sc.pct, reset_ms: sc.reset_ms }, at) else { continue };

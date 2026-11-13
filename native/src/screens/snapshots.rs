@@ -40,7 +40,14 @@ pub(super) fn limits(session: f64, week: f64) -> Limits {
         session: Window { pct: session, reset_ms: Some(2 * H + 13 * 60_000) },
         week: Window { pct: week, reset_ms: Some(25 * H) },
         scoped: vec![Scoped { label: "Fable".into(), pct: 12.0, reset_ms: Some(25 * H) }],
+        weekly_only: false,
     }
+}
+
+/// A plan with no 5-hour window: its week in the session's place.
+pub(super) fn weekly_only(week: f64) -> Limits {
+    let w = Window { pct: week, reset_ms: Some(25 * H) };
+    Limits { session: w.clone(), week: w, weekly_only: true, ..limits(0.0, week) }
 }
 
 pub(super) fn snapshot(u: Usage, l: Option<Limits>) -> Snapshot {
@@ -173,6 +180,11 @@ fn compact_urgent() {
 }
 
 #[test]
+fn compact_weekly_only() {
+    render(Case { name: "compact-weekly-only", snap: snapshot(usage(false, None), Some(weekly_only(64.0))), mood: Mood::Idle, view: compact_view() });
+}
+
+#[test]
 fn compact_signed_out() {
     render(Case { name: "compact-signed-out", snap: snapshot(usage(false, None), None), mood: Mood::Sleeping, view: compact_view() });
 }
@@ -180,6 +192,11 @@ fn compact_signed_out() {
 #[test]
 fn expanded_idle() {
     render(Case { name: "expanded-idle", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn expanded_weekly_only() {
+    render(Case { name: "expanded-weekly-only", snap: snapshot(usage(false, None), Some(weekly_only(64.0))), mood: Mood::Idle, view: View::default() });
 }
 
 #[test]
@@ -303,6 +320,11 @@ fn pet_only() {
 #[test]
 fn pet_only_with_its_glance() {
     render(Case { name: "pet-only-glance", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn pet_only_weekly_only_glance() {
+    render(Case { name: "pet-only-weekly-only-glance", snap: snapshot(usage(false, None), Some(weekly_only(64.0))), mood: Mood::Idle, view: pet_only_view() });
 }
 
 #[test]

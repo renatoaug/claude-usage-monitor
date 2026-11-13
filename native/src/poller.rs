@@ -561,7 +561,12 @@ impl Worker {
         };
         match (&self.cache.limits, self.cache.fetched_at) {
             (Some(l), Some(at)) => {
-                let mut v = vec![scope("Session", live(&l.session, at), true), scope("Weekly usage", live(&l.week, at), false)];
+                // a weekly-only plan has one window: alerts on it as the week
+                let mut v = if l.weekly_only {
+                    vec![scope("Weekly usage", live(&l.week, at), false)]
+                } else {
+                    vec![scope("Session", live(&l.session, at), true), scope("Weekly usage", live(&l.week, at), false)]
+                };
                 for sc in &l.scoped {
                     let w = crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms };
                     v.push(scope(&format!("{} weekly", sc.label), live(&w, at), false));
@@ -577,7 +582,8 @@ impl Worker {
 
     fn check_alerts(&mut self, reading: &usage::Usage, codex: Option<&crate::codex::CodexUsage>, cursor: Option<&crate::cursor::CursorUsage>) {
         let mut scopes = self.scopes(reading);
-        let claude_session = scopes.first().and_then(|s| s.pct);
+        // "window reset" is about the 5-hour window only
+        let claude_session = scopes.first().filter(|s| s.session).and_then(|s| s.pct);
         let scope = |label: &str, w: &Option<crate::codex::Window>, session: bool| Scope {
             label: label.into(),
             pct: w.as_ref().and_then(|w| w.pct),
