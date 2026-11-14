@@ -44,9 +44,12 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     let body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(5.0, 10.0)), f.mood);
 
     // the glance, always up; its button only while the cursor is over the
-    // pet or the glance (the gap between them counts too, so moving up to
-    // the button doesn't hide it on the way)
-    let over = over_pet.unwrap_or_else(|| ctx.input(|i| i.pointer.hover_pos().is_some_and(|p| body.contains(p))));
+    // pet or the glance. Where the glance was last frame counts as over, the
+    // gap above the head included, or the button would hide on the way up
+    let last_id = ui.scope_id().with("glance-rect");
+    let last: Option<Rect> = ctx.data(|d| d.get_temp(last_id));
+    let area = last.map_or(body, |b| body.union(b));
+    let over = over_pet.unwrap_or_else(|| ctx.input(|i| i.pointer.hover_pos().is_some_and(|p| area.contains(p))));
     let hover = ctx.animate_bool_with_time(ui.scope_id().with("glance-hover"), over, 0.16);
     // just above the head, but never off the top of the window
     let tip = (body.top() - 4.0).max(rect.top() + 4.0 + crate::components::glance::HEIGHT);
@@ -54,6 +57,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     if clicked {
         actions.push(Action::Resize(Size::Compact));
     }
+    ctx.data_mut(|d| d.insert_temp(last_id, bubble));
     let hot = vec![body.union(bubble)];
     if ctx.input(|i| i.key_pressed(Key::Enter)) {
         actions.push(Action::Resize(Size::Compact));
