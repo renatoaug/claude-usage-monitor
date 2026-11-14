@@ -2,7 +2,7 @@
 // `tests/snapshots/`. This is the gallery: open those files to review the UI.
 // `UPDATE_SNAPSHOTS=1 cargo test` rewrites them after an intended change.
 
-use eframe::egui;
+use eframe::egui::{self, Pos2, Rect, Vec2};
 use egui_kittest::Harness;
 
 use super::{Frame, Size, View, compact, expanded, pet_only, settings};
@@ -598,4 +598,51 @@ fn settings_picking_a_pet() {
         },
         draft,
     );
+}
+
+// Without the OS's cursor (Windows, Linux) the window's own pointer decides:
+// moving up from the pet to the glance's button must not close the glance.
+#[test]
+fn pet_only_glance_stays_up_on_the_way_to_its_button() {
+    freeze_clock();
+    let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    let view = pet_only_view();
+    let hot: std::rc::Rc<std::cell::RefCell<Vec<Rect>>> = Default::default();
+    let seen = hot.clone();
+    let mut assets: Option<(Pet, Logos)> = None;
+    let size: Vec2 = pet_only::size().into();
+    let mut harness = Harness::builder().with_size(size).build_ui(|ui| {
+        let ctx = ui.ctx().clone();
+        let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
+        let area = ctx.content_rect().shrink(super::MARGIN);
+        let f = Frame {
+            area,
+            card: area,
+            snap: &snap,
+            mood: Mood::Idle,
+            session: None,
+            view: &view,
+            pet,
+            logos,
+            menu_bar: false,
+            heads_up: 80.0,
+            bubble: None,
+            update: Default::default(),
+        };
+        *seen.borrow_mut() = pet_only::draw(ui, &ctx, &f, None).hot;
+    });
+    harness.run();
+    let body = hot.borrow()[0];
+    harness.hover_at(body.center());
+    harness.run();
+    let up = hot.borrow()[0];
+    assert!(up.top() < body.top(), "the glance comes up over the pet");
+    // halfway between the glance and the head: off the pet, still on the way
+    harness.hover_at(Pos2::new(body.center().x, (up.top() + body.top()) / 2.0));
+    harness.run();
+    assert_eq!(hot.borrow()[0], up, "the glance stays up");
+    // and it goes once the pointer leaves both
+    harness.hover_at(Pos2::new(1.0, size.y - 1.0));
+    harness.run();
+    assert_eq!(hot.borrow()[0], body);
 }
