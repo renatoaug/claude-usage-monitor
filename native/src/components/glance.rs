@@ -75,10 +75,10 @@ fn blocks(p: &Painter, x: f32, y: f32, w: f32, h: f32, pct: Option<f64>, urgent:
 /// is the session % in bold, the week's % beside it, and a bar for each.
 /// `hover` (0..1) slides the expand button out on the right. Returns whether
 /// that button was clicked, and the glance's box.
-pub fn glance(ui: &Ui, logos: &Logos, center_x: f32, bottom: f32, rows: &[ServiceRow], weeks: &[Option<f64>], shown: f32, hover: f32) -> (bool, Rect) {
+pub fn glance(ui: &Ui, logos: &Logos, center_x: f32, bottom: f32, rows: &[ServiceRow], shown: f32, hover: f32) -> (bool, Rect) {
     let mut p = ui.painter().clone();
     p.multiply_opacity(shown);
-    let week_of = |i: usize| weeks.get(i).copied().flatten();
+    let week_of = |i: usize| rows[i].week;
     let widths: Vec<f32> = rows.iter().enumerate().map(|(i, r)| reading_w(&p, r, week_of(i))).collect();
     let base = widths.iter().sum::<f32>();
     let w = base + RESTORE_W * hover;

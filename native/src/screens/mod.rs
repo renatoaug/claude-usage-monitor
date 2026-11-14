@@ -157,16 +157,17 @@ pub fn sessions(snap: &Snapshot, claude: Option<(f64, Option<i64>)>) -> Vec<(Pro
         .collect()
 }
 
-/// Each connected service's weekly %, in `connected` order; None where the
-/// session already is the week (weekly-only plans) or there's no week.
-pub fn weeks(snap: &Snapshot) -> Vec<Option<f64>> {
+/// Each connected service's weekly % and reset, in `connected` order; None
+/// where the session already is the week (weekly-only plans) or there's no
+/// week.
+pub fn weeks(snap: &Snapshot) -> Vec<Option<(f64, Option<i64>)>> {
     connected(snap)
         .into_iter()
         .map(|p| match p {
-            Provider::Claude => {
-                snap.limits.as_ref().filter(|l| !l.weekly_only).and_then(|l| crate::components::meter::live(&l.week, snap.limits_at)).map(|w| w.0)
+            Provider::Claude => snap.limits.as_ref().filter(|l| !l.weekly_only).and_then(|l| crate::components::meter::live(&l.week, snap.limits_at)),
+            Provider::Codex => {
+                snap.codex.as_ref().filter(|c| !c.weekly_only).and_then(|c| codex_pct(&c.weekly).map(|p| (p, c.weekly.as_ref().and_then(|w| w.reset_ms))))
             }
-            Provider::Codex => snap.codex.as_ref().filter(|c| !c.weekly_only).and_then(|c| codex_pct(&c.weekly)),
             Provider::Cursor => None,
         })
         .collect()

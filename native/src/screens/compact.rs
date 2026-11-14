@@ -2,11 +2,11 @@
 // connected service on the right and the selected one's reset under them.
 // With a single service its row sits alone, centred on the pet.
 
-use eframe::egui::{Align, Context, Pos2, Rect, Ui, Vec2};
+use eframe::egui::{Align, Context, FontId, LayerId, Order, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
 
 use crate::ui::text::text_mid;
 
-use super::{Action, Frame, MARGIN, Size, sessions, shown};
+use super::{Action, Frame, MARGIN, Size, sessions, shown, weeks};
 use crate::components::account::account;
 use crate::components::logos::Provider;
 use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
@@ -16,7 +16,7 @@ use crate::ui::controls::button_row;
 use crate::ui::controls::click_area;
 use crate::ui::icon;
 use crate::ui::surface::{card, halo};
-use crate::ui::theme::{color, text};
+use crate::ui::theme::{color, radius, text};
 
 const CARD_W: f32 = 216.0;
 const PAD_TOP: f32 = 32.0;
@@ -48,7 +48,11 @@ pub fn reminder(f: &Frame) -> Option<bool> {
 
 /// One row per connected service.
 pub fn rows(f: &Frame) -> Vec<ServiceRow> {
-    sessions(f.snap, f.session).into_iter().map(|(provider, pct, reset_ms)| ServiceRow { provider, pct, reset_ms }).collect()
+    sessions(f.snap, f.session)
+        .into_iter()
+        .zip(weeks(f.snap))
+        .map(|((provider, pct, reset_ms), week)| ServiceRow { provider, pct, reset_ms, week: week.map(|w| w.0), week_reset_ms: week.and_then(|w| w.1) })
+        .collect()
 }
 
 /// The services working right now, for the logos under the pet.
@@ -103,7 +107,12 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
             actions.push(Action::SelectProvider(row.provider));
         }
         if f.snap.loaded {
-            service_row(p, f.logos, at, content.right() - col_left, row, row.provider == selected);
+            // the week's % is unlabelled: hovering it says what it is
+            if let Some(week) = service_row(p, f.logos, at, content.right() - col_left, row, row.provider == selected)
+                && ui.interact(week, ui.scope_id().with(("week", row.provider.name())), Sense::hover()).hovered()
+            {
+                week_tag(ui, week, f.card, row.week_reset_ms);
+            }
         } else {
             service_row_skeleton(p, f.logos, at, content.right() - col_left, row.provider);
         }
@@ -122,6 +131,22 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         }
     }
     actions
+}
+
+/// The week's small tag over its %, while hovered: "week · resets Sat
+/// 3:27 PM", in the menus' colours, kept inside the card.
+fn week_tag(ui: &Ui, week: Rect, card: Rect, reset_ms: Option<i64>) {
+    let p = ui.ctx().layer_painter(LayerId::new(Order::Tooltip, ui.scope_id().with("week-tag")));
+    let label = match reset_ms {
+        Some(ms) => format!("week · resets {}", clock(ms)),
+        None => "this week".into(),
+    };
+    let galley = p.layout_no_wrap(label, FontId::proportional(text::TINY), color::FG_LABEL);
+    let size = galley.size() + Vec2::new(10.0, 5.0);
+    let x = (week.center().x - size.x / 2.0).clamp(card.left() + 4.0, card.right() - 4.0 - size.x);
+    let tag = Rect::from_min_size(Pos2::new(x, week.top() - size.y - 1.0), size);
+    p.rect(tag, radius::CONTROL, color::MENU, Stroke::new(1.0, color::MENU_EDGE), StrokeKind::Inside);
+    p.galley(tag.center() - galley.size() / 2.0, galley, color::FG_LABEL);
 }
 
 #[cfg(test)]

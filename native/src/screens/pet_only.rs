@@ -5,7 +5,7 @@
 
 use eframe::egui::{Context, CursorIcon, Key, Pos2, Rect, Sense, Ui, Vec2, ViewportCommand};
 
-use super::{Action, Frame, MARGIN, Size, compact, weeks};
+use super::{Action, Frame, MARGIN, Size, compact};
 use crate::components::glance::glance;
 
 // wide enough for the widest glance (three services at 100%, the week beside
@@ -53,7 +53,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     let hover = ctx.animate_bool_with_time(ui.scope_id().with("glance-hover"), over, 0.16);
     // just above the head, but never off the top of the window
     let tip = (body.top() - 4.0).max(rect.top() + 4.0 + crate::components::glance::HEIGHT);
-    let (clicked, bubble) = glance(ui, f.logos, body.center().x, tip, &compact::rows(f), &weeks(f.snap), 1.0, hover);
+    let (clicked, bubble) = glance(ui, f.logos, body.center().x, tip, &compact::rows(f), 1.0, hover);
     if clicked {
         actions.push(Action::Resize(Size::Compact));
     }
