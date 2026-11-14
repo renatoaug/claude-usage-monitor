@@ -157,6 +157,21 @@ pub fn sessions(snap: &Snapshot, claude: Option<(f64, Option<i64>)>) -> Vec<(Pro
         .collect()
 }
 
+/// Each connected service's weekly %, in `connected` order; None where the
+/// session already is the week (weekly-only plans) or there's no week.
+pub fn weeks(snap: &Snapshot) -> Vec<Option<f64>> {
+    connected(snap)
+        .into_iter()
+        .map(|p| match p {
+            Provider::Claude => {
+                snap.limits.as_ref().filter(|l| !l.weekly_only).and_then(|l| crate::components::meter::live(&l.week, snap.limits_at)).map(|w| w.0)
+            }
+            Provider::Codex => snap.codex.as_ref().filter(|c| !c.weekly_only).and_then(|c| codex_pct(&c.weekly)),
+            Provider::Cursor => None,
+        })
+        .collect()
+}
+
 /// The services working right now.
 pub fn workers(snap: &Snapshot) -> Vec<Provider> {
     let mut v = vec![];

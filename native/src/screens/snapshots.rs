@@ -153,7 +153,14 @@ fn render_inner(case: Case, draft: Prefs) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
             (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut String::new()),
-            (None, Size::PetOnly) => pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance"))).actions,
+            (None, Size::PetOnly) => {
+                let out = pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance")));
+                // the glance must fit the window, or the OS clips it
+                for r in &out.hot {
+                    assert!(ctx.content_rect().contains_rect(*r), "{}: {r:?} spills out of {:?}", case.name, ctx.content_rect());
+                }
+                out.actions
+            }
         };
     });
     harness.run();
@@ -412,6 +419,21 @@ fn pet_only_glance_with_codex() {
     });
 }
 
+#[test]
+fn pet_only_glance_with_all_three_maxed() {
+    // the widest glance: every service at 100%, the week beside each
+    let mut snap = with_cursor(with_codex(snapshot(usage(false, None), Some(limits(100.0, 100.0))), false), false);
+    if let Some(c) = snap.codex.as_mut() {
+        for w in [&mut c.session, &mut c.weekly].into_iter().flatten() {
+            w.pct = Some(100.0);
+        }
+    }
+    if let Some(w) = snap.cursor.as_mut().and_then(|c| c.session.as_mut()) {
+        w.pct = Some(100.0);
+    }
+    render(Case { name: "pet-only-trio-glance", snap, mood: Mood::Fire, view: pet_only_view() });
+}
+
 pub(super) fn with_cursor(mut snap: Snapshot, working: bool) -> Snapshot {
     use crate::codex::Window;
     snap.cursor = Some(crate::cursor::CursorUsage {
@@ -601,9 +623,9 @@ fn settings_picking_a_pet() {
 }
 
 // Without the OS's cursor (Windows, Linux) the window's own pointer decides:
-// moving up from the pet to the glance's button must not close the glance.
+// moving up from the pet to the glance's button must not hide the button.
 #[test]
-fn pet_only_glance_stays_up_on_the_way_to_its_button() {
+fn pet_only_glance_button_stays_out_on_the_way_to_it() {
     freeze_clock();
     let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
     let view = pet_only_view();
@@ -632,17 +654,19 @@ fn pet_only_glance_stays_up_on_the_way_to_its_button() {
         *seen.borrow_mut() = pet_only::draw(ui, &ctx, &f, None).hot;
     });
     harness.run();
-    let body = hot.borrow()[0];
-    harness.hover_at(body.center());
+    // the glance is up before any hover, without its button
+    let rest = hot.borrow()[0];
+    let pet = Pos2::new(rest.center().x - 20.0, rest.bottom() - 30.0);
+    harness.hover_at(pet);
     harness.run();
-    let up = hot.borrow()[0];
-    assert!(up.top() < body.top(), "the glance comes up over the pet");
-    // halfway between the glance and the head: off the pet, still on the way
-    harness.hover_at(Pos2::new(body.center().x, (up.top() + body.top()) / 2.0));
+    let out = hot.borrow()[0];
+    assert!(out.right() > rest.right(), "the button slides out on hover");
+    // up over the glance, off the pet: the button stays out
+    harness.hover_at(Pos2::new(pet.x, out.top() + 10.0));
     harness.run();
-    assert_eq!(hot.borrow()[0], up, "the glance stays up");
+    assert_eq!(hot.borrow()[0], out, "the button stays out");
     // and it goes once the pointer leaves both
     harness.hover_at(Pos2::new(1.0, size.y - 1.0));
     harness.run();
-    assert_eq!(hot.borrow()[0], body);
+    assert_eq!(hot.borrow()[0], rest);
 }
