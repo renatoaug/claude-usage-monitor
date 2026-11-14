@@ -148,8 +148,10 @@ fn save_view(v: &View) {
 pub fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
     let (cmd, args) = ("open", vec![url]);
+    // not `cmd /C start`: cmd splits the command at each `&`, which cut the
+    // login URL after its first parameter
     #[cfg(target_os = "windows")]
-    let (cmd, args) = ("cmd", vec!["/C", "start", "", url]);
+    let (cmd, args) = ("rundll32", vec!["url.dll,FileProtocolHandler", url]);
     #[cfg(all(unix, not(target_os = "macos")))]
     let (cmd, args) = ("xdg-open", vec![url]);
     let _ = std::process::Command::new(cmd).args(args).spawn();
