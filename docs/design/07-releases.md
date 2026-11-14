@@ -40,13 +40,13 @@ flowchart LR
 | Platform | File | Installed by |
 |---|---|---|
 | macOS (Apple Silicon) | `Clauddy-<version>-arm64-mac.zip`: `Clauddy.app` | `install.sh` and the in-app update |
-| Windows (x64) | `Clauddy-<version>-win-x64.zip`: `Clauddy.exe` | Unzipping it |
-| Linux (x64) | `Clauddy-<version>-linux-x64.tar.gz`: `Clauddy/clauddy` and its icon | Unpacking it |
+| Windows (x64) | `Clauddy-<version>-win-x64.zip`: `Clauddy.exe` | Unzipping it, then the in-app update |
+| Linux (x64) | `Clauddy-<version>-linux-x64.tar.gz`: `Clauddy/clauddy` and its icon | Unpacking it, then the in-app update |
 | Any | `clauddy` on npm: a launcher that downloads the release's file for the OS ([ADR-014](../decisions/ADR-014-npm-launches-the-native-app.md)) | `bunx clauddy`, `npx clauddy` |
 
 The macOS bundle is built by `native/scripts/bundle.sh` and ad-hoc signed under the real app id, `app.clauddy`, which keeps notifications working; it is not notarized, which is why `install.sh` exists ([setup](03-setup.md#macos)). A development bundle uses `app.clauddy.dev`, so it never mixes with the installed app.
 
-The app checks the latest release 8 seconds after launch and every 6 hours, marking the gear when one is newer; Settings > Check for updates asks at once. On macOS, updating runs `install.sh` and quits so it can replace the app; on Windows and Linux it opens the release page.
+The app checks the latest release 8 seconds after launch and every 6 hours, marking the gear when one is newer; Settings > Check for updates asks at once. On macOS, updating runs `install.sh` and quits so it can replace the app. On Windows and Linux the app downloads the release's archive itself, unpacks it with `tar` (Windows 10 and later ship one that reads zip), moves its own binary aside to `<name>.old` (a running `.exe` can be renamed but not overwritten), copies the new one into its place and starts it; the next launch deletes the `.old`. If the copy fails the old binary goes back. A development build, or any other platform, gets the release page instead.
 
 Pull requests build and lint (clippy, no warnings) the native app on all three platforms, check its formatting, and run its tests (with the snapshot gallery) on macOS; they also lint and test the launcher.
 
