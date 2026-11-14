@@ -8,8 +8,9 @@ use eframe::egui::{Context, CursorIcon, Key, Pos2, Rect, Sense, Ui, Vec2, Viewpo
 use super::{Action, Frame, MARGIN, Size, compact, weeks};
 use crate::components::glance::glance;
 
-// wide enough for the glance with both windows per service, centred on the pet
-const CARD: Vec2 = Vec2::new(220.0, 166.0);
+// wide enough for the widest glance (three services at 100%, the week beside
+// each, the expand button out), centred on the pet; the window is see-through
+const CARD: Vec2 = Vec2::new(268.0, 166.0);
 // the pet sits low in the window; the glance rises above it
 const STAGE: Vec2 = Vec2::new(100.0, 102.0);
 

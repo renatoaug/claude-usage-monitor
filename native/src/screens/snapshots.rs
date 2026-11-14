@@ -153,7 +153,14 @@ fn render_inner(case: Case, draft: Prefs) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),
             (None, Size::Expanded) => expanded::draw(ui, &ctx, &f, &mut String::new()),
-            (None, Size::PetOnly) => pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance"))).actions,
+            (None, Size::PetOnly) => {
+                let out = pet_only::draw(ui, &ctx, &f, Some(case.name.ends_with("glance")));
+                // the glance must fit the window, or the OS clips it
+                for r in &out.hot {
+                    assert!(ctx.content_rect().contains_rect(*r), "{}: {r:?} spills out of {:?}", case.name, ctx.content_rect());
+                }
+                out.actions
+            }
         };
     });
     harness.run();
@@ -410,6 +417,21 @@ fn pet_only_glance_with_codex() {
         mood: Mood::Idle,
         view: pet_only_view(),
     });
+}
+
+#[test]
+fn pet_only_glance_with_all_three_maxed() {
+    // the widest glance: every service at 100%, the week beside each
+    let mut snap = with_cursor(with_codex(snapshot(usage(false, None), Some(limits(100.0, 100.0))), false), false);
+    if let Some(c) = snap.codex.as_mut() {
+        for w in [&mut c.session, &mut c.weekly].into_iter().flatten() {
+            w.pct = Some(100.0);
+        }
+    }
+    if let Some(w) = snap.cursor.as_mut().and_then(|c| c.session.as_mut()) {
+        w.pct = Some(100.0);
+    }
+    render(Case { name: "pet-only-trio-glance", snap, mood: Mood::Fire, view: pet_only_view() });
 }
 
 pub(super) fn with_cursor(mut snap: Snapshot, working: bool) -> Snapshot {
