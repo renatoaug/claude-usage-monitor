@@ -23,7 +23,7 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 |---|---|---|
 | Expanded | The scene, the session, the week and the details | The default; **⤢** from compact |
 | Compact | The pet in a ring of the live session %, or one line per service when more than one is connected | **–** in the title bar |
-| Just the pet | The pet alone, floating; hovering it (or focusing it) shows the usage as the pet's own speech bubble, one bar per service | The pet icon in the compact header (floating mode only) |
+| Just the pet | The pet alone, floating, with the usage always above it as the pet's own speech bubble: per service, the session % and the week's % beside it, a bar for each; hovering the pet or the bubble slides out the **⤢** that opens compact | The pet icon in the compact header (floating mode only) |
 
 - **Drag** the widget anywhere; in pet-only mode drag the pet itself. Enter on the focused pet opens compact.
 - **⚙** opens Settings: **Accounts**, **Alerts** and **Appearance** tabs; a dot on it means an update is out.

@@ -1,13 +1,15 @@
-// Just the pet, floating. Dragging it moves the window; hovering shows the
-// usage glance above its head, whose button (or Enter) opens the compact
-// monitor. A click on the pet itself changes nothing.
+// Just the pet, floating, with the usage glance always above its head.
+// Dragging the pet moves the window; hovering the pet or the glance slides
+// out the glance's button, which (or Enter) opens the compact monitor. A
+// click on the pet itself changes nothing.
 
 use eframe::egui::{Context, CursorIcon, Key, Pos2, Rect, Sense, Ui, Vec2, ViewportCommand};
 
-use super::{Action, Frame, MARGIN, Size, compact};
+use super::{Action, Frame, MARGIN, Size, compact, weeks};
 use crate::components::glance::glance;
 
-const CARD: Vec2 = Vec2::new(144.0, 166.0);
+// wide enough for the glance with both windows per service, centred on the pet
+const CARD: Vec2 = Vec2::new(220.0, 166.0);
 // the pet sits low in the window; the glance rises above it
 const STAGE: Vec2 = Vec2::new(100.0, 102.0);
 
@@ -28,7 +30,7 @@ pub struct Out {
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     let mut actions = vec![];
     let rect = f.area;
-    let stage = Rect::from_min_size(Pos2::new(rect.right() - 21.0 - STAGE.x, rect.bottom() - 14.0 - STAGE.y), STAGE);
+    let stage = Rect::from_min_size(Pos2::new((rect.center().x - STAGE.x / 2.0).round(), rect.bottom() - 14.0 - STAGE.y), STAGE);
 
     // the pet is the handle
     let resp = ui.interact(stage, ui.scope_id().with("pet-drag"), Sense::click_and_drag());
@@ -40,21 +42,18 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     }
     let body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(5.0, 10.0)), f.mood);
 
-    // the glance, only while the cursor is over the pet (or the glance)
-    let mut hot = vec![body];
+    // the glance, always up; its button only while the cursor is over the
+    // pet or the glance (the gap between them counts too, so moving up to
+    // the button doesn't hide it on the way)
     let over = over_pet.unwrap_or_else(|| ctx.input(|i| i.pointer.hover_pos().is_some_and(|p| body.contains(p))));
-    let shown = ctx.animate_bool_with_time(ui.scope_id().with("glance"), over, 0.16);
+    let hover = ctx.animate_bool_with_time(ui.scope_id().with("glance-hover"), over, 0.16);
     // just above the head, but never off the top of the window
     let tip = (body.top() - 4.0).max(rect.top() + 4.0 + crate::components::glance::HEIGHT);
-    if shown > 0.0 {
-        let (clicked, bubble) = glance(ui, f.logos, body.center().x, tip, &compact::rows(f), shown);
-        if clicked {
-            actions.push(Action::Resize(Size::Compact));
-        }
-        // the gap between the bubble and the head counts too, so moving up
-        // to the button doesn't close the bubble on the way
-        hot = vec![body.union(bubble)];
+    let (clicked, bubble) = glance(ui, f.logos, body.center().x, tip, &compact::rows(f), &weeks(f.snap), 1.0, hover);
+    if clicked {
+        actions.push(Action::Resize(Size::Compact));
     }
+    let hot = vec![body.union(bubble)];
     if ctx.input(|i| i.key_pressed(Key::Enter)) {
         actions.push(Action::Resize(Size::Compact));
     }
