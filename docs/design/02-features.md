@@ -22,7 +22,7 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 | Size | What it is | How to get there |
 |---|---|---|
 | Expanded | The scene, the session, the week and the details | The default; **⤢** from compact |
-| Compact | The pet in a ring of the live session %, or one line per service when more than one is connected | **–** in the title bar |
+| Compact | The pet beside one row per connected service: the session % and its bar, and on the right, smaller and dimmer, the week's % over a shorter bar of its own (hovering it shows a small tag with the week's reset); no week on a weekly-only plan, whose session already is the week, nor for Cursor | **–** in the title bar |
 | Just the pet | The pet alone, floating, with the usage always above it as the pet's own speech bubble: per service, the session % and the week's % beside it, a bar for each; hovering the pet or the bubble slides out the **⤢** that opens compact | The pet icon in the compact header (floating mode only) |
 
 - **Drag** the widget anywhere; in pet-only mode drag the pet itself. Enter on the focused pet opens compact.
