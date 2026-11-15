@@ -3,7 +3,7 @@
 
 use super::*;
 use serde_json::json;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use tempfile::TempDir;
 
 const MIN: i64 = 60_000;
@@ -255,6 +255,17 @@ fn does_not_eat_into_the_name_of_a_directory_that_no_longer_exists() {
     let label = project_label_uncached(&enc_missing(&q, "identity-web"));
     assert_ne!(label, "web");
     assert!(label.contains("identity-web"), "{label}");
+}
+
+#[test]
+fn resolves_a_project_from_another_filesystem_root() {
+    // WSL's logs name /home/u/app, which Windows reaches under \\wsl.localhost\<distro>
+    let distro = TempDir::new().unwrap();
+    std::fs::create_dir_all(distro.path().join("home/u/my-app")).unwrap();
+    let mut cache = HashMap::new();
+    assert_eq!(project_label(&mut cache, distro.path(), "-home-u-my-app"), "my-app");
+    // the same name under this machine's root is another project
+    assert_ne!(project_label(&mut cache, Path::new("/"), "-home-u-my-app"), "my-app");
 }
 
 // ---- usage by project ----
@@ -574,4 +585,49 @@ fn an_empty_log_directory_reports_zeroes() {
     assert_eq!(u.month_tokens, 0);
     assert_eq!(u.last_activity_ms, None);
     assert!(u.sleeping && u.ts > 0);
+}
+
+// ---- a projects dir behind a slow filesystem (WSL's) ----
+
+fn names(files: &[LogFile]) -> Vec<String> {
+    files.iter().map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned()).collect()
+}
+
+#[test]
+fn a_cached_walk_sees_a_new_session_and_a_growing_log_before_the_next_whole_walk() {
+    let root = TempDir::new().unwrap();
+    let dir = root.path().join("projects");
+    fs::create_dir_all(dir.join("-a")).unwrap();
+    fs::write(dir.join("-a/one.jsonl"), "x\n").unwrap();
+    let mut w = Walked::default();
+    let t0 = now_ms();
+    assert_eq!(names(&walk_cached(&mut w, &dir, t0, 0)), vec!["one.jsonl"]);
+
+    // a new project with its first session: its directory is new
+    fs::create_dir_all(dir.join("-b")).unwrap();
+    fs::write(dir.join("-b/two.jsonl"), "x\n").unwrap();
+    // the log of the turn going on grows
+    fs::write(dir.join("-a/one.jsonl"), "x\ny\n").unwrap();
+    let files = walk_cached(&mut w, &dir, t0 + 1000, 0);
+    assert_eq!(names(&files), vec!["one.jsonl", "two.jsonl"]);
+    assert_eq!(files[0].size, 4);
+}
+
+#[test]
+fn a_cached_walk_sees_a_long_quiet_log_grow_at_the_next_whole_walk() {
+    let root = TempDir::new().unwrap();
+    let dir = root.path().join("projects");
+    fs::create_dir_all(dir.join("-a")).unwrap();
+    let old = dir.join("-a/old.jsonl");
+    fs::write(&old, "x\n").unwrap();
+    let t0 = now_ms();
+    let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    fs::File::options().write(true).open(&old).unwrap().set_modified(hour_ago).unwrap();
+    let mut w = Walked::default();
+    walk_cached(&mut w, &dir, t0, 0);
+
+    // resumed: it grows, but neither its directory nor its last mtime says so
+    fs::write(&old, "x\ny\n").unwrap();
+    assert_eq!(walk_cached(&mut w, &dir, t0 + 1000, 0)[0].size, 2);
+    assert_eq!(walk_cached(&mut w, &dir, t0 + WALK_MS, 0)[0].size, 4);
 }

@@ -11,6 +11,8 @@ Where every number comes from: the Claude account and its local logs, several su
 
 Without a connected account the limits area shows _"Connect your account"_ instead of a %. The tokens still work.
 
+On Windows, Claude Code run inside WSL keeps its logs in the distro's home, out of Windows' sight. **⚙ Settings → Accounts → Claude → Claude Code in WSL** (off by default, Windows only, [ADR-015](../decisions/ADR-015-wsl-logs-are-opt-in.md)) makes the default account also read `\\wsl.localhost\<distro>\home\*\.claude\projects` (and `/root`'s) of every **running** distro, found with `wsl.exe --list --running` once a minute on a thread of its own, so a slow answer never holds up a poll (`platform/wsl.rs`). Those logs sit behind 9P, under 1 ms a directory, so they are walked whole once a minute; in between, a poll lists only the projects, walks again the ones whose directory changed (a new session) and re-reads the size of the logs written in the last half hour (a turn going on). A long-quiet log that grows again (a resumed session) counts from the next whole walk. A stopped distro is never opened, since that would boot it: its tokens drop out of the counts until it runs again. Project names from WSL resolve against the distro's own `/`.
+
 ## The Claude account
 
 **⚙ Settings → Accounts → Claude → Connect** opens an Anthropic login in the browser (OAuth with PKCE, the same public client as Claude Code). Log in, copy the code it shows, paste it back and **Connect**. The token lands in `~/.claude-usage-monitor/auth.json` and refreshes on its own. When it expires or is revoked, a notification says so and the % goes back to the "connect" prompt.

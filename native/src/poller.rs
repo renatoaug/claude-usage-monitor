@@ -248,6 +248,7 @@ impl Worker {
             reminders: crate::reminders::Reminders::load(&crate::auth::default_data_dir()),
             ext: (None, None, 0),
         };
+        w.reader.set_wsl(w.prefs.wsl);
         let found = (w.codex.detect(), w.cursor.detect());
         if let Ok(mut s) = w.out.lock() {
             s.codex_found = Some(found.0);
@@ -311,6 +312,7 @@ impl Worker {
                 }
             }
             Command::Prefs(p) => {
+                self.reader.set_wsl(p.wsl);
                 if (p.heads_up, p.near_limit) != (self.prefs.heads_up, self.prefs.near_limit) {
                     self.alerts.rearm();
                     self.alerts.save(&self.dir);

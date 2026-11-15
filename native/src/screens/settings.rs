@@ -52,10 +52,19 @@ fn account_service(view: &super::View) -> Provider {
     view.provider
 }
 
+/// Windows only: a switch under the Claude card to read Claude Code's logs
+/// inside WSL too. Other systems have no WSL, so they never see it.
+const WSL_SWITCH: bool = cfg!(windows);
+
+fn wsl_switch(view: &super::View) -> bool {
+    WSL_SWITCH && account_service(view) == Provider::Claude
+}
+
 fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
     let login = account_service(view) == Provider::Claude && logging_in(snap);
+    let wsl = if wsl_switch(view) { GAP + block_h(1) } else { 0.0 };
     match tab {
-        Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
+        Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 } + wsl,
         Tab::Alerts => block_h(3) + GAP + block_h(1),
         Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
     }
@@ -288,6 +297,18 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
             Some(LoginPick::Submit) => actions.push(Action::SubmitCode),
             Some(LoginPick::Reopen) => actions.push(Action::BeginLogin),
             None => {}
+        }
+    }
+
+    // Claude Code in WSL: its logs live in the distro, out of Windows' sight
+    // unless asked for; takes effect at once, like connecting a service
+    if wsl_switch(f.view) {
+        let top = card.bottom() + if logging_in(f.snap) { LOGIN_H } else { 0.0 } + GAP;
+        let gy = group_label(&p, left, top, "wsl");
+        let rows = group(&p, left, right, gy, 1);
+        row_label(&p, left, rows[0], "Claude Code in WSL", false);
+        if toggle(ui, right - 10.0, rows[0], "wsl", saved.wsl, true).clicked() {
+            actions.push(Action::SetWsl(!saved.wsl));
         }
     }
 }

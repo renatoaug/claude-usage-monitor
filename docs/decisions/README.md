@@ -59,3 +59,4 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-012](ADR-012-the-native-app-replaces-electron.md) | The native app replaces the Electron one | Accepted |
 | [ADR-013](ADR-013-pets-are-generated-sprite-sheets.md) | Pets are generated sprite sheets | Accepted |
 | [ADR-014](ADR-014-npm-launches-the-native-app.md) | The npm package launches the native app, and the Electron code is gone | Accepted |
+| [ADR-015](ADR-015-wsl-logs-are-opt-in.md) | Claude Code's logs in WSL are read only when switched on | Accepted |

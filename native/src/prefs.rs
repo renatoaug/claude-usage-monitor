@@ -18,6 +18,8 @@ pub struct Prefs {
     pub codex: bool,
     /// Cursor tracked alongside Claude
     pub cursor: bool,
+    /// Windows: also read Claude Code's logs inside running WSL distros (opt-in)
+    pub wsl: bool,
     /// the widget's scale, 100-200 %
     pub zoom: i32,
     /// the speech bubble (on unless turned off)
@@ -40,6 +42,7 @@ impl Default for Prefs {
             menu_bar: false,
             codex: false,
             cursor: false,
+            wsl: false,
             zoom: 100,
             talk: true,
             sound: false,
@@ -70,6 +73,7 @@ impl Prefs {
             menu_bar: v["mode"].as_str() == Some("menubar"),
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
+            wsl: v.pointer("/wsl/enabled").and_then(Value::as_bool).unwrap_or(false),
             talk: v["talk"].as_bool() != Some(false),
             pet: v["pet"].as_str().unwrap_or(crate::components::skins::DEFAULT).to_string(),
             sound: v["sound"].as_bool().unwrap_or(false),
@@ -106,7 +110,7 @@ impl Prefs {
         v["soundMutedUntil"] = json!(self.muted_until);
         v["pet"] = json!(self.pet);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
-        for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
+        for (key, on) in [("codex", self.codex), ("cursor", self.cursor), ("wsl", self.wsl)] {
             if !v[key].is_object() {
                 v[key] = json!({});
             }
@@ -141,6 +145,7 @@ mod tests {
                 menu_bar: false,
                 codex: false,
                 cursor: false,
+                wsl: false,
                 zoom: 100,
                 talk: true,
                 sound: false,
@@ -151,6 +156,8 @@ mod tests {
         assert_eq!(Prefs::from_value(&json!({"pet": "wizard"})).pet, "wizard");
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
+        assert!(Prefs::from_value(&json!({"wsl": {"enabled": true}})).wsl);
+        assert!(!Prefs::default().wsl);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
         assert_eq!(Prefs::from_value(&json!({"zoom": 150})).zoom, 150);
         assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 200);

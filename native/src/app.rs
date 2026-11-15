@@ -285,6 +285,12 @@ impl App {
                         s.until = s.until.min(Instant::now());
                     }
                 }
+                Action::SetWsl(on) => {
+                    self.prefs.wsl = on;
+                    self.draft.wsl = on;
+                    self.prefs.save();
+                    self.send(Command::Prefs(self.prefs.clone()));
+                }
                 Action::SetCursor(on) => {
                     self.prefs.cursor = on;
                     self.draft.cursor = on;
