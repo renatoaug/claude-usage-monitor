@@ -40,7 +40,7 @@ flowchart LR
 | Platform | File | Installed by |
 |---|---|---|
 | macOS (Apple Silicon) | `Clauddy-<version>-arm64-mac.zip`: `Clauddy.app` | `install.sh` and the in-app update |
-| Windows (x64) | `Clauddy-<version>-win-x64.zip`: `Clauddy.exe` | Unzipping it, then the in-app update |
+| Windows (x64) | `Clauddy-<version>-win-x64.zip`: `Clauddy.exe`, its icon embedded by `native/build.rs` | Unzipping it, then the in-app update |
 | Linux (x64) | `Clauddy-<version>-linux-x64.tar.gz`: `Clauddy/clauddy` and its icon | Unpacking it, then the in-app update |
 | Any | `clauddy` on npm: a launcher that downloads the release's file for the OS ([ADR-014](../decisions/ADR-014-npm-launches-the-native-app.md)) | `bunx clauddy`, `npx clauddy` |
 

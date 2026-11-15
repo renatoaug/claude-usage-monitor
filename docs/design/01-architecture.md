@@ -40,7 +40,7 @@ The **percentages** come from each service's own account ([usage](04-usage.md)).
 |---|---|
 | `native/src/` | The app ([code layout](08-native.md#code-layout)) |
 | `native/assets/` | The pets' sprite sheets, the app and tray icons, the service logos |
-| `native/scripts/` | `bundle.sh` (the macOS app), `package.sh` (a release artifact), `icon.sh` (the `.icns`) |
+| `native/scripts/` | `bundle.sh` (the macOS app), `package.sh` (a release artifact), `icon.sh` (the `.icns`), `ico.py` (the Windows `.ico`) |
 | `native/tests/snapshots/` | The snapshot gallery: every screen state as a PNG |
 | `bin/clauddy.js` | The npm launcher |
 | `install.sh` | The macOS installer ([setup](03-setup.md#macos)) |
