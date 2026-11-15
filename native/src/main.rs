@@ -100,5 +100,12 @@ fn main() -> eframe::Result {
             .with_resizable(false),
         ..Default::default()
     };
-    eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    eframe::run_native(
+        "Clauddy",
+        options,
+        Box::new(|cc| {
+            platform::frame::remove(cc);
+            Ok(Box::new(app::App::new(cc)))
+        }),
+    )
 }
