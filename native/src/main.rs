@@ -105,13 +105,59 @@ fn main() -> eframe::Result {
     eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }
 
-/// The taskbar's and Alt-Tab's icon, from the app icon (macOS takes the bundle's).
+/// The taskbar's and Alt-Tab's icon: the .ico's 256 px image, decoded at
+/// launch. macOS takes the bundle's, and its binary carries neither.
+#[cfg(not(target_os = "macos"))]
 fn with_app_icon(viewport: egui::ViewportBuilder) -> egui::ViewportBuilder {
-    if cfg!(target_os = "macos") {
-        return viewport;
+    match largest_png(include_bytes!("../assets/icon.ico")).and_then(|png| eframe::icon_data::from_png_bytes(png).ok()) {
+        Some(icon) => viewport.with_icon(icon),
+        None => viewport,
     }
-    match eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png")) {
-        Ok(icon) => viewport.with_icon(icon),
-        Err(_) => viewport,
+}
+
+#[cfg(target_os = "macos")]
+fn with_app_icon(viewport: egui::ViewportBuilder) -> egui::ViewportBuilder {
+    viewport
+}
+
+/// The largest image in a .ico whose images are PNGs, as `scripts/ico.py`
+/// writes them.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+fn largest_png(ico: &[u8]) -> Option<&[u8]> {
+    let u16_at = |i: usize| Some(u16::from_le_bytes(ico.get(i..i + 2)?.try_into().ok()?));
+    let u32_at = |i: usize| Some(u32::from_le_bytes(ico.get(i..i + 4)?.try_into().ok()?) as usize);
+    let count = u16_at(4)? as usize;
+    let mut best: Option<(usize, &[u8])> = None;
+    for i in 0..count {
+        let entry = 6 + 16 * i;
+        // a width byte of 0 means 256
+        let width = match *ico.get(entry)? {
+            0 => 256,
+            w => w as usize,
+        };
+        let (size, offset) = (u32_at(entry + 8)?, u32_at(entry + 12)?);
+        let image = ico.get(offset..offset.checked_add(size)?)?;
+        if image.starts_with(b"\x89PNG") && best.is_none_or(|(w, _)| width > w) {
+            best = Some((width, image));
+        }
+    }
+    best.map(|(_, png)| png)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::largest_png;
+
+    #[test]
+    fn the_window_icon_is_the_ico_s_256_px_png() {
+        let png = largest_png(include_bytes!("../assets/icon.ico")).expect("a PNG in the .ico");
+        // the IHDR's width and height, right after the signature and chunk header
+        assert_eq!(&png[16..24], &[0, 0, 1, 0, 0, 0, 1, 0]);
+    }
+
+    #[test]
+    fn a_broken_ico_has_no_icon() {
+        assert!(largest_png(b"").is_none());
+        assert!(largest_png(&[0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 32, 0, 255, 255, 0, 0, 22, 0, 0, 0]).is_none());
     }
 }
