@@ -87,6 +87,8 @@ pub enum Action {
     SelectProvider(Provider),
     SetCodex(bool),
     SetCursor(bool),
+    /// Windows: read Claude Code's logs in WSL too
+    SetWsl(bool),
     Remind(Provider, bool),
     /// the speech bubble was clicked away
     DismissBubble,

@@ -257,6 +257,17 @@ fn does_not_eat_into_the_name_of_a_directory_that_no_longer_exists() {
     assert!(label.contains("identity-web"), "{label}");
 }
 
+#[test]
+fn resolves_a_project_from_another_filesystem_root() {
+    // WSL's logs name /home/u/app, which Windows reaches under \\wsl.localhost\<distro>
+    let distro = TempDir::new().unwrap();
+    std::fs::create_dir_all(distro.path().join("home/u/my-app")).unwrap();
+    let mut cache = HashMap::new();
+    assert_eq!(project_label(&mut cache, distro.path(), "-home-u-my-app"), "my-app");
+    // the same name under this machine's root is another project
+    assert_ne!(project_label(&mut cache, Path::new("/"), "-home-u-my-app"), "my-app");
+}
+
 // ---- usage by project ----
 
 #[test]

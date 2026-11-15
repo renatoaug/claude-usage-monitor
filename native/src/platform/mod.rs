@@ -4,6 +4,7 @@ pub mod cursor;
 pub mod leftovers;
 pub mod login;
 pub mod tray;
+pub mod wsl;
 
 /// Bring Clauddy to the front. It lives outside the Dock, so a window it
 /// shows from the menu bar doesn't get focus on its own.

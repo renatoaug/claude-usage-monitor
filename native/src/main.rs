@@ -33,6 +33,7 @@ fn main() -> eframe::Result {
         let path = std::env::home_dir().unwrap_or_default().join(".claude-usage-monitor/config.json");
         let cfg: usage::Config = std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
         let mut reader = usage::Reader::new(None);
+        reader.set_wsl(prefs::Prefs::load().wsl);
         let t = Instant::now();
         let u = reader.get_usage(&cfg);
         let cold = t.elapsed();

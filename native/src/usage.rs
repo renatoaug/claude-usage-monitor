@@ -130,16 +130,28 @@ struct LogFile {
     path: PathBuf,
     size: u64,
     mtime: i64,
+    /// which of the reader's projects dirs it is under
+    root: usize,
 }
 
-/// Reads one Claude config dir's logs. The file cache is keyed by absolute
-/// path, so switching dirs and back stays instant; the label cache is keyed
-/// by directory *name*, which can repeat across dirs, so it is dropped.
+/// Reads one Claude config dir's logs (on Windows, when opted in, the default
+/// dir also takes in those of Claude Code running in WSL). The file cache is keyed by
+/// absolute path, so switching dirs and back stays instant; the label cache
+/// is keyed by directory *name*, which can repeat across dirs, so it is dropped.
 pub struct Reader {
     claude_dir: PathBuf,
     files: HashMap<PathBuf, FileState>,
     labels: HashMap<String, String>,
+    /// reading the default dir (the only one WSL's logs join)
+    default_dir: bool,
+    /// whether to look into WSL too: opted into, on Windows
+    wsl: bool,
+    /// the WSL dirs found and when they were last looked for
+    wsl_dirs: Option<(i64, Vec<crate::platform::wsl::ClaudeDir>)>,
 }
+
+// how often to look again for running distros (wsl.exe is a process spawn)
+const WSL_RECHECK_MS: i64 = 60_000;
 
 pub fn default_claude_dir() -> PathBuf {
     match std::env::var_os("CLAUDE_CONFIG_DIR") {
@@ -158,11 +170,29 @@ fn mtime_ms(meta: &fs::Metadata) -> i64 {
 
 impl Reader {
     pub fn new(claude_dir: Option<PathBuf>) -> Self {
-        Reader { claude_dir: claude_dir.unwrap_or_else(default_claude_dir), files: HashMap::new(), labels: HashMap::new() }
+        let default_dir = claude_dir.is_none();
+        Reader {
+            claude_dir: claude_dir.unwrap_or_else(default_claude_dir),
+            files: HashMap::new(),
+            labels: HashMap::new(),
+            default_dir,
+            wsl: false,
+            wsl_dirs: None,
+        }
+    }
+
+    /// Also read Claude Code's logs in running WSL distros (Windows only; the
+    /// Settings switch). Off, wsl.exe is never run.
+    pub fn set_wsl(&mut self, on: bool) {
+        self.wsl = cfg!(windows) && on;
+        if !self.wsl {
+            self.wsl_dirs = None;
+        }
     }
 
     /// Point the reader at another account's logs (None = the default dir).
     pub fn set_claude_dir(&mut self, dir: Option<PathBuf>) {
+        self.default_dir = dir.is_none();
         let next = dir.unwrap_or_else(default_claude_dir);
         if next == self.claude_dir {
             return;
@@ -171,8 +201,18 @@ impl Reader {
         self.labels.clear();
     }
 
-    fn projects_dir(&self) -> PathBuf {
-        self.claude_dir.join("projects")
+    /// Every projects dir to read, each with the filesystem root its project
+    /// names are paths from: this machine's, then any running WSL distro's.
+    fn projects_dirs(&mut self, now: i64) -> Vec<(PathBuf, PathBuf)> {
+        let mut dirs = vec![(PathBuf::from("/"), self.claude_dir.join("projects"))];
+        if self.wsl && self.default_dir {
+            if self.wsl_dirs.as_ref().is_none_or(|(at, _)| now - at >= WSL_RECHECK_MS || now < *at) {
+                self.wsl_dirs = Some((now, crate::platform::wsl::claude_dirs()));
+            }
+            let found = self.wsl_dirs.as_ref().map(|(_, d)| d.as_slice()).unwrap_or_default();
+            dirs.extend(found.iter().map(|d| (d.root.clone(), d.dir.join("projects"))));
+        }
+        dirs
     }
 
     pub fn get_usage(&mut self, cfg: &Config) -> Usage {
@@ -194,9 +234,13 @@ impl Reader {
         let recent_cutoff = now - 12 * 3600 * 1000;
         let scan_cutoff = start30 - DAY_MS;
 
-        let projects_dir = self.projects_dir();
+        let roots = self.projects_dirs(now);
         let mut files = Vec::new();
-        walk_jsonl(&projects_dir, &mut files, scan_cutoff);
+        for (i, (_, projects_dir)) in roots.iter().enumerate() {
+            let from = files.len();
+            walk_jsonl(projects_dir, &mut files, scan_cutoff);
+            files[from..].iter_mut().for_each(|f| f.root = i);
+        }
 
         let newest = files.iter().max_by_key(|f| f.mtime);
         let last_mtime = newest.map(|f| f.mtime).unwrap_or(0);
@@ -210,7 +254,8 @@ impl Reader {
         let mut recent: Vec<(i64, u64)> = Vec::new();
 
         for f in &files {
-            let proj = project_dir_of(&projects_dir, &f.path).map(|d| project_label(&mut self.labels, &d));
+            let (fs_root, projects_dir) = &roots[f.root];
+            let proj = project_dir_of(projects_dir, &f.path).map(|d| project_label(&mut self.labels, fs_root, &d));
             let entries = parse_file(&mut self.files, &f.path, f.size);
             for e in entries {
                 if e.ts < start30 {
@@ -439,8 +484,8 @@ fn encode_segment(name: &str) -> String {
 // child, encoded the same way, starts the rest? Longest match wins. Returns
 // the path when fully resolved, and the remainder before the last step (a
 // step that may have eaten into the name of a directory that's gone).
-fn resolve_project_path(dir_name: &str) -> (Option<PathBuf>, Option<String>) {
-    let mut cur = PathBuf::from("/");
+fn resolve_project_path(fs_root: &Path, dir_name: &str) -> (Option<PathBuf>, Option<String>) {
+    let mut cur = fs_root.to_path_buf();
     let mut rest = dir_name.to_string();
     let mut consumed = None;
     while !rest.is_empty() {
@@ -472,11 +517,13 @@ fn resolve_project_path(dir_name: &str) -> (Option<PathBuf>, Option<String>) {
 
 /// The readable name for a project directory: its basename when the path
 /// still exists, otherwise the raw tail. A wrong name is worse than an ugly one.
-fn project_label(cache: &mut HashMap<String, String>, dir_name: &str) -> String {
-    if let Some(hit) = cache.get(dir_name) {
+fn project_label(cache: &mut HashMap<String, String>, fs_root: &Path, dir_name: &str) -> String {
+    // the same name can stand for different paths in this machine and in WSL
+    let key = format!("{}|{dir_name}", fs_root.display());
+    if let Some(hit) = cache.get(&key) {
         return hit.clone();
     }
-    let (full, consumed) = resolve_project_path(dir_name);
+    let (full, consumed) = resolve_project_path(fs_root, dir_name);
     let label = match full {
         Some(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.to_string_lossy().into_owned()),
         None => {
@@ -485,13 +532,13 @@ fn project_label(cache: &mut HashMap<String, String>, dir_name: &str) -> String 
             if chars.len() > LABEL_MAX { format!("…{}", chars[chars.len() - (LABEL_MAX - 1)..].iter().collect::<String>()) } else { raw.to_string() }
         }
     };
-    cache.insert(dir_name.to_string(), label.clone());
+    cache.insert(key, label.clone());
     label
 }
 
 #[cfg(test)]
 pub fn project_label_uncached(dir_name: &str) -> String {
-    project_label(&mut HashMap::new(), dir_name)
+    project_label(&mut HashMap::new(), Path::new("/"), dir_name)
 }
 
 fn project_dir_of(projects_dir: &Path, file: &Path) -> Option<String> {
@@ -517,7 +564,7 @@ fn walk_jsonl(dir: &Path, out: &mut Vec<LogFile>, cutoff: i64) {
             if mtime < cutoff {
                 continue;
             }
-            out.push(LogFile { path, size: meta.len(), mtime });
+            out.push(LogFile { path, size: meta.len(), mtime, root: 0 });
         }
     }
 }
