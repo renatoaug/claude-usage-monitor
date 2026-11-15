@@ -34,6 +34,11 @@ opt-level = "s"
 egui_kittest = { version = "0.37.0", features = ["snapshot", "wgpu"] }
 tempfile = "3.27.0"
 
+# the exe's icon and version info in Explorer and the taskbar (build.rs);
+# not target-gated, so a Windows exe cross-built from Linux gets it too
+[build-dependencies]
+winresource = "0.1.34"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
 objc2 = "0.6.5"

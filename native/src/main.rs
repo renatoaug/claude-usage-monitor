@@ -88,17 +88,30 @@ fn main() -> eframe::Result {
         return Ok(());
     }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("Clauddy")
-            .with_inner_size(app::initial_size())
-            // living in the menu bar, the panel waits for a click on the icon
-            .with_visible(!prefs::Prefs::load().menu_bar)
-            .with_transparent(true)
-            .with_decorations(false)
-            .with_has_shadow(false)
-            .with_always_on_top()
-            .with_resizable(false),
+        viewport: with_app_icon(
+            egui::ViewportBuilder::default()
+                .with_title("Clauddy")
+                .with_inner_size(app::initial_size())
+                // living in the menu bar, the panel waits for a click on the icon
+                .with_visible(!prefs::Prefs::load().menu_bar)
+                .with_transparent(true)
+                .with_decorations(false)
+                .with_has_shadow(false)
+                .with_always_on_top()
+                .with_resizable(false),
+        ),
         ..Default::default()
     };
     eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+}
+
+/// The taskbar's and Alt-Tab's icon, from the app icon (macOS takes the bundle's).
+fn with_app_icon(viewport: egui::ViewportBuilder) -> egui::ViewportBuilder {
+    if cfg!(target_os = "macos") {
+        return viewport;
+    }
+    match eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png")) {
+        Ok(icon) => viewport.with_icon(icon),
+        Err(_) => viewport,
+    }
 }
