@@ -10,7 +10,7 @@ On Windows, Claude Code is often run inside WSL. Its logs then live in the distr
 
 ## Decision
 
-On Windows, Clauddy reads Claude Code's logs inside WSL only when **Settings → Accounts → Claude → Claude Code in WSL** is on (`config.wsl.enabled`, off by default). Then, for the default account only, it asks `wsl.exe --list --running` at most once a minute (no console window, 3 s timeout) and reads `home/*/.claude/projects` and `root/.claude/projects` of each running distro beside the Windows logs. A stopped distro is never opened. Other systems never show the switch and never run `wsl.exe`.
+On Windows, Clauddy reads Claude Code's logs inside WSL only when **Settings → Accounts → Claude → Claude Code in WSL** is on (`config.wsl.enabled`, off by default). Then, for the default account only, it asks `wsl.exe --list --running` at most once a minute, off the poll's thread (no console window, 3 s timeout), and reads `home/*/.claude/projects` and `root/.claude/projects` of each running distro beside the Windows logs. A stopped distro is never opened. Other systems never show the switch and never run `wsl.exe`.
 
 ## Alternatives considered
 

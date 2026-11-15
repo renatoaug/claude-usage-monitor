@@ -3,7 +3,7 @@
 
 use super::*;
 use serde_json::json;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use tempfile::TempDir;
 
 const MIN: i64 = 60_000;
@@ -585,4 +585,49 @@ fn an_empty_log_directory_reports_zeroes() {
     assert_eq!(u.month_tokens, 0);
     assert_eq!(u.last_activity_ms, None);
     assert!(u.sleeping && u.ts > 0);
+}
+
+// ---- a projects dir behind a slow filesystem (WSL's) ----
+
+fn names(files: &[LogFile]) -> Vec<String> {
+    files.iter().map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned()).collect()
+}
+
+#[test]
+fn a_cached_walk_sees_a_new_session_and_a_growing_log_before_the_next_whole_walk() {
+    let root = TempDir::new().unwrap();
+    let dir = root.path().join("projects");
+    fs::create_dir_all(dir.join("-a")).unwrap();
+    fs::write(dir.join("-a/one.jsonl"), "x\n").unwrap();
+    let mut w = Walked::default();
+    let t0 = now_ms();
+    assert_eq!(names(&walk_cached(&mut w, &dir, t0, 0)), vec!["one.jsonl"]);
+
+    // a new project with its first session: its directory is new
+    fs::create_dir_all(dir.join("-b")).unwrap();
+    fs::write(dir.join("-b/two.jsonl"), "x\n").unwrap();
+    // the log of the turn going on grows
+    fs::write(dir.join("-a/one.jsonl"), "x\ny\n").unwrap();
+    let files = walk_cached(&mut w, &dir, t0 + 1000, 0);
+    assert_eq!(names(&files), vec!["one.jsonl", "two.jsonl"]);
+    assert_eq!(files[0].size, 4);
+}
+
+#[test]
+fn a_cached_walk_sees_a_long_quiet_log_grow_at_the_next_whole_walk() {
+    let root = TempDir::new().unwrap();
+    let dir = root.path().join("projects");
+    fs::create_dir_all(dir.join("-a")).unwrap();
+    let old = dir.join("-a/old.jsonl");
+    fs::write(&old, "x\n").unwrap();
+    let t0 = now_ms();
+    let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    fs::File::options().write(true).open(&old).unwrap().set_modified(hour_ago).unwrap();
+    let mut w = Walked::default();
+    walk_cached(&mut w, &dir, t0, 0);
+
+    // resumed: it grows, but neither its directory nor its last mtime says so
+    fs::write(&old, "x\ny\n").unwrap();
+    assert_eq!(walk_cached(&mut w, &dir, t0 + 1000, 0)[0].size, 2);
+    assert_eq!(walk_cached(&mut w, &dir, t0 + WALK_MS, 0)[0].size, 4);
 }

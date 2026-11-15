@@ -9,6 +9,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DAY_MS: i64 = 24 * 3600 * 1000;
@@ -126,6 +128,7 @@ struct FileState {
     entries: Vec<Entry>,
 }
 
+#[derive(Clone)]
 struct LogFile {
     path: PathBuf,
     size: u64,
@@ -146,12 +149,19 @@ pub struct Reader {
     default_dir: bool,
     /// whether to look into WSL too: opted into, on Windows
     wsl: bool,
-    /// the WSL dirs found and when they were last looked for
-    wsl_dirs: Option<(i64, Vec<crate::platform::wsl::ClaudeDir>)>,
+    /// the WSL dirs last found, written by a discovery thread
+    wsl_dirs: Arc<Mutex<Vec<crate::platform::wsl::ClaudeDir>>>,
+    /// when a discovery was last started, and whether one is running
+    wsl_asked: i64,
+    wsl_busy: Arc<AtomicBool>,
+    /// what the last walk of each WSL projects dir found
+    walked: HashMap<PathBuf, Walked>,
 }
 
 // how often to look again for running distros (wsl.exe is a process spawn)
 const WSL_RECHECK_MS: i64 = 60_000;
+// how often a projects dir behind a slow filesystem is walked whole
+const WALK_MS: i64 = 60_000;
 
 pub fn default_claude_dir() -> PathBuf {
     match std::env::var_os("CLAUDE_CONFIG_DIR") {
@@ -177,7 +187,10 @@ impl Reader {
             labels: HashMap::new(),
             default_dir,
             wsl: false,
-            wsl_dirs: None,
+            wsl_dirs: Arc::default(),
+            wsl_asked: 0,
+            wsl_busy: Arc::default(),
+            walked: HashMap::new(),
         }
     }
 
@@ -186,7 +199,9 @@ impl Reader {
     pub fn set_wsl(&mut self, on: bool) {
         self.wsl = cfg!(windows) && on;
         if !self.wsl {
-            self.wsl_dirs = None;
+            // turned on again, it looks at once
+            self.wsl_asked = 0;
+            self.walked.clear();
         }
     }
 
@@ -203,13 +218,25 @@ impl Reader {
 
     /// Every projects dir to read, each with the filesystem root its project
     /// names are paths from: this machine's, then any running WSL distro's.
+    /// The distros are looked for on a thread of their own, so a slow
+    /// `wsl.exe` never holds up a poll: until it answers, the last ones found
+    /// are read.
     fn projects_dirs(&mut self, now: i64) -> Vec<(PathBuf, PathBuf)> {
         let mut dirs = vec![(PathBuf::from("/"), self.claude_dir.join("projects"))];
         if self.wsl && self.default_dir {
-            if self.wsl_dirs.as_ref().is_none_or(|(at, _)| now - at >= WSL_RECHECK_MS || now < *at) {
-                self.wsl_dirs = Some((now, crate::platform::wsl::claude_dirs()));
+            let due = self.wsl_asked == 0 || now - self.wsl_asked >= WSL_RECHECK_MS || now < self.wsl_asked;
+            if due && !self.wsl_busy.swap(true, Ordering::AcqRel) {
+                self.wsl_asked = now;
+                let (found, busy) = (Arc::clone(&self.wsl_dirs), Arc::clone(&self.wsl_busy));
+                std::thread::spawn(move || {
+                    let dirs = crate::platform::wsl::claude_dirs();
+                    if let Ok(mut f) = found.lock() {
+                        *f = dirs;
+                    }
+                    busy.store(false, Ordering::Release);
+                });
             }
-            let found = self.wsl_dirs.as_ref().map(|(_, d)| d.as_slice()).unwrap_or_default();
+            let found = self.wsl_dirs.lock().map(|f| f.clone()).unwrap_or_default();
             dirs.extend(found.iter().map(|d| (d.root.clone(), d.dir.join("projects"))));
         }
         dirs
@@ -238,7 +265,12 @@ impl Reader {
         let mut files = Vec::new();
         for (i, (_, projects_dir)) in roots.iter().enumerate() {
             let from = files.len();
-            walk_jsonl(projects_dir, &mut files, scan_cutoff);
+            if i == 0 {
+                walk_jsonl(projects_dir, &mut files, scan_cutoff);
+            } else {
+                // WSL's, over 9P: a whole walk costs under 1 ms a directory
+                files.extend(walk_cached(self.walked.entry(projects_dir.clone()).or_default(), projects_dir, now, scan_cutoff));
+            }
             files[from..].iter_mut().for_each(|f| f.root = i);
         }
 
@@ -567,6 +599,54 @@ fn walk_jsonl(dir: &Path, out: &mut Vec<LogFile>, cutoff: i64) {
             out.push(LogFile { path, size: meta.len(), mtime, root: 0 });
         }
     }
+}
+
+/// What the last walk of a projects dir behind a slow filesystem found.
+#[derive(Default)]
+struct Walked {
+    at: i64,
+    /// each project directory and its mtime at the last look
+    projects: HashMap<PathBuf, i64>,
+    files: Vec<LogFile>,
+}
+
+/// The logs under `dir` without walking all of it on every poll: whole at
+/// most once a minute. In between, a poll lists only the top level, walks
+/// again the projects whose directory changed (a new session started), and
+/// reads again the size of the logs written in the last half hour (a turn
+/// going on). A log quiet for longer that grows again (a resumed session) is
+/// seen at the next whole walk.
+fn walk_cached(w: &mut Walked, dir: &Path, now: i64, cutoff: i64) -> Vec<LogFile> {
+    let projects: HashMap<PathBuf, i64> = fs::read_dir(dir)
+        .map(|it| it.flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_dir())).filter_map(|e| Some((e.path(), mtime_ms(&e.metadata().ok()?)))).collect())
+        .unwrap_or_default();
+    if w.at == 0 || now - w.at >= WALK_MS || now < w.at {
+        w.files.clear();
+        walk_jsonl(dir, &mut w.files, cutoff);
+        w.projects = projects;
+        w.at = now;
+        return w.files.clone();
+    }
+    let mut changed = false;
+    for (project, mtime) in projects {
+        if w.projects.get(&project) != Some(&mtime) {
+            w.files.retain(|f| !f.path.starts_with(&project));
+            walk_jsonl(&project, &mut w.files, cutoff);
+            w.projects.insert(project, mtime);
+            changed = true;
+        }
+    }
+    if changed {
+        // the order a whole walk gives, so dedup credits a turn the same way
+        w.files.sort_by(|a, b| a.path.cmp(&b.path));
+    }
+    for f in w.files.iter_mut().filter(|f| now - f.mtime <= OPEN_TURN_MS) {
+        if let Ok(meta) = fs::metadata(&f.path) {
+            f.size = meta.len();
+            f.mtime = mtime_ms(&meta);
+        }
+    }
+    w.files.clone()
 }
 
 #[cfg(test)]
