@@ -102,7 +102,14 @@ fn main() -> eframe::Result {
         ),
         ..Default::default()
     };
-    eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    eframe::run_native(
+        "Clauddy",
+        options,
+        Box::new(|cc| {
+            platform::frame::remove(cc);
+            Ok(Box::new(app::App::new(cc)))
+        }),
+    )
 }
 
 /// The taskbar's and Alt-Tab's icon: the .ico's 256 px image, decoded at

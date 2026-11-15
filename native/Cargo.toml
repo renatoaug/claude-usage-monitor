@@ -50,3 +50,6 @@ objc2-user-notifications = { version = "0.3.2", features = ["UNUserNotificationC
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 notify-rust = "4.18.2"
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6.2"

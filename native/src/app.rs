@@ -461,7 +461,9 @@ impl eframe::App for App {
         [0.0; 4]
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        // Windows: keep the white Windows paints under the frame from showing
+        crate::platform::frame::clear_behind(frame);
         let ctx = ui.ctx().clone();
         let snap: Snapshot = self.data.lock().map(|s| s.clone()).unwrap_or_default();
         let session = snap.limits.as_ref().and_then(|l| live(&l.session, snap.limits_at));
