@@ -36,7 +36,7 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 **⚙ Settings → Appearance → Lives in** picks where Clauddy lives:
 
 - **Floating**: the always-on widget in a corner (the default).
-- **Menu bar**: a pet icon in the menu bar with the hottest session % beside it (🔥 near the limit). Its menu opens the panel under the icon, switches back to floating or quits; a click away closes the panel, and **–** in its title band hides it. On Windows and Linux the icon lives in the system tray and the % shows in its tooltip.
+- **Menu bar**: a pet icon in the menu bar with the hottest session % beside it (🔥 near the limit). Its menu opens the panel under the icon, switches back to floating or quits; a click away closes the panel, and **–** in its title band hides it. On Windows and Linux the icon lives in the system tray, the same pet in its coral (nothing tints a template there, and black vanishes on a dark taskbar), and the % shows in its tooltip.
 
 Switching takes effect at once, with no restart.
 

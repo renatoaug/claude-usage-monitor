@@ -1,8 +1,8 @@
 // Clauddy in the menu bar: a template icon (macOS tints it for the theme)
 // with the session % beside it. A click opens its menu: the limits first
 // (session, week, per-model weeks, each with its reset), then Open, back to
-// floating, and Quit. On Windows and Linux it's a tray icon with the % in
-// its tooltip.
+// floating, and Quit. On Windows and Linux it's a tray icon, the same pet in
+// its coral, with the % in its tooltip.
 
 use eframe::egui::{Context, Pos2, Rect, Vec2};
 
@@ -43,13 +43,50 @@ fn build_menu(lines: &[String], open: &MenuItem, floating: &MenuItem, quit: &Men
     Some(menu)
 }
 
-fn decode(bytes: &[u8]) -> Option<tray_icon::Icon> {
+/// A PNG's pixels as RGBA, and its width and height.
+fn pixels(bytes: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
     let mut dec = png::Decoder::new(std::io::Cursor::new(bytes));
     dec.set_transformations(png::Transformations::EXPAND | png::Transformations::ALPHA);
     let mut r = dec.read_info().ok()?;
     let mut buf = vec![0; r.output_buffer_size()?];
     let info = r.next_frame(&mut buf).ok()?;
-    tray_icon::Icon::from_rgba(buf[..info.buffer_size()].to_vec(), info.width, info.height).ok()
+    buf.truncate(info.buffer_size());
+    Some((buf, info.width, info.height))
+}
+
+/// The template as macOS takes it: black, tinted by the system.
+#[cfg(target_os = "macos")]
+fn decode(bytes: &[u8]) -> Option<tray_icon::Icon> {
+    let (rgba, w, h) = pixels(bytes)?;
+    tray_icon::Icon::from_rgba(rgba, w, h).ok()
+}
+
+/// Nothing tints the template outside macOS, so its black pet all but
+/// vanished on a dark taskbar: it's painted the pet's coral, which reads on
+/// dark and light alike, and centred on a square, the shape of a tray slot.
+#[cfg(not(target_os = "macos"))]
+fn decode(bytes: &[u8]) -> Option<tray_icon::Icon> {
+    let (rgba, w, h) = pixels(bytes)?;
+    let (square, side) = coral_square(&rgba, w, h);
+    tray_icon::Icon::from_rgba(square, side, side).ok()
+}
+
+/// `rgba` (w x h) in the pet's coral, keeping its alpha, centred on a
+/// transparent square as wide as its longer side.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+fn coral_square(rgba: &[u8], w: u32, h: u32) -> (Vec<u8>, u32) {
+    let c = crate::ui::theme::color::TRAY_PET;
+    let side = w.max(h);
+    let (dx, dy) = ((side - w) / 2, (side - h) / 2);
+    let mut out = vec![0u8; (side * side * 4) as usize];
+    for y in 0..h {
+        for x in 0..w {
+            let from = ((y * w + x) * 4) as usize;
+            let to = (((y + dy) * side + x + dx) * 4) as usize;
+            out[to..to + 4].copy_from_slice(&[c.r(), c.g(), c.b(), rgba[from + 3]]);
+        }
+    }
+    (out, side)
 }
 
 impl Tray {
@@ -186,5 +223,19 @@ mod tests {
     #[test]
     fn the_template_icon_decodes() {
         assert!(super::decode(super::ICON).is_some());
+    }
+
+    #[test]
+    fn outside_macos_the_pet_is_coral_on_a_square() {
+        let (rgba, w, h) = super::pixels(super::ICON).unwrap();
+        let (square, side) = super::coral_square(&rgba, w, h);
+        assert_eq!((side, square.len()), (w.max(h), (side * side * 4) as usize));
+        let c = crate::ui::theme::color::TRAY_PET;
+        // every pixel the pet covers is coral, as many as the template has
+        let lit = |px: &[u8]| px.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).count();
+        assert!(square.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).all(|p| p[..3] == [c.r(), c.g(), c.b()]));
+        assert_eq!(lit(&square), lit(&rgba));
+        // and the padding stays clear
+        assert_eq!(square[3], 0);
     }
 }

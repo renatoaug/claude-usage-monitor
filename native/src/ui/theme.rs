@@ -215,6 +215,9 @@ pub mod color {
     pub const TIRED: Color32 = STONE_400;
     pub const TIRED_TEXT: Color32 = STONE_300;
     pub const REST: Color32 = SAND_700;
+    /// the tray's pet outside macOS: the pet's own coral, which reads on a
+    /// dark taskbar and a light one
+    pub const TRAY_PET: Color32 = CORAL_500;
 
     // providers: the logo tint and the bar
     pub const CLAUDE: Color32 = CORAL_400;
