@@ -38,6 +38,9 @@ pub struct View {
     /// the account menu is open (not remembered)
     #[serde(skip)]
     pub account_menu: bool,
+    /// the ⋯ menu of the title band is open (not remembered)
+    #[serde(skip)]
+    pub more_menu: bool,
     /// an account whose × was clicked once: the next click removes it
     #[serde(skip)]
     pub pending_remove: Option<String>,
@@ -49,6 +52,10 @@ pub struct View {
     /// Settings' pet picker is open (not remembered)
     #[serde(skip)]
     pub pet_picker: bool,
+    /// the pet picker was opened from ⋯: a pick is saved at once, and
+    /// closing it leaves Settings too (not remembered)
+    #[serde(skip)]
+    pub quick_pet: bool,
 }
 
 impl Default for View {
@@ -59,10 +66,12 @@ impl Default for View {
             models: true,
             projects: true,
             account_menu: false,
+            more_menu: false,
             pending_remove: None,
             settings: None,
             provider: Provider::Claude,
             pet_picker: false,
+            quick_pet: false,
         }
     }
 }
@@ -94,6 +103,11 @@ pub enum Action {
     DismissBubble,
     /// the menu bar's popover goes back into the bar
     HidePopover,
+    /// the title band's ⋯ menu
+    ToggleMoreMenu,
+    /// ⋯'s Change pet: the pet picker on its own
+    QuickPet,
+    CloseMoreMenu,
     CheckUpdates,
     TogglePetPicker,
     InstallUpdate,

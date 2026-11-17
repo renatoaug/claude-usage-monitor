@@ -49,7 +49,7 @@ The tray icon needs an indicator extension on vanilla GNOME (such as "AppIndicat
 
 ## Update
 
-**⚙ Settings → Check for updates → Update now** runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
+**⋯ → Check for updates**, then **Update** in the same menu, runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
 
 ## From the code
 

@@ -123,15 +123,28 @@ fn render_inner(case: Case, draft: Prefs) {
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
             update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
         };
-        size(&f)
+        let card = size(&f);
+        // compact's open ⋯ menu runs past the card: the window grows to hold
+        // it, as the app's does, and the card keeps its size
+        let menu = if case.view.size == Size::Compact && case.view.settings.is_none() && case.view.more_menu {
+            let at = eframe::egui::Rect::from_min_size(
+                eframe::egui::pos2(super::MARGIN, super::MARGIN),
+                eframe::egui::vec2(card[0], card[1]) - eframe::egui::Vec2::splat(2.0 * super::MARGIN),
+            );
+            compact::more_menu_box(at, &f.update).bottom() + super::MARGIN
+        } else {
+            0.0
+        };
+        (card, [card[0], card[1].max(menu)])
     };
+    let (card_size, window) = window;
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
-        let area = ctx.content_rect().shrink(super::MARGIN);
+        let area = eframe::egui::Rect::from_min_size(ctx.content_rect().min, card_size.into()).shrink(super::MARGIN);
         let f = Frame {
             area,
             card: area,
@@ -485,6 +498,33 @@ fn settings_cursor_card() {
 #[test]
 fn expanded_in_the_menu_bar() {
     render(Case { name: "expanded-menu-bar", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
+}
+
+fn more_menu(name: &'static str, size: Size) {
+    let view = View { size, more_menu: true, ..View::default() };
+    render(Case { name, snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view });
+}
+
+#[test]
+fn expanded_more_menu() {
+    more_menu("expanded-more-menu", Size::Expanded);
+}
+
+#[test]
+fn compact_more_menu() {
+    more_menu("compact-more-menu", Size::Compact);
+}
+
+#[test]
+fn expanded_more_menu_with_an_update() {
+    // the dot on ⋯ and on Settings inside it
+    more_menu("expanded-more-menu-update", Size::Expanded);
+}
+
+#[test]
+fn expanded_more_menu_in_the_menu_bar() {
+    // back to floating instead of to the bar
+    more_menu("expanded-more-menu-in-the-menu-bar", Size::Expanded);
 }
 
 #[test]

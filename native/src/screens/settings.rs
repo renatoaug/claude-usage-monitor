@@ -4,7 +4,7 @@
 
 use eframe::egui::{Align, Context, CornerRadius, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
-use super::expanded::{account_menu_overlay, title_band};
+use super::expanded::{band_overlays, title_band};
 use super::{Action, Frame, MARGIN};
 use crate::components::login::{LoginPick, login_panel};
 use crate::components::logos::Provider;
@@ -40,7 +40,6 @@ const TILES_H: f32 = 62.0;
 const CONN_H: f32 = 64.0;
 const LOGIN_H: f32 = 112.0;
 const ACTIONS_H: f32 = 14.0 + 30.0;
-const VERSION_H: f32 = 12.0 + 14.0;
 const PAD_BOTTOM: f32 = 14.0;
 
 fn logging_in(snap: &Snapshot) -> bool {
@@ -72,7 +71,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
 
 /// Window size for Settings on `tab`.
 pub fn size(snap: &Snapshot, tab: Tab, view: &super::View) -> [f32; 2] {
-    let h = BODY_TOP + 12.0 + TABS_H + pane_h(tab, snap, view) + ACTIONS_H + VERSION_H + PAD_BOTTOM;
+    let h = BODY_TOP + 12.0 + TABS_H + pane_h(tab, snap, view) + ACTIONS_H + PAD_BOTTOM;
     [CARD_W + 2.0 * MARGIN, h + 2.0 * MARGIN]
 }
 
@@ -94,7 +93,9 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
     let tabs = Rect::from_min_size(Pos2::new(left, y + 4.0), Vec2::new(right - left, 30.0));
     let labels: Vec<&str> = TABS.iter().map(|t| t.1).collect();
     let selected = TABS.iter().position(|t| t.0 == tab).unwrap_or(0);
-    if let Some(i) = segmented(ui, tabs, "settings-tabs", &labels, selected, text::BODY, &[]) {
+    // with their icons the labels go a size down, so the three fit with room
+    let glyphs = [icon::USER, icon::BELL, icon::PALETTE];
+    if let Some(i) = crate::ui::segmented::segmented_with_icons(ui, tabs, "settings-tabs", &labels, &glyphs, selected, text::SMALL, &[]) {
         actions.push(Action::SettingsTab(TABS[i].0));
     }
     y += TABS_H;
@@ -124,50 +125,11 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
             actions.push(Action::SaveSettings);
         }
     }
-    y += ACTIONS_H;
-
-    // the version, and the update check
-    let vy = y + 12.0 + 6.0;
-    text_mid(&p, left, vy, Align::Min, &format!("clauddy v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
-    use crate::updates::Update;
-    let (label, act) = match &f.update {
-        Update::Idle | Update::UpToDate | Update::Failed(_) => (
-            match &f.update {
-                Update::UpToDate => "Up to date · check again".to_string(),
-                Update::Failed(_) => "Couldn't check · try again".to_string(),
-                _ => "Check for updates".to_string(),
-            },
-            Some(Action::CheckUpdates),
-        ),
-        Update::Checking => ("Checking…".to_string(), None),
-        Update::Available(tag) => (format!("Update to {tag}"), Some(Action::InstallUpdate)),
-        Update::Updating => ("Updating…".to_string(), None),
-    };
-    let w = p.layout_no_wrap(label.clone(), eframe::egui::FontId::proportional(text::CAPTION), color::ADD).size().x;
-    let hit = Rect::from_min_max(Pos2::new(right - w, vy - 8.0), Pos2::new(right, vy + 8.0));
-    let hovered = match act.clone() {
-        Some(a) => {
-            let r = click_area(ui, hit, "updates");
-            if r.clicked() {
-                actions.push(a);
-            }
-            r.hovered()
-        }
-        None => false,
-    };
-    let fg = if act.is_none() {
-        color::FG_MUTED
-    } else if hovered {
-        color::FG
-    } else {
-        color::ADD
-    };
-    text_mid(&p, right, vy, Align::Max, &label, text::CAPTION, fg);
 
     if tab == Tab::Appearance && f.view.pet_picker {
         pet_modal(ui, ctx, f, rect, draft, &mut actions);
     }
-    account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
+    band_overlays(ui, ctx, f, rect, chip, &mut actions);
     actions
 }
 

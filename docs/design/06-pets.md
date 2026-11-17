@@ -14,6 +14,8 @@ The pets Clauddy can wear besides the classic sprite: the catalog and its packs,
 
 ![The pet picker](../../native/tests/snapshots/settings-pet-picker.png)
 
+The picker opens from **⚙ Settings → Appearance → Pet**, where the pick waits for **Save**, or from the title band's **⋯ → Change pet**, where it takes at once and closing the picker goes back to the widget.
+
 ## How a pet is drawn
 
 A pet is a pair of sprite sheets in the classic sprite's layout, generated in its art style rather than drawn in code ([ADR-013](../decisions/ADR-013-pets-are-generated-sprite-sheets.md)):

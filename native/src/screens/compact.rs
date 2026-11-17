@@ -12,8 +12,8 @@ use crate::components::logos::Provider;
 use crate::components::service_row::{ROW_GAP, ROW_H, ServiceRow, service_row, service_row_skeleton};
 use crate::components::status::caption;
 use crate::format::clock;
-use crate::ui::controls::button_row;
 use crate::ui::controls::click_area;
+use crate::ui::controls::{BUTTON, button_row};
 use crate::ui::icon;
 use crate::ui::surface::{card, halo};
 use crate::ui::theme::{color, radius, text};
@@ -60,6 +60,29 @@ pub fn workers(f: &Frame) -> Vec<Provider> {
     super::workers(f.snap)
 }
 
+/// The ⋯ button's box: left of pet-only, expand and close.
+fn more_button_rect(area: Rect) -> Rect {
+    Rect::from_center_size(Pos2::new(area.right() - 8.0 - BUTTON / 2.0 - 3.0 * (BUTTON + 4.0), area.top() + 15.5), Vec2::splat(BUTTON))
+}
+
+/// Where the ⋯ menu hangs: under its button, kept inside the card's width
+/// (compact is narrower than the menu is wide from the button leftwards).
+fn more_menu_top_right(area: Rect) -> Pos2 {
+    let b = more_button_rect(area);
+    Pos2::new(b.right().max(area.left() + 6.0 + crate::components::more_menu::W), b.bottom() + 4.0)
+}
+
+/// The open ⋯ menu's box: it runs past the card's foot, so the window
+/// makes room for it and it takes the pointer there.
+pub fn more_menu_area(f: &Frame) -> Option<Rect> {
+    f.view.more_menu.then(|| more_menu_box(f.area, &f.update))
+}
+
+/// The ⋯ menu's box (with its shadow) for a card at `area`.
+pub fn more_menu_box(area: Rect, update: &crate::updates::Update) -> Rect {
+    crate::components::more_menu::menu_rect(more_menu_top_right(area), update).expand(8.0)
+}
+
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let mut actions = vec![];
     let rows = rows(f);
@@ -67,14 +90,18 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     card(ui, ctx, f.card);
     let p = ui.painter();
 
-    // title band: the account, then pet-only, expand and close
+    // title band: the account, then ⋯, pet-only, expand and close
     let band_y = rect.top() + 15.5;
     account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref(), !f.snap.loaded);
+    let more = more_button_rect(rect);
     match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
         Some(0) => actions.push(Action::Close),
         Some(1) => actions.push(Action::Resize(Size::Expanded)),
         Some(2) => actions.push(Action::Resize(Size::PetOnly)),
         _ => {}
+    }
+    if crate::components::more_menu::more_button(ui, more.center(), super::expanded::update_out(f)).clicked() {
+        actions.push(Action::ToggleMoreMenu);
     }
 
     // the content: the pet's column on the left, the rows on the right, and
@@ -130,6 +157,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
             actions.push(Action::DismissBubble);
         }
     }
+    super::expanded::more_menu_overlay(ui, ctx, f, more, more_menu_top_right(rect), &mut actions);
     actions
 }
 
