@@ -41,6 +41,9 @@ pub struct App {
     /// the panel is open under the menu-bar icon; `focused` once it took focus
     popover: bool,
     popover_focused: bool,
+    /// whether the window had focus last frame: losing it (a click in
+    /// another app) closes the title band's menus
+    had_focus: bool,
     /// the window is shown (it hides while Clauddy lives in the menu bar)
     shown: bool,
     /// the screen on show (Settings tab, size) and when it came in, to fade it in
@@ -185,6 +188,7 @@ impl App {
             tray: None,
             popover: false,
             popover_focused: false,
+            had_focus: false,
             shown: !Prefs::load().menu_bar,
             screen: (None, Size::Expanded),
             entered: Instant::now(),
@@ -209,9 +213,11 @@ impl App {
                     if self.view.settings.take().is_some() {
                         self.draft = self.prefs.clone();
                         self.view.pet_picker = false;
+                        self.view.quick_pet = false;
                         self.view.account_menu = false;
                     }
                     self.view.size = s;
+                    self.view.more_menu = false;
                 }
                 Action::OpenUsagePage => open_url("https://claude.ai/settings/usage"),
                 Action::ToggleDetails => self.view.details = !self.view.details,
@@ -219,8 +225,15 @@ impl App {
                 Action::ToggleProjects => self.view.projects = !self.view.projects,
                 Action::ToggleAccountMenu => {
                     self.view.account_menu = !self.view.account_menu;
+                    self.view.more_menu = false;
                     self.view.pending_remove = None;
                 }
+                Action::ToggleMoreMenu => {
+                    self.view.more_menu = !self.view.more_menu;
+                    self.view.account_menu = false;
+                    self.view.pending_remove = None;
+                }
+                Action::CloseMoreMenu => self.view.more_menu = false,
                 Action::CloseAccountMenu => {
                     self.view.account_menu = false;
                     self.view.pending_remove = None;
@@ -248,10 +261,26 @@ impl App {
                     self.draft = self.prefs.clone();
                     self.view.settings = if self.view.settings.is_some() { None } else { Some(settings::Tab::Accounts) };
                     self.view.pet_picker = false;
+                    self.view.quick_pet = false;
                     self.view.account_menu = false;
                 }
                 Action::SettingsTab(t) => self.view.settings = Some(t),
-                Action::EditPrefs(p) => self.draft = p,
+                Action::EditPrefs(p) => {
+                    // picked from ⋯'s Change pet: it takes at once, no Save
+                    if self.view.quick_pet && p.pet != self.prefs.pet {
+                        self.prefs.pet = p.pet.clone();
+                        self.prefs.save();
+                        self.send(Command::Prefs(self.prefs.clone()));
+                    }
+                    self.draft = p;
+                }
+                Action::QuickPet => {
+                    self.draft = self.prefs.clone();
+                    self.view.settings = Some(settings::Tab::Appearance);
+                    self.view.pet_picker = true;
+                    self.view.quick_pet = true;
+                    self.view.account_menu = false;
+                }
                 Action::SaveSettings => {
                     // moving to the menu bar: let the panel fade out first
                     if self.draft.menu_bar && !self.prefs.menu_bar {
@@ -278,7 +307,17 @@ impl App {
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
                 Action::HidePopover => self.close_popover(ctx),
                 Action::CheckUpdates => self.updater.check(),
-                Action::TogglePetPicker => self.view.pet_picker = !self.view.pet_picker,
+                Action::TogglePetPicker => {
+                    if self.view.quick_pet {
+                        // opened from ⋯: closing the picker leaves Settings too
+                        self.view.settings = None;
+                        self.view.pet_picker = false;
+                        self.view.quick_pet = false;
+                        self.draft = self.prefs.clone();
+                    } else {
+                        self.view.pet_picker = !self.view.pet_picker;
+                    }
+                }
                 Action::InstallUpdate => self.updater.install(),
                 Action::DismissBubble => {
                     if let Some(s) = &mut self.said {
@@ -543,6 +582,17 @@ impl eframe::App for App {
             }
             None => self.card_now = settled,
         }
+        // compact's ⋯ menu runs past the card's foot: a window that fits the
+        // card grows to hold it while it's open (a fixed canvas already does)
+        if !(FIXED_CANVAS && !self.prefs.menu_bar) && self.morph.is_none() && size == Size::Compact && self.view.settings.is_none() {
+            let area = egui::Rect::from_min_size(egui::pos2(MARGIN, MARGIN), settled);
+            let menu = self.view.more_menu.then(|| compact::more_menu_box(area, &self.updater.state()).bottom() + MARGIN);
+            let target = [want[0], want[1].max(menu.unwrap_or(0.0))];
+            if self.window != target {
+                self.window = target;
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(target.into()));
+            }
+        }
 
         // the new content comes up from part-way, never from nothing (no
         // blink); the panel fades all the way out only on its way to the menu bar
@@ -598,6 +648,14 @@ impl eframe::App for App {
             let rest = s.until.saturating_duration_since(Instant::now());
             ctx.request_repaint_after(if shown < 1.0 || rest.is_zero() { Duration::ZERO } else { rest });
         }
+        // a click outside Clauddy takes the focus away: the menus close
+        let focused = ctx.input(|i| i.viewport().focused) == Some(true);
+        if self.had_focus && !focused {
+            self.view.more_menu = false;
+            self.view.account_menu = false;
+            self.view.pending_remove = None;
+        }
+        self.had_focus = focused;
         let bubble = self.said.as_ref().map(|s| (if size == Size::Compact { s.short.as_str() } else { s.text.as_str() }, shown));
         let f = Frame {
             area,
@@ -616,6 +674,9 @@ impl eframe::App for App {
 
         // the areas that take the pointer; clicks anywhere else fall through
         let mut hot = vec![card];
+        if screen == (None, Size::Compact) {
+            hot.extend(compact::more_menu_area(&f));
+        }
         let mut actions = match screen {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &self.draft, &self.prefs, &mut self.code),
             (None, Size::Compact) => compact::draw(ui, &ctx, &f),

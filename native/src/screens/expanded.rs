@@ -12,12 +12,14 @@ use crate::components::login::{LOGIN_H, LoginPick, login_panel};
 use crate::components::logos::Provider;
 use crate::components::meter::{self, meter, meter_skeleton, meters};
 use crate::components::meter::{Meter, codex_meters, cursor_meters};
+use crate::components::more_menu::{MorePick, menu_rect as more_menu_rect, more_button, more_menu};
 use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::reminder;
 use crate::components::status::{STATUS_H, status_line};
 use crate::poller::Login;
 use crate::poller::Snapshot;
+use crate::ui::controls::BUTTON;
 use crate::ui::controls::{button_row, click_area};
 use crate::ui::icon;
 use crate::ui::surface::card_tinted;
@@ -277,7 +279,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
 
     // Details
     if !svc.details {
-        account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
+        band_overlays(ui, ctx, f, rect, chip, &mut actions);
         return actions;
     }
     hairline(p, left, right, y);
@@ -295,7 +297,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         details(ui, p, left, right, y, &svc, f, &mut actions);
     }
 
-    account_menu_overlay(ui, ctx, f, rect, chip, &mut actions);
+    band_overlays(ui, ctx, f, rect, chip, &mut actions);
     actions
 }
 
@@ -316,27 +318,68 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
         actions.push(Action::ToggleAccountMenu);
     }
     // in the menu bar the popover is the only size: minimize tucks it back
-    // into the bar (quitting is in the bar's menu), and there's no pet-only
+    // into the bar (quitting is in the bar's menu), and there's no pet-only.
+    // The rest (the pet, Settings, the usage page, updates) is in ⋯
     let mut buttons = vec![if f.menu_bar { ("minimize", icon::MINIMIZE, Action::HidePopover) } else { ("close", icon::CLOSE, Action::Close) }];
     if !f.menu_bar {
         buttons.push(("minimize", icon::MINIMIZE, Action::Resize(Size::Compact)));
         buttons.push(("pet-only", icon::PET, Action::Resize(Size::PetOnly)));
     }
-    buttons.push(("usage", icon::EXTERNAL, Action::OpenUsagePage));
-    buttons.push(("settings", icon::GEAR, Action::ToggleSettings));
     let glyphs: Vec<_> = buttons.iter().map(|b| (b.0, b.1)).collect();
-    let row_right = rect.right() - 8.0;
-    // a newer release: a dot on the gear, where Settings offers it
-    if matches!(f.update, crate::updates::Update::Available(_))
-        && let Some(i) = glyphs.iter().position(|g| g.0 == "settings")
-    {
-        let x = row_right - crate::ui::controls::BUTTON / 2.0 - i as f32 * (crate::ui::controls::BUTTON + 4.0);
-        ui.painter().circle_filled(Pos2::new(x + 7.0, rect.top() + 12.0), 3.0, color::ACCENT);
-    }
-    if let Some(i) = button_row(ui, row_right, rect.top() + 19.0, &glyphs) {
+    if let Some(i) = button_row(ui, rect.right() - 8.0, rect.top() + 19.0, &glyphs) {
         actions.push(buttons.swap_remove(i).2);
     }
+    if more_button(ui, more_slot(f, rect).center(), update_out(f)).clicked() {
+        actions.push(Action::ToggleMoreMenu);
+    }
     chip
+}
+
+/// The ⋯ button's box in the expanded title band: left of the others.
+fn more_slot(f: &Frame, rect: Rect) -> Rect {
+    let i = if f.menu_bar { 1.0 } else { 3.0 };
+    let x = rect.right() - 8.0 - BUTTON / 2.0 - i * (BUTTON + 4.0);
+    Rect::from_center_size(Pos2::new(x, rect.top() + 19.0), Vec2::splat(BUTTON))
+}
+
+/// A newer release is out (or going in): ⋯ calls for attention.
+pub fn update_out(f: &Frame) -> bool {
+    matches!(f.update, crate::updates::Update::Available(_))
+}
+
+/// The title band's menus, over everything: the account's and ⋯.
+pub fn band_overlays(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip: Rect, actions: &mut Vec<Action>) {
+    account_menu_overlay(ui, ctx, f, rect, chip, actions);
+    let button = more_slot(f, rect);
+    more_menu_overlay(ui, ctx, f, button, Pos2::new(button.right(), button.bottom() + 4.0), actions);
+}
+
+/// The ⋯ menu under its button. A click anywhere else closes it.
+pub fn more_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, button: Rect, top_right: Pos2, actions: &mut Vec<Action>) {
+    let open = f.view.more_menu;
+    match more_menu(ui, ctx, top_right, open, &f.update) {
+        Some(pick) => {
+            actions.push(Action::CloseMoreMenu);
+            actions.push(match pick {
+                MorePick::Settings => Action::ToggleSettings,
+                MorePick::Pet => Action::QuickPet,
+                MorePick::UsagePage => Action::OpenUsagePage,
+                MorePick::CheckUpdates => Action::CheckUpdates,
+                MorePick::InstallUpdate => Action::InstallUpdate,
+            });
+        }
+        None if open => {
+            let area = more_menu_rect(top_right, &f.update);
+            let outside = ctx.input(|i| {
+                i.key_pressed(egui::Key::Escape)
+                    || (i.pointer.any_click() && i.pointer.interact_pos().is_some_and(|pos| !area.contains(pos) && !button.contains(pos)))
+            });
+            if outside {
+                actions.push(Action::CloseMoreMenu);
+            }
+        }
+        None => {}
+    }
 }
 
 /// The account menu, over everything; a click anywhere else closes it.

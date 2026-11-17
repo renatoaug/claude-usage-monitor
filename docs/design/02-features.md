@@ -26,8 +26,7 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 | Just the pet | The pet alone, floating, with the usage always above it as the pet's own speech bubble: per service, the session % and the week's % beside it, a bar for each; hovering the pet or the bubble slides out the **⤢** that opens compact | The pet icon in the compact header (floating mode only) |
 
 - **Drag** the widget anywhere; in pet-only mode drag the pet itself. Enter on the focused pet opens compact.
-- **⚙** opens Settings: **Accounts**, **Alerts** and **Appearance** tabs; a dot on it means an update is out.
-- **↗** opens the official Usage page of the service on screen. **×** quits.
+- **⋯**, in the title band of expanded and compact, opens a small menu: **Change pet** (the pet picker on its own: a pick takes at once, no Save), **Settings** (**Accounts**, **Alerts** and **Appearance** tabs) and **Usage page** (the official one of the service on screen); at its foot, the version with **Check for updates**. When a newer release is out, the dots of ⋯ turn coral and ripple now and then, and the foot becomes a card with **Update**. **×** quits.
 - **Notify at reset**, under the session, arms a one-shot notification for when the session resets ([alerts](05-alerts.md)).
 - The chosen size is remembered.
 

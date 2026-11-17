@@ -9,6 +9,7 @@ pub mod heat_map;
 pub mod login;
 pub mod logos;
 pub mod meter;
+pub mod more_menu;
 pub mod night_sky;
 pub mod pet;
 pub mod reminder;

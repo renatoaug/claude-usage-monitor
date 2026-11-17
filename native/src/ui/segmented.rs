@@ -4,6 +4,7 @@
 use eframe::egui::{Align, CornerRadius, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
 use super::controls::click_area;
+use super::icon::{self, Glyph};
 use super::motion;
 use super::text::text_mid;
 use super::theme::{color, radius};
@@ -11,6 +12,11 @@ use super::theme::{color, radius};
 /// Options spread evenly across `rect`; returns the index clicked. Options
 /// listed in `disabled` are faded and inert.
 pub fn segmented(ui: &Ui, rect: Rect, id: &str, labels: &[&str], selected: usize, size: f32, disabled: &[usize]) -> Option<usize> {
+    segmented_with_icons(ui, rect, id, labels, &[], selected, size, disabled)
+}
+
+/// The same, with a glyph before each label (`glyphs` as long as `labels`).
+pub fn segmented_with_icons(ui: &Ui, rect: Rect, id: &str, labels: &[&str], glyphs: &[Glyph], selected: usize, size: f32, disabled: &[usize]) -> Option<usize> {
     let p = ui.painter();
     p.rect(rect, CornerRadius::same(radius::CONTROL + 2), color::TABS, Stroke::new(1.0, color::HAIR), StrokeKind::Inside);
     let inner = rect.shrink(3.0);
@@ -31,7 +37,21 @@ pub fn segmented(ui: &Ui, rect: Rect, id: &str, labels: &[&str], selected: usize
             resp.hovered()
         };
         let fg = if i == selected || hovered { color::FG } else { color::FG_MUTED };
-        text_mid(p, r.center().x, r.center().y, Align::Center, label, size, if off { fg.gamma_multiply(0.4) } else { fg });
+        let fg = if off { fg.gamma_multiply(0.4) } else { fg };
+        match glyphs.get(i) {
+            Some(glyph) => {
+                // the glyph and the label, centred together
+                let g = size;
+                let gap = 4.0;
+                let w = p.layout_no_wrap(label.to_string(), eframe::egui::FontId::proportional(size), fg).size().x;
+                let x0 = r.center().x - (g + gap + w) / 2.0;
+                icon::draw(p, Pos2::new(x0 + g / 2.0, r.center().y - 0.5), glyph, g, fg);
+                text_mid(p, x0 + g + gap, r.center().y, Align::Min, label, size, fg);
+            }
+            None => {
+                text_mid(p, r.center().x, r.center().y, Align::Center, label, size, fg);
+            }
+        }
     }
     pick
 }
