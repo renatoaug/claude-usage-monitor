@@ -2,26 +2,31 @@ name: Update snapshots
 
 # The snapshot gallery renders only on macOS (wgpu needs the runner's GPU),
 # so a contributor without a Mac can't refresh it after a visual change,
-# and the macOS job fails. When a pull request's checks fail on the
-# gallery, this renders it from the pull request's code and commits the
-# PNGs to its branch, which runs the checks again. It follows the checks,
-# so a first-time contributor's pull request waits for the same approval.
-# The `update-snapshots` label runs it by hand.
+# and the macOS check fails. When it fails on the gallery, this renders the
+# gallery from the pull request's code and then:
 #
-# Two jobs, so the pull request's code never runs next to a write token:
-# `render` runs it with read access only and hands over nothing but PNGs;
-# `commit` never runs it, it only checks those files and pushes them.
+# - by default, comments on the pull request with what changed and the
+#   renders to download;
+# - if the pull request asked for it (the box in its description, or the
+#   `update-snapshots` label), commits the PNGs to its branch, which runs
+#   the checks again. Ticking the box or adding the label later does it at
+#   once.
+#
+# It follows the checks, so a first-time contributor's pull request waits
+# for the same approval. The pull request's code runs only in `render`,
+# with read access and no secrets, and hands over nothing but PNGs.
 on:
   workflow_run:
     workflows: [On pull request]
     types: [completed]
   pull_request_target:
-    types: [labeled]
+    types: [labeled, edited]
 
 permissions:
   contents: read
 
 env:
+  BOX: "- [x] Commit the snapshot gallery's renders to this branch"
   REPO: ${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}
   BRANCH: ${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
   HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
@@ -30,32 +35,70 @@ concurrency:
   group: snapshots-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 jobs:
-  render:
-    name: Render the gallery
+  # which pull request, whether there is anything to do, and whether it
+  # asked for a commit
+  pr:
+    name: Look at the pull request
     if: >-
       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure')
-      || (github.event_name == 'pull_request_target' && github.event.label.name == 'update-snapshots')
+      || (github.event_name == 'pull_request_target' && github.event.action == 'labeled' && github.event.label.name == 'update-snapshots')
+      || (github.event_name == 'pull_request_target' && github.event.action == 'edited' && github.event.changes.body != null)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: read
+    outputs:
+      go: ${{ steps.look.outputs.go }}
+      number: ${{ steps.look.outputs.number }}
+      commit: ${{ steps.look.outputs.commit }}
+    steps:
+      - id: look
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          RUN: ${{ github.event.workflow_run.id }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BODY: ${{ github.event.pull_request.body }}
+          BODY_BEFORE: ${{ github.event.changes.body.from }}
+        run: |
+          asked() { grep -qiF -- "$BOX" <<< "$1"; }
+          if [ "$EVENT" = "workflow_run" ]; then
+            # only a failure in the macOS job's tests is ours
+            failed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs" \
+              --jq '[.jobs[] | select(.name | test("macos")) | .steps[] | select(.name == "Test" and .conclusion == "failure")] | length')
+            if [ "$failed" -eq 0 ]; then echo "go=no" >> "$GITHUB_OUTPUT"; exit 0; fi
+            # a fork's run doesn't name its pull request: find it by its head
+            pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,headRefOid,body,labels \
+              --jq "[.[] | select(.headRefOid == \"$HEAD_SHA\")][0]")
+            if [ -z "$pr" ] || [ "$pr" = "null" ]; then echo "go=no" >> "$GITHUB_OUTPUT"; exit 0; fi
+            NUMBER=$(jq -r .number <<< "$pr")
+            labelled=$(jq -r '[.labels[].name] | index("update-snapshots") != null' <<< "$pr")
+            commit=no
+            if [ "$labelled" = "true" ] || asked "$(jq -r .body <<< "$pr")"; then commit=yes; fi
+          elif [ "$ACTION" = "labeled" ]; then
+            commit=yes
+          else
+            # an edit that just ticked the box, once the checks have run on
+            # this head: a first-time contributor's code waits for their approval
+            ran=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$HEAD_SHA&event=pull_request" \
+              --jq '[.workflow_runs[] | select(.name == "On pull request" and .status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | length')
+            if asked "$BODY" && ! asked "$BODY_BEFORE" && [ "$ran" -gt 0 ]; then commit=yes; else echo "go=no" >> "$GITHUB_OUTPUT"; exit 0; fi
+          fi
+          { echo "go=yes"; echo "number=$NUMBER"; echo "commit=$commit"; } >> "$GITHUB_OUTPUT"
+
+  render:
+    name: Render the gallery
+    needs: pr
+    if: needs.pr.outputs.go == 'yes'
     runs-on: macos-latest
     permissions:
       contents: read
-      actions: read
     outputs:
       changed: ${{ steps.render.outputs.changed }}
+      url: ${{ steps.upload.outputs.artifact-url }}
     steps:
-      # after the checks, only a failure in the macOS job's tests is ours
-      - name: Did the gallery fail?
-        id: why
-        if: github.event_name == 'workflow_run'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN: ${{ github.event.workflow_run.id }}
-        run: |
-          failed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs" \
-            --jq '[.jobs[] | select(.name | test("macos")) | .steps[] | select(.name == "Test" and .conclusion == "failure")] | length')
-          echo "gallery=$([ "$failed" -gt 0 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
-        if: steps.why.outputs.gallery != 'no'
         with:
           repository: ${{ env.REPO }}
           ref: ${{ env.HEAD_SHA }}
@@ -64,49 +107,50 @@ jobs:
       # no cache: from here it would be written to the base branch's scope
       # by code from the pull request
       - uses: dtolnay/rust-toolchain@stable
-        if: steps.why.outputs.gallery != 'no'
 
       - name: Render
         id: render
-        if: steps.why.outputs.gallery != 'no'
         working-directory: native
         run: |
           UPDATE_SNAPSHOTS=1 cargo test --release "snapshots::"
           git add -N tests/snapshots
-          if git diff --quiet -- tests/snapshots; then
-            echo "changed=no" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=yes" >> "$GITHUB_OUTPUT"
-          fi
+          git diff --name-only -- 'tests/snapshots/*.png' | xargs -n1 basename > "$RUNNER_TEMP/changed.txt" || true
+          echo "changed=$([ -s "$RUNNER_TEMP/changed.txt" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      # only what changed, with the list of names
+      - name: Gather the renders
+        if: steps.render.outputs.changed == 'yes'
+        run: |
+          mkdir -p "$RUNNER_TEMP/renders"
+          while read -r name; do cp "native/tests/snapshots/$name" "$RUNNER_TEMP/renders/"; done < "$RUNNER_TEMP/changed.txt"
+          cp "$RUNNER_TEMP/changed.txt" "$RUNNER_TEMP/renders/changed.txt"
 
       - uses: actions/upload-artifact@v7
+        id: upload
         if: steps.render.outputs.changed == 'yes'
         with:
           name: snapshots
-          path: |
-            native/tests/snapshots/*.png
-            !native/tests/snapshots/*.diff.png
-            !native/tests/snapshots/*.new.png
-            !native/tests/snapshots/*.old.png
+          path: ${{ runner.temp }}/renders
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
 
   commit:
     name: Commit them to the branch
-    needs: render
-    if: needs.render.outputs.changed == 'yes'
+    needs: [pr, render]
+    if: needs.pr.outputs.commit == 'yes' && needs.render.outputs.changed == 'yes'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       # GITHUB_TOKEN can't push to a fork, and its pushes don't run the
-      # checks again: a maintainer's token
+      # checks again: a token of the repository owner's
       - name: Token
         env:
           TOKEN: ${{ secrets.SNAPSHOTS_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::error::Add a SNAPSHOTS_TOKEN secret: a maintainer's classic token with public_repo, which can push to a fork that allows edits by maintainers"
+            echo "::error::Add a SNAPSHOTS_TOKEN secret: the owner's classic token with public_repo, which can push to a fork that allows edits by maintainers"
             exit 1
           fi
 
@@ -127,15 +171,15 @@ jobs:
         if: env.moved != 'yes'
         with:
           name: snapshots
-          path: ${{ runner.temp }}/snapshots
+          path: ${{ runner.temp }}/renders
 
       # only PNGs with a snapshot's name land in the gallery
       - name: Copy the renders in
         if: env.moved != 'yes'
         env:
-          FROM: ${{ runner.temp }}/snapshots
+          FROM: ${{ runner.temp }}/renders
         run: |
-          for f in "$FROM"/*; do
+          for f in "$FROM"/*.png; do
             name=$(basename "$f")
             if ! [[ "$name" =~ ^[a-z0-9-]+\.png$ ]] || [ "$(head -c 8 "$f" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
               echo "::error::Not a snapshot: $name"
@@ -156,16 +200,59 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "test: update the snapshot gallery"
           git push
+          echo "pushed=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-  unlabel:
-    name: Take the label off
-    needs: [render, commit]
-    if: always() && github.event_name == 'pull_request_target' && github.event.label.name == 'update-snapshots'
+      # an earlier comment said what changed: now it says it's in
+      - name: Update the comment
+        if: env.pushed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ needs.pr.outputs.number }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- snapshot-gallery -->")))][0].id')
+          if [ -n "$id" ] && [ "$id" != "null" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" \
+              -f body="$(printf '<!-- snapshot-gallery -->\n🖼️ The snapshot gallery is up to date: the new renders are in %s.' "$pushed")"
+          fi
+
+  comment:
+    name: Say what changed
+    needs: [pr, render]
+    if: needs.pr.outputs.commit != 'yes' && needs.render.outputs.changed == 'yes'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: snapshots
+          path: ${{ runner.temp }}/renders
+
+      # one comment per pull request, rewritten on each push
       - env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label update-snapshots
+          NUMBER: ${{ needs.pr.outputs.number }}
+          URL: ${{ needs.render.outputs.url }}
+          LIST: ${{ runner.temp }}/renders/changed.txt
+        run: |
+          count=$(wc -l < "$LIST" | tr -d ' ')
+          groups=$(sed 's/-.*//' "$LIST" | sort | uniq -c | sort -rn | awk '{printf "%s%s %s", (NR>1?", ":""), $2, $1}')
+          cat > "$RUNNER_TEMP/body.md" <<EOF
+          <!-- snapshot-gallery -->
+          🖼️ **The snapshot gallery changed**
+
+          This pull request changes $count snapshots ($groups). The gallery renders only on macOS, so here are the new renders: [download them]($URL) (kept 7 days).
+
+          To bring them in, either:
+          - tick **Commit the snapshot gallery's renders to this branch** in the description, and the bot commits them here, or
+          - unpack them into \`native/tests/snapshots/\`, check they look right and commit them.
+          EOF
+          body=$(cat "$RUNNER_TEMP/body.md")
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- snapshot-gallery -->")))][0].id')
+          if [ -n "$id" ] && [ "$id" != "null" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body"
+          else
+            gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi

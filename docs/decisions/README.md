@@ -60,4 +60,4 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-013](ADR-013-pets-are-generated-sprite-sheets.md) | Pets are generated sprite sheets | Accepted |
 | [ADR-014](ADR-014-npm-launches-the-native-app.md) | The npm package launches the native app, and the Electron code is gone | Accepted |
 | [ADR-015](ADR-015-wsl-logs-are-opt-in.md) | Claude Code's logs in WSL are read only when switched on | Accepted |
-| [ADR-016](ADR-016-a-failing-gallery-commits-its-own-renders.md) | A failing snapshot gallery commits its own renders | Accepted |
+| [ADR-016](ADR-016-a-failing-gallery-offers-its-renders.md) | A failing snapshot gallery offers its renders, and commits them when asked | Accepted |
