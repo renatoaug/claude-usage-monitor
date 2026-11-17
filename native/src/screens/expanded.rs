@@ -319,6 +319,7 @@ pub fn title_band(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, actions: &mut V
     // into the bar (quitting is in the bar's menu), and there's no pet-only
     let mut buttons = vec![if f.menu_bar { ("minimize", icon::MINIMIZE, Action::HidePopover) } else { ("close", icon::CLOSE, Action::Close) }];
     if !f.menu_bar {
+        buttons.push(("to-tray", icon::TO_TRAY, Action::ToTray));
         buttons.push(("minimize", icon::MINIMIZE, Action::Resize(Size::Compact)));
         buttons.push(("pet-only", icon::PET, Action::Resize(Size::PetOnly)));
     }

@@ -310,6 +310,17 @@ impl App {
                 }
                 Action::Remind(p, on) => self.send(Command::Remind(p, on)),
                 Action::HidePopover => self.close_popover(ctx),
+                Action::ToTray => {
+                    if !self.prefs.menu_bar {
+                        // the same way Settings does it: fade out, then the icon
+                        self.view.settings = None;
+                        self.leaving = Some(Instant::now());
+                        self.prefs.menu_bar = true;
+                        self.draft = self.prefs.clone();
+                        self.prefs.save();
+                        self.send(Command::Prefs(self.prefs.clone()));
+                    }
+                }
                 Action::CheckUpdates => self.updater.check(),
                 Action::TogglePetPicker => self.view.pet_picker = !self.view.pet_picker,
                 Action::InstallUpdate => self.updater.install(),

@@ -94,6 +94,8 @@ pub enum Action {
     DismissBubble,
     /// the menu bar's popover goes back into the bar
     HidePopover,
+    /// the floating widget goes into the menu bar / tray, in one click
+    ToTray,
     CheckUpdates,
     TogglePetPicker,
     InstallUpdate,
