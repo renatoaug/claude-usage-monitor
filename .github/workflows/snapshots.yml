@@ -1,0 +1,171 @@
+name: Update snapshots
+
+# The snapshot gallery renders only on macOS (wgpu needs the runner's GPU),
+# so a contributor without a Mac can't refresh it after a visual change,
+# and the macOS job fails. When a pull request's checks fail on the
+# gallery, this renders it from the pull request's code and commits the
+# PNGs to its branch, which runs the checks again. It follows the checks,
+# so a first-time contributor's pull request waits for the same approval.
+# The `update-snapshots` label runs it by hand.
+#
+# Two jobs, so the pull request's code never runs next to a write token:
+# `render` runs it with read access only and hands over nothing but PNGs;
+# `commit` never runs it, it only checks those files and pushes them.
+on:
+  workflow_run:
+    workflows: [On pull request]
+    types: [completed]
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+env:
+  REPO: ${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}
+  BRANCH: ${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+
+concurrency:
+  group: snapshots-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+
+jobs:
+  render:
+    name: Render the gallery
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure')
+      || (github.event_name == 'pull_request_target' && github.event.label.name == 'update-snapshots')
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      changed: ${{ steps.render.outputs.changed }}
+    steps:
+      # after the checks, only a failure in the macOS job's tests is ours
+      - name: Did the gallery fail?
+        id: why
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          failed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs" \
+            --jq '[.jobs[] | select(.name | test("macos")) | .steps[] | select(.name == "Test" and .conclusion == "failure")] | length')
+          echo "gallery=$([ "$failed" -gt 0 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.why.outputs.gallery != 'no'
+        with:
+          repository: ${{ env.REPO }}
+          ref: ${{ env.HEAD_SHA }}
+          persist-credentials: false
+
+      # no cache: from here it would be written to the base branch's scope
+      # by code from the pull request
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.why.outputs.gallery != 'no'
+
+      - name: Render
+        id: render
+        if: steps.why.outputs.gallery != 'no'
+        working-directory: native
+        run: |
+          UPDATE_SNAPSHOTS=1 cargo test --release "snapshots::"
+          git add -N tests/snapshots
+          if git diff --quiet -- tests/snapshots; then
+            echo "changed=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: steps.render.outputs.changed == 'yes'
+        with:
+          name: snapshots
+          path: |
+            native/tests/snapshots/*.png
+            !native/tests/snapshots/*.diff.png
+            !native/tests/snapshots/*.new.png
+            !native/tests/snapshots/*.old.png
+          if-no-files-found: error
+          retention-days: 3
+
+  commit:
+    name: Commit them to the branch
+    needs: render
+    if: needs.render.outputs.changed == 'yes'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # GITHUB_TOKEN can't push to a fork, and its pushes don't run the
+      # checks again: a maintainer's token
+      - name: Token
+        env:
+          TOKEN: ${{ secrets.SNAPSHOTS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Add a SNAPSHOTS_TOKEN secret: a maintainer's classic token with public_repo, which can push to a fork that allows edits by maintainers"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ env.REPO }}
+          ref: ${{ env.BRANCH }}
+          token: ${{ secrets.SNAPSHOTS_TOKEN }}
+
+      - name: The branch hasn't moved since the render
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$HEAD_SHA" ]; then
+            echo "::notice::The branch moved after the render: its own checks will run this again"
+            echo "moved=yes" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/download-artifact@v8
+        if: env.moved != 'yes'
+        with:
+          name: snapshots
+          path: ${{ runner.temp }}/snapshots
+
+      # only PNGs with a snapshot's name land in the gallery
+      - name: Copy the renders in
+        if: env.moved != 'yes'
+        env:
+          FROM: ${{ runner.temp }}/snapshots
+        run: |
+          for f in "$FROM"/*; do
+            name=$(basename "$f")
+            if ! [[ "$name" =~ ^[a-z0-9-]+\.png$ ]] || [ "$(head -c 8 "$f" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+              echo "::error::Not a snapshot: $name"
+              exit 1
+            fi
+            cp "$f" native/tests/snapshots/
+          done
+
+      - name: Commit and push
+        if: env.moved != 'yes'
+        run: |
+          git add native/tests/snapshots
+          if git diff --cached --quiet; then
+            echo "The gallery already matches"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: update the snapshot gallery"
+          git push
+
+  unlabel:
+    name: Take the label off
+    needs: [render, commit]
+    if: always() && github.event_name == 'pull_request_target' && github.event.label.name == 'update-snapshots'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label update-snapshots
