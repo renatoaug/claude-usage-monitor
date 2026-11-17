@@ -275,7 +275,7 @@ fn accounts(ui: &mut Ui, f: &Frame, left: f32, right: f32, y: f32, code: &mut St
     }
 }
 
-// Codex and Cursor: read from what their own apps keep on this Mac, so
+// Codex and Cursor: read from what their own apps keep on this device, so
 // there's no login here, only on or off; it takes effect at once. Codex
 // needs a session on disk, Cursor its app signed in.
 #[allow(clippy::too_many_arguments)]
@@ -316,7 +316,7 @@ fn ext_card(ui: &Ui, f: &Frame, provider: Provider, left: f32, right: f32, y: f3
     } else {
         let hint = match (found, cursor) {
             (true, _) => "Track it beside Claude.",
-            (false, false) => "No Codex sessions on this Mac yet.",
+            (false, false) => "No Codex sessions on this device yet.",
             (false, true) => "Sign in to the Cursor app first.",
         };
         let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(x, card.top()), Pos2::new(card.right() - if found { 84.0 } else { 12.0 }, card.bottom())));

@@ -44,6 +44,10 @@ pub struct App {
     /// whether the window had focus last frame: losing it (a click in
     /// another app) closes the title band's menus
     had_focus: bool,
+    /// Linux: when to ask again to stay on top. Under XWayland the first
+    /// ask goes out as the window maps, before the window manager has taken
+    /// it in, and gets dropped; asking again once it's up sticks
+    on_top_due: Vec<Instant>,
     /// the window is shown (it hides while Clauddy lives in the menu bar)
     shown: bool,
     /// the screen on show (Settings tab, size) and when it came in, to fade it in
@@ -147,6 +151,13 @@ fn save_view(v: &View) {
     }
 }
 
+/// When to ask again to stay on top after the window shows: soon, and once
+/// more in case the window manager was slow to take it in.
+fn on_top_asks() -> Vec<Instant> {
+    let now = Instant::now();
+    vec![now + Duration::from_millis(500), now + Duration::from_secs(3)]
+}
+
 /// Open a URL in the default browser.
 pub fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
@@ -189,6 +200,7 @@ impl App {
             popover: false,
             popover_focused: false,
             had_focus: false,
+            on_top_due: on_top_asks(),
             shown: !Prefs::load().menu_bar,
             screen: (None, Size::Expanded),
             entered: Instant::now(),
@@ -373,6 +385,9 @@ impl App {
         if on != self.shown {
             self.shown = on;
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(on));
+            if on {
+                self.on_top_due = on_top_asks();
+            }
         }
     }
 
@@ -656,6 +671,17 @@ impl eframe::App for App {
             self.view.pending_remove = None;
         }
         self.had_focus = focused;
+        // Linux: ask again to stay on top, once the window is up (see on_top_due)
+        if cfg!(target_os = "linux") && self.shown && !self.prefs.menu_bar {
+            let now = Instant::now();
+            if self.on_top_due.first().is_some_and(|t| now >= *t) {
+                self.on_top_due.remove(0);
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+            }
+            if let Some(t) = self.on_top_due.first() {
+                ctx.request_repaint_after(t.saturating_duration_since(now));
+            }
+        }
         let bubble = self.said.as_ref().map(|s| (if size == Size::Compact { s.short.as_str() } else { s.text.as_str() }, shown));
         let f = Frame {
             area,

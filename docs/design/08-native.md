@@ -48,7 +48,7 @@ The window fits the card and is transparent around it (DWM blur-behind, with wgp
 
 ## The window on Linux
 
-On Wayland a client can neither keep its window above the others nor place it: winit drops both requests, so the always-on-top widget sank under other windows. In a Wayland session with XWayland running (`WAYLAND_DISPLAY` and `DISPLAY` both set), `platform/display.rs` hands eframe an event loop on X11, where KWin and Mutter honour them; `CLAUDDY_WAYLAND=1` keeps it on Wayland ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)).
+On Wayland a client can neither keep its window above the others nor place it: winit drops both requests, so the always-on-top widget sank under other windows. In a Wayland session with XWayland running (`WAYLAND_DISPLAY` and `DISPLAY` both set), `platform/display.rs` hands eframe an event loop on X11, where KWin and Mutter honour them; `CLAUDDY_WAYLAND=1` keeps it on Wayland ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)). Even there, winit asks to stay on top as it maps the window, before the window manager has taken it in, and KWin drops it: the app asks again half a second and three seconds after the window shows, each time it shows.
 
 ## Pets
 
