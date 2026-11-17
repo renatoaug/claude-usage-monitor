@@ -80,7 +80,8 @@ impl Default for View {
 pub enum Action {
     Close,
     Resize(Size),
-    OpenUsagePage,
+    /// the usage page of the service on screen
+    OpenUsagePage(Provider),
     ToggleDetails,
     ToggleModels,
     ToggleProjects,
