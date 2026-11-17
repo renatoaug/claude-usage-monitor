@@ -8,7 +8,7 @@ The pets Clauddy can wear besides the classic sprite: the catalog and its packs,
 
 | Pack | Pets | Its days |
 |---|---|---|
-| Everyday | Clauddy (the classic sprite), Wizard, Astronaut | — |
+| Everyday | Clauddy (the classic sprite), Wizard, Astronaut, Getaway | — |
 | Christmas | Santa, Reindeer, Gingerbread | December 24 and 25 |
 | Halloween | Pumpkin | October 31 |
 
