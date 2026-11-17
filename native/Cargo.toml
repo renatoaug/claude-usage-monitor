@@ -53,3 +53,7 @@ notify-rust = "4.18.2"
 
 [target.'cfg(windows)'.dependencies]
 raw-window-handle = "0.6.2"
+
+# Linux: to open on XWayland, where the compositor honours always-on-top
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30.13", default-features = false, features = ["x11"] }

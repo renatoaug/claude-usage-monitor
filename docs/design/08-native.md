@@ -28,7 +28,7 @@ flowchart LR
 | `src/ui/` | Generic pieces that know nothing about Clauddy: the theme tokens, icons, controls, surfaces, bars, tags, text |
 | `src/components/` | Clauddy's own pieces: the pet, logos, account chip, service rows, meters, status line, breakdowns, heat map, the glance and speech bubbles, the reminder button |
 | `src/screens/` | Compact, expanded, pet-only and Settings, and the snapshot gallery |
-| `src/platform/` | What the OS has to answer: the cursor watcher, the tray, login items, activation, the Windows frame |
+| `src/platform/` | What the OS has to answer: the cursor watcher, the tray, login items, activation, the Windows frame, the Linux display server |
 | `src/voice.rs`, `src/talk.rs` | The pet's remarks and blips, and when it says them |
 | `src/updates.rs` | The release check and the installer |
 
@@ -45,6 +45,10 @@ A hidden window gets no frames, so anything that must happen while it is hidden 
 ## The window on Windows
 
 The window fits the card and is transparent around it (DWM blur-behind, with wgpu presenting over it). Underneath, the window keeps its GDI redirection surface, which Windows fills white when the window first shows; that white showed through the margin around the card and stayed, at the window's first size, after any resize. `platform/frame.rs` paints that surface black every frame (GDI's black is transparent under blur-behind), and before the first frame turns off DWM's non-client rendering, so the frame, border, shadow and Windows 11 rounding that winit's caption style and egui-winit's undecorated shadow asked for don't outline the transparent rectangle. That shadow also left the window's top pixel row outside its client area, where it showed as a light line, so the window is subclassed to answer `WM_NCCALCSIZE` with the whole window as client.
+
+## The window on Linux
+
+On Wayland a client can neither keep its window above the others nor place it: winit drops both requests, so the always-on-top widget sank under other windows. In a Wayland session with XWayland running (`WAYLAND_DISPLAY` and `DISPLAY` both set), `platform/display.rs` hands eframe an event loop on X11, where KWin and Mutter honour them; `CLAUDDY_WAYLAND=1` keeps it on Wayland ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)).
 
 ## Pets
 
