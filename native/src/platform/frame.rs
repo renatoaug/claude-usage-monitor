@@ -24,11 +24,35 @@ fn hwnd(window: &impl raw_window_handle::HasWindowHandle) -> Option<isize> {
     }
 }
 
+/// The app's window, kept for `show_window`: a tray click has to reach it
+/// from outside a frame.
+#[cfg(windows)]
+static WINDOW: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+/// Show the window without taking focus. A window that's hidden gets no
+/// frames on Windows, so a tray pick would wait forever for one: showing it
+/// lets the next frame answer (and place or hide it as it should be).
+#[cfg(windows)]
+pub fn show_window() {
+    let hwnd = WINDOW.load(std::sync::atomic::Ordering::Relaxed);
+    if hwnd == 0 {
+        return;
+    }
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+    }
+    const SW_SHOWNOACTIVATE: i32 = 4;
+    // SAFETY: the app's live window handle
+    unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
+}
+
 /// Take DWM's frame off the window. Quiet on any failure (older Windows
 /// lacks the corner and border attributes and just ignores them).
 #[cfg(windows)]
 pub fn remove(window: &impl raw_window_handle::HasWindowHandle) {
     let Some(hwnd) = hwnd(window) else { return };
+    WINDOW.store(hwnd, std::sync::atomic::Ordering::Relaxed);
     #[link(name = "dwmapi")]
     unsafe extern "system" {
         fn DwmSetWindowAttribute(hwnd: isize, attribute: u32, value: *const core::ffi::c_void, size: u32) -> i32;

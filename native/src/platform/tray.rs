@@ -110,27 +110,16 @@ impl Tray {
             .with_autosave_name("clauddy")
             .build()
             .ok()?;
-        let (q, c) = (events.clone(), ctx.clone());
-        let ids = (open.id().clone(), floating.id().clone(), quit.id().clone());
-        MenuEvent::set_event_handler(Some(move |e: MenuEvent| {
-            let ev = if e.id == ids.0 {
-                TrayEvent::Open
-            } else if e.id == ids.1 {
-                TrayEvent::Floating
-            } else if e.id == ids.2 {
-                // no frame may come to answer it while the window is hidden
-                std::process::exit(0);
-            } else {
-                return;
-            };
-            // a hidden window gets no frames: show it so the next one
-            // answers, once the menu has closed
-            crate::platform::wake_after_menu(c.clone());
-            if let Ok(mut v) = q.lock() {
-                v.push(ev);
-            }
-            c.request_repaint();
-        }));
+        // muda keeps the first handler it's given for the whole run (a
+        // OnceLock): the icon is rebuilt each time Clauddy goes back to the
+        // tray, so the handler reads the live icon's items from ROUTE
+        if let Ok(mut r) = ROUTE.lock() {
+            *r = Some(Route { ids: (open.id().clone(), floating.id().clone(), quit.id().clone()), events: events.clone(), ctx: ctx.clone() });
+        }
+        MenuEvent::set_event_handler(Some(on_menu_event));
+        // the icon's mouse events are unused: a handler keeps them from piling
+        // up in tray-icon's unbounded channel, which nothing reads
+        tray_icon::TrayIconEvent::set_event_handler(Some(|_| {}));
         Some(Tray { icon, title: String::new(), lines: vec![], open, floating, quit, events })
     }
 
@@ -168,8 +157,50 @@ impl Tray {
 
 impl Drop for Tray {
     fn drop(&mut self) {
-        MenuEvent::set_event_handler(None::<fn(MenuEvent)>);
+        // not set_event_handler(None): muda would ignore it, the first one stays
+        // only this icon's route: a newer icon may already have taken it
+        if let Ok(mut r) = ROUTE.lock()
+            && r.as_ref().is_some_and(|r| r.ids.0 == *self.open.id())
+        {
+            *r = None;
+        }
     }
+}
+
+/// The live icon's menu items, where its picks go, and the app to wake.
+struct Route {
+    ids: (tray_icon::menu::MenuId, tray_icon::menu::MenuId, tray_icon::menu::MenuId),
+    events: Arc<Mutex<Vec<TrayEvent>>>,
+    ctx: Context,
+}
+
+static ROUTE: Mutex<Option<Route>> = Mutex::new(None);
+
+/// The one menu handler of the run: a pick on the live icon's menu.
+fn on_menu_event(e: MenuEvent) {
+    let Some((ev, events, c)) = ROUTE.lock().ok().and_then(|r| {
+        let r = r.as_ref()?;
+        let ev = if e.id == r.ids.0 {
+            TrayEvent::Open
+        } else if e.id == r.ids.1 {
+            TrayEvent::Floating
+        } else if e.id == r.ids.2 {
+            // no frame may come to answer it while the window is hidden
+            std::process::exit(0);
+        } else {
+            return None;
+        };
+        Some((ev, r.events.clone(), r.ctx.clone()))
+    }) else {
+        return;
+    };
+    // a hidden window gets no frames: show it so the next one answers,
+    // once the menu has closed
+    crate::platform::wake_after_menu(c.clone());
+    if let Ok(mut v) = events.lock() {
+        v.push(ev);
+    }
+    c.request_repaint();
 }
 
 /// A limit's line in the menu: "Session 39% · resets 4:40 PM".

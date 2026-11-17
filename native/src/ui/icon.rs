@@ -50,6 +50,8 @@ pub const LOG_OUT: Glyph = &[
     &[(16., 17.), (21., 12.), (16., 7.)],
     &[(21., 12.), (9., 12.)],
 ];
+/// lucide arrow-down-to-line: down into the tray
+pub const TO_TRAY: Glyph = &[&[(12., 3.), (12., 16.)], &[(6., 10.), (12., 16.), (18., 10.)], &[(5., 21.), (19., 21.)]];
 pub const CHEVRON_DOWN: Glyph = &[&[(7., 10.), (12., 15.), (17., 10.)]];
 
 /// Draw `glyph` centred on `center`, `size` points across.
