@@ -104,7 +104,7 @@ Claude Code as the product Clauddy tracks is fine to name. PR descriptions and c
 
 ## PR conventions
 
-- The title follows Conventional Commits: `type(scope): subject` (scope when it makes sense), with a lowercase subject. PRs are squash-merged, so it becomes the commit and the release note: a `feat` bumps the minor version, a `fix` or `perf` the patch ([`docs/design/07-releases.md`](docs/design/07-releases.md)).
+- The title follows Conventional Commits: `type(scope): subject` (scope when it makes sense: the module or feature, such as `tray`, `options`, `wsl` or `updates`, never `native`, since everything is the native app now), with a lowercase subject. PRs are squash-merged, so it becomes the commit and the release note: a `feat` bumps the minor version, a `fix` or `perf` the patch ([`docs/design/07-releases.md`](docs/design/07-releases.md)).
 - The body follows `.github/PULL_REQUEST_TEMPLATE.md`: the **What?**, **Why?** and **Acceptance criteria** sections.
 - The PR base is `main`.
 - **Acceptance criteria** separate what was already validated (checked) from what only a person can confirm (unchecked). A PR that changes something visible needs visual QA items naming the size (expanded, compact, pet only, menu bar) and the state.
