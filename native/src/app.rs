@@ -219,7 +219,7 @@ impl App {
                     self.view.size = s;
                     self.view.more_menu = false;
                 }
-                Action::OpenUsagePage => open_url("https://claude.ai/settings/usage"),
+                Action::OpenUsagePage(p) => open_url(p.usage_page()),
                 Action::ToggleDetails => self.view.details = !self.view.details,
                 Action::ToggleModels => self.view.models = !self.view.models,
                 Action::ToggleProjects => self.view.projects = !self.view.projects,

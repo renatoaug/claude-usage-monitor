@@ -363,7 +363,7 @@ pub fn more_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, button: Rect, top_ri
             actions.push(match pick {
                 MorePick::Settings => Action::ToggleSettings,
                 MorePick::Pet => Action::QuickPet,
-                MorePick::UsagePage => Action::OpenUsagePage,
+                MorePick::UsagePage => Action::OpenUsagePage(super::shown(f)),
                 MorePick::CheckUpdates => Action::CheckUpdates,
                 MorePick::InstallUpdate => Action::InstallUpdate,
             });
