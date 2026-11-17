@@ -599,6 +599,26 @@ fn wizard_pet_only() {
 }
 
 #[test]
+fn getaway_expanded() {
+    render(Case { name: "getaway-expanded", snap: pet_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn getaway_expanded_working() {
+    render(Case { name: "getaway-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn getaway_compact_on_fire() {
+    render(Case { name: "getaway-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn getaway_pet_only() {
+    render(Case { name: "getaway-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
 fn santa_expanded_working() {
     render(Case { name: "santa-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
 }
