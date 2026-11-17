@@ -38,7 +38,7 @@ The theme (`ui/theme.rs`) keeps the raw palette private; everything else uses se
 
 Floating, the window is a fixed transparent canvas and the card lives inside it: the window never resizes, because a resize shows one empty frame that reads as a blink. Changing size morphs the card within the canvas instead. Clicks off the card fall through to what is behind: a light thread (`platform/cursor.rs`) reads the cursor's screen position every 40 ms and turns click-through on only while the cursor is outside the card (or, in pet-only, outside the pet and its glance).
 
-In the menu bar the window is an ordinary one the card's size, shown under the icon as a popover that closes when it loses focus. It is shown from a timer once the bar's menu has closed: shown from the menu's own handler, macOS hands the next click to the app that was in front.
+In the menu bar the window is an ordinary one the card's size, shown under the icon as a popover that closes when it loses focus. It is shown from a timer once the bar's menu has closed: shown from the menu's own handler, macOS hands the next click to the app that was in front. On Windows the menu's handler shows the window itself (`platform::frame::show_window`) so the next frame answers the pick, and a focus lost in the first moments after opening, while the tray menu closes, asks for it back once instead of closing the panel. muda keeps the first menu handler of the run (a `OnceLock`), and the icon is rebuilt each time Clauddy goes back to the tray, so the one handler routes picks through `ROUTE` to the live icon's items.
 
 A hidden window gets no frames, so anything that must happen while it is hidden (the menu's picks) puts it back on screen first.
 
