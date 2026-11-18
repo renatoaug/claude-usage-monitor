@@ -32,7 +32,7 @@ const CARD_W: f32 = 280.0;
 const SIDE: f32 = 18.0;
 const STAGE_TOP: f32 = 38.0;
 const STAGE_H: f32 = 132.0;
-const CONNECT_H: f32 = 56.0;
+const CONNECT_H: f32 = 64.0;
 const TOGGLE_H: f32 = 32.0;
 const MODEL_ROWS: usize = 4;
 const PRODUCT_ROWS: usize = 4;
@@ -251,9 +251,10 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     } else if list.is_empty() {
         let r = Rect::from_min_size(Pos2::new(left, y + 12.0), Vec2::new(right - left, CONNECT_H - 24.0));
         p.rect(r, CornerRadius::same(radius::CONTROL), color::WASH, Stroke::new(1.0, color::WASH_EDGE), StrokeKind::Inside);
-        p.text(r.center() - Vec2::new(0.0, 6.0), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
+        // the two lines centred on their ink (capitals to baseline), not their line boxes
+        p.text(r.center() - Vec2::new(0.0, 6.5), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
         p.text(
-            r.center() + Vec2::new(0.0, 8.0),
+            r.center() + Vec2::new(0.0, 7.5),
             Align2::CENTER_CENTER,
             "to see the real session and week %",
             FontId::proportional(text::SMALL),
