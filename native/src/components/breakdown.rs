@@ -1,10 +1,9 @@
-// "by model · 7 days" and "by project · 7 days": a foldable section of
-// ranked rows, each with a dot, the name, a bar against the top row, and the
-// tokens.
+// "by product · this week", "by model · 7 days" and "by project · 7 days": a
+// foldable section of ranked rows, each with a dot, the name, a bar against
+// the top row, and a value (the tokens, or a share of the week).
 
 use eframe::egui::{Align2, FontId, Pos2, Rect, Ui, Vec2};
 
-use crate::format::tokens;
 use crate::ui::bar::bar;
 use crate::ui::controls::click_area;
 use crate::ui::icon;
@@ -14,6 +13,16 @@ use crate::ui::theme::{color, text};
 use crate::usage::Labeled;
 
 const ROW_STEP: f32 = 20.0;
+
+/// A row's tokens, as the model and project sections show them.
+pub fn tokens(v: u64) -> String {
+    crate::format::tokens(v)
+}
+
+/// A row's share of the week, as the product section shows it.
+pub fn percent(v: u64) -> String {
+    format!("{v}%")
+}
 
 pub fn height(rows: usize, open: bool) -> f32 {
     1.0 + 9.0 + 12.0 + if open { rows.max(1) as f32 * ROW_STEP } else { 0.0 } + 9.0
@@ -31,6 +40,7 @@ pub fn section(
     open: bool,
     loading: bool,
     bar_color: eframe::egui::Color32,
+    value: fn(u64) -> String,
 ) -> bool {
     let p = ui.painter();
     hairline(p, left, right, y);
@@ -60,7 +70,7 @@ pub fn section(
         clip.text(Pos2::new(left + 8.0, cy), Align2::LEFT_CENTER, &r.label, FontId::proportional(text::SMALL), color::FG_ROW);
         let track = Rect::from_min_size(Pos2::new(bar_x, cy - 1.5), Vec2::new(40.0, 3.0));
         bar(p, track, Some(r.tokens as f32 / max as f32), bar_color, color::TRACK_FAINT);
-        p.text(Pos2::new(right, cy), Align2::RIGHT_CENTER, tokens(r.tokens), FontId::proportional(text::SMALL), color::FG_SECTION);
+        p.text(Pos2::new(right, cy), Align2::RIGHT_CENTER, value(r.tokens), FontId::proportional(text::SMALL), color::FG_SECTION);
         cy += ROW_STEP;
     }
     resp.clicked()

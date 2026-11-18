@@ -32,9 +32,10 @@ const CARD_W: f32 = 280.0;
 const SIDE: f32 = 18.0;
 const STAGE_TOP: f32 = 38.0;
 const STAGE_H: f32 = 132.0;
-const CONNECT_H: f32 = 56.0;
+const CONNECT_H: f32 = 64.0;
 const TOGGLE_H: f32 = 32.0;
 const MODEL_ROWS: usize = 4;
+const PRODUCT_ROWS: usize = 4;
 const PROJECT_ROWS: usize = 6;
 const PAD_BOTTOM: f32 = 14.0;
 
@@ -126,7 +127,7 @@ fn meters_h(count: usize) -> f32 {
     (0..count).map(|i| meter::height(i == 0)).sum()
 }
 
-fn height(meter_count: usize, view: &View, details: Option<(usize, usize)>, logging_in: bool) -> f32 {
+fn height(meter_count: usize, view: &View, details: Option<(usize, usize, usize)>, logging_in: bool) -> f32 {
     let mut h = STAGE_TOP + STAGE_H + STATUS_H;
     h += if logging_in {
         LOGIN_H
@@ -135,9 +136,12 @@ fn height(meter_count: usize, view: &View, details: Option<(usize, usize)>, logg
     } else {
         CONNECT_H
     };
-    let Some((models, projects)) = details else { return h + PAD_BOTTOM - 12.0 };
+    let Some((products, models, projects)) = details else { return h + PAD_BOTTOM - 12.0 };
     h += TOGGLE_H;
     if view.details {
+        if products > 0 {
+            h += breakdown::height(products, view.products);
+        }
         h += breakdown::height(models.min(MODEL_ROWS), view.models) + breakdown::height(projects.min(PROJECT_ROWS), view.projects) + HEAT_H;
     }
     h + PAD_BOTTOM
@@ -164,7 +168,10 @@ pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, h
     let extra = if snap.loaded && !login && !s.meters.is_empty() { reminder_h(snap, s.provider, session, heads_up) } else { 0.0 };
     let m = if snap.loaded { s.meters.len() } else { 2 };
     let tabs = if connected(snap).len() > 1 { TABS_H } else { 0.0 };
-    [CARD_W + 2.0 * MARGIN, height(m, view, s.details.then_some((s.by_model.len(), s.by_project.len())), login) + tabs + extra + 2.0 * MARGIN]
+    [
+        CARD_W + 2.0 * MARGIN,
+        height(m, view, s.details.then_some((products(snap, s.provider).len(), s.by_model.len(), s.by_project.len())), login) + tabs + extra + 2.0 * MARGIN,
+    ]
 }
 
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
@@ -244,9 +251,10 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     } else if list.is_empty() {
         let r = Rect::from_min_size(Pos2::new(left, y + 12.0), Vec2::new(right - left, CONNECT_H - 24.0));
         p.rect(r, CornerRadius::same(radius::CONTROL), color::WASH, Stroke::new(1.0, color::WASH_EDGE), StrokeKind::Inside);
-        p.text(r.center() - Vec2::new(0.0, 6.0), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
+        // the two lines centred on their ink (capitals to baseline), not their line boxes
+        p.text(r.center() - Vec2::new(0.0, 6.5), Align2::CENTER_CENTER, "Connect your Claude account", FontId::proportional(text::BODY), color::FG);
         p.text(
-            r.center() + Vec2::new(0.0, 8.0),
+            r.center() + Vec2::new(0.0, 7.5),
             Align2::CENTER_CENTER,
             "to see the real session and week %",
             FontId::proportional(text::SMALL),
@@ -407,14 +415,28 @@ pub fn account_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip:
 }
 
 // by model, by project, the 30-day map
+/// Claude's week by product (Claude Code, Cowork, Chats), from the account:
+/// none for the other services, or before a reading.
+fn products(snap: &Snapshot, provider: Provider) -> Vec<crate::usage::Labeled> {
+    let rows = snap.limits.as_ref().filter(|_| provider == Provider::Claude).map(|l| l.by_product.as_slice()).unwrap_or_default();
+    rows.iter().take(PRODUCT_ROWS).map(|r| crate::usage::Labeled { label: r.label.clone(), tokens: r.pct.round() as u64 }).collect()
+}
+
 fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Service, f: &Frame, actions: &mut Vec<Action>) {
     let models = &s.by_model[..s.by_model.len().min(MODEL_ROWS)];
     let projects = &s.by_project[..s.by_project.len().min(PROJECT_ROWS)];
-    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded, s.bar) {
+    let products = products(f.snap, s.provider);
+    if !products.is_empty() {
+        if section(ui, left, right, y, "products", "by product · this week", &products, f.view.products, !f.snap.loaded, s.bar, breakdown::percent) {
+            actions.push(Action::ToggleProducts);
+        }
+        y += breakdown::height(products.len(), f.view.products);
+    }
+    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded, s.bar, breakdown::tokens) {
         actions.push(Action::ToggleModels);
     }
     y += breakdown::height(models.len(), f.view.models);
-    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded, s.bar) {
+    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded, s.bar, breakdown::tokens) {
         actions.push(Action::ToggleProjects);
     }
     y += breakdown::height(projects.len(), f.view.projects);
@@ -474,8 +496,8 @@ mod tests {
         let closed = View { details: false, ..View::default() };
         let open = View { details: true, ..View::default() };
         let folded = View { details: true, models: false, projects: false, ..View::default() };
-        assert!(height(2, &open, Some((3, 5)), false) > height(2, &closed, Some((3, 5)), false));
+        assert!(height(2, &open, Some((0, 3, 5)), false) > height(2, &closed, Some((0, 3, 5)), false));
         let _ = TABS_H;
-        assert!(height(2, &folded, Some((3, 5)), false) < height(2, &open, Some((3, 5)), false));
+        assert!(height(2, &folded, Some((0, 3, 5)), false) < height(2, &open, Some((0, 3, 5)), false));
     }
 }

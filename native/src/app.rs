@@ -235,6 +235,7 @@ impl App {
                 Action::ToggleDetails => self.view.details = !self.view.details,
                 Action::ToggleModels => self.view.models = !self.view.models,
                 Action::ToggleProjects => self.view.projects = !self.view.projects,
+                Action::ToggleProducts => self.view.products = !self.view.products,
                 Action::ToggleAccountMenu => {
                     self.view.account_menu = !self.view.account_menu;
                     self.view.more_menu = false;

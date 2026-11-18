@@ -35,6 +35,7 @@ pub struct View {
     pub details: bool,
     pub models: bool,
     pub projects: bool,
+    pub products: bool,
     /// the account menu is open (not remembered)
     #[serde(skip)]
     pub account_menu: bool,
@@ -65,6 +66,7 @@ impl Default for View {
             details: false,
             models: true,
             projects: true,
+            products: true,
             account_menu: false,
             more_menu: false,
             pending_remove: None,
@@ -85,6 +87,7 @@ pub enum Action {
     ToggleDetails,
     ToggleModels,
     ToggleProjects,
+    ToggleProducts,
     ToggleAccountMenu,
     CloseAccountMenu,
     SwitchAccount(String),
