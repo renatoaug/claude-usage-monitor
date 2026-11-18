@@ -32,13 +32,19 @@ pub fn login_panel(ui: &mut Ui, left: f32, right: f32, y: f32, code: &mut String
     // the field and the button share a row
     let field = Rect::from_min_size(Pos2::new(x, boxr.top() + 42.0), Vec2::new(boxr.width() - 20.0 - 70.0, 24.0));
     p.rect(field, CornerRadius::same(radius::CONTROL), color::FIELD, Stroke::new(1.0, color::FIELD_EDGE), StrokeKind::Inside);
+    // the hint in the field's own size and the text centred in its height:
+    // a plain hint takes the default (bigger) font and sits high
+    let font = FontId::proportional(text::SMALL);
+    let row = ui.fonts_mut(|f| f.row_height(&font));
     let edit = TextEdit::singleline(code)
-        .hint_text("code#state")
-        .font(FontId::proportional(text::SMALL))
+        .hint_text(egui::RichText::new("code#state").font(font.clone()).color(color::FG_MUTED))
+        .font(font)
         .text_color(color::FG)
         .frame(egui::Frame::NONE)
-        .margin(Vec2::new(6.0, 5.0));
-    let resp = ui.put(field, edit);
+        .margin(Vec2::ZERO);
+    // inset the edit itself: 8 px from the left, centred in the height
+    let inner = field.shrink2(Vec2::new(8.0, ((field.height() - row) / 2.0).max(0.0)));
+    let resp = ui.put(inner, edit);
     let entered = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
     let btn = Rect::from_min_size(Pos2::new(field.right() + 6.0, field.top()), Vec2::new(64.0, 24.0));
