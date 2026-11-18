@@ -287,6 +287,7 @@ mod tests {
                 session: Window { pct: 0.0, reset_ms: None },
                 week: Window { pct: 0.0, reset_ms: None },
                 scoped: vec![],
+                by_product: vec![],
                 weekly_only: false,
             }),
             ..Default::default()

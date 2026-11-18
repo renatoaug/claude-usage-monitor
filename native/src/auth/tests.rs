@@ -255,7 +255,7 @@ fn maps_the_api_windows_into_percentages_and_countdowns() {
     assert!((u.session.reset_ms.unwrap() as f64 / 3_600_000.0 - 2.0).abs() < 0.05);
     assert_eq!(u.week.pct, 7.0);
     // no `limits` array: the legacy per-model windows are the fallback
-    assert_eq!(u.scoped, vec![Scoped { label: "Opus".into(), pct: 3.0, reset_ms: None }]);
+    assert_eq!(u.scoped, vec![Scoped { label: "Opus".into(), pct: 3.0, reset_ms: None, share: None }]);
     assert!(!u.weekly_only);
 }
 
@@ -304,6 +304,39 @@ fn reads_per_model_weekly_limits_from_the_limits_array() {
     assert_eq!(u.scoped[0].label, "Fable");
     assert_eq!(u.scoped[0].pct, 38.0);
     assert!((u.scoped[0].reset_ms.unwrap() as f64 / 3_600_000.0 - 24.0).abs() < 0.05);
+    assert_eq!(u.scoped[0].share, None);
+}
+
+#[test]
+fn reads_how_much_of_the_week_a_model_may_take() {
+    let mut f = fx();
+    f.seed(live());
+    let mut body = usage_body();
+    body["limits"] = json!([
+        {"kind": "session", "percent": 12},
+        {"kind": "weekly_all", "percent": 64},
+        {"kind": "weekly_scoped", "percent": 0, "scope": {"model": {"display_name": "Fable"}}},
+    ]);
+    // by its index in `limits`
+    body["weekly_scoped_shares"] = json!([{"limit_index": 2, "used_percent_of_weekly": 0, "allowance_percent_of_weekly": 50}]);
+    f.mock.route("/oauth/usage", ok(body));
+    assert_eq!(f.auth.fetch_usage().unwrap().scoped[0].share, Some(50.0));
+}
+
+#[test]
+fn reads_the_week_by_product_biggest_first() {
+    let mut f = fx();
+    f.seed(live());
+    let mut body = usage_body();
+    body["seven_day_breakdown"] = json!({"rows": [
+        {"key": "chat", "display_name": "Chats", "percent": 0},
+        {"key": "claude_code", "display_name": "Claude Code", "percent": 77},
+        {"key": "cowork", "display_name": "Cowork", "percent": 23},
+        {"key": "x", "display_name": "", "percent": 5},
+    ]});
+    f.mock.route("/oauth/usage", ok(body));
+    let labels: Vec<_> = f.auth.fetch_usage().unwrap().by_product.into_iter().map(|p| (p.label, p.pct)).collect();
+    assert_eq!(labels, vec![("Claude Code".into(), 77.0), ("Cowork".into(), 23.0), ("Chats".into(), 0.0)]);
 }
 
 #[test]

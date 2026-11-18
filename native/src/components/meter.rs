@@ -153,7 +153,11 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
         let key = sc.label.to_lowercase();
         let family: u64 = usage.map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum()).unwrap_or(0);
         out.push(Meter {
-            label: format!("weekly · {key}"),
+            // the most of the week it may take, when the plan says
+            label: match sc.share {
+                Some(s) => format!("weekly · {key} · up to {s:.0}%"),
+                None => format!("weekly · {key}"),
+            },
             pct: Some(pct),
             sub: match reset {
                 Some(ms) => format!("resets in {} · {} tokens", reset_in(ms), tokens(family)),

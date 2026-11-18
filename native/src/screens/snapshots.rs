@@ -39,7 +39,12 @@ pub(super) fn limits(session: f64, week: f64) -> Limits {
     Limits {
         session: Window { pct: session, reset_ms: Some(2 * H + 13 * 60_000) },
         week: Window { pct: week, reset_ms: Some(25 * H) },
-        scoped: vec![Scoped { label: "Fable".into(), pct: 12.0, reset_ms: Some(25 * H) }],
+        scoped: vec![Scoped { label: "Fable".into(), pct: 12.0, reset_ms: Some(25 * H), share: Some(50.0) }],
+        by_product: vec![
+            crate::auth::Product { label: "Claude Code".into(), pct: 77.0 },
+            crate::auth::Product { label: "Cowork".into(), pct: 23.0 },
+            crate::auth::Product { label: "Chats".into(), pct: 0.0 },
+        ],
         weekly_only: false,
     }
 }
