@@ -8,7 +8,7 @@ What Clauddy shows and does: the panel, its sizes, the pet's moods and what the 
 |---|---|---|
 | Current session | Real % used, `resets in Xh Ym`, session tokens, and where the pace is taking you ([burn rate](04-usage.md#burn-rate)) | Account % · local logs |
 | Weekly · all models | Real % used and tokens over the last 7 days | Account % · local logs |
-| Weekly · one model | A model's own weekly limit (`weekly · fable`), with the most of the week it may take when the plan says (`up to 50%`) | Account % · local logs |
+| Weekly · one model | A model's own weekly limit (`weekly · fable`), with the most of the week it may take beside it, smaller, when the plan says (`up to 50% of the week`) | Account % · local logs |
 | Status line | `● working · 1.6M tok/min`, or today's tokens when idle | Local logs |
 | By product · this week | What Claude Code, Cowork and Chats each took of the week, in %, the biggest first | Account |
 | By model · 7 days | Opus, Sonnet, Haiku, Fable, in tokens | Local logs |
