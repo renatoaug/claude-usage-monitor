@@ -59,6 +59,8 @@ Now and then the pet says something in a speech bubble. It speaks only when some
 | Moment | Expanded | Minimized | Blip |
 | --- | --- | --- | --- |
 | First launch of the day | _Good morning! Yesterday was your heaviest day this week, 12M tokens._ | _Morning! Big day yesterday._ | ✓ |
+| The afternoon, with the app still open | _Good afternoon! 18M tokens so far today, the session's at 42%._ | _Afternoon! 18M today._ | ✓ |
+| The evening, with the app still open | _Good evening! Big day, 40M tokens, your heaviest this week._ | _Evening! Big day today._ | ✓ |
 | Session crosses the fire threshold | _Getting warm, 91% already. At this pace you'll run out in about 40m._ | _91%, getting warm!_ | ✓ |
 | The session window resets | _Fresh window! That was 34M tokens over 4h 12m, mostly editing code._ | _Fresh window! 34M last time._ | ✓ |
 | The session hits 100% | _That's the limit. I'll be back at 2:35 PM._ | _Maxed out till 2:35 PM._ | |
@@ -68,7 +70,7 @@ Now and then the pet says something in a speech bubble. It speaks only when some
 | Codex crosses fire, hits 100% or resets | _Codex is at 91% now. It resets in 1h 12m._ | _Codex at 91%!_ | ✓ (fire, reset) |
 | Cursor crosses fire, hits 100% or starts a new month | _Cursor is at 91% now. It resets in 6d 4h._ | _Cursor at 91%!_ | ✓ (fire, reset) |
 
-The greeting follows the clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and comes once a day, as does the record. The reset recap covers only what the pet saw, so launched mid-session it says less. A click dismisses the bubble.
+The greeting follows the clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and comes once a day, as does the record. With the app left open, the afternoon and the evening each get one more hello about today; if you're away when one comes due, it waits until you're back. The reset recap covers only what the pet saw, so launched mid-session it says less. A click dismisses the bubble.
 
 ### The voice
 
