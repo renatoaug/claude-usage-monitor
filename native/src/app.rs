@@ -545,7 +545,7 @@ impl App {
             // Windows: the tray menu, closing, takes focus back for a moment
             // right after the popover opened; ask for it again instead of
             // taking that for a click elsewhere
-            if self.popover_at.elapsed() < Duration::from_millis(800) && !self.popover_refocused {
+            if cfg!(windows) && self.popover_at.elapsed() < Duration::from_millis(800) && !self.popover_refocused {
                 self.popover_refocused = true;
                 self.popover_focused = false;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
