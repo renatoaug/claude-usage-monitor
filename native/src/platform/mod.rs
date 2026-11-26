@@ -59,4 +59,6 @@ pub fn wake() {
         }
         force_activate(&app);
     }
+    #[cfg(windows)]
+    frame::show_window();
 }

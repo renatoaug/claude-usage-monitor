@@ -48,6 +48,15 @@ pub struct App {
     /// ask goes out as the window maps, before the window manager has taken
     /// it in, and gets dropped; asking again once it's up sticks
     on_top_due: Vec<Instant>,
+    /// when the popover opened: the tray menu, closing, can take focus for
+    /// a moment right after, which must not count as a click elsewhere
+    popover_at: Instant,
+    /// focus was asked back once since it opened (Focus steals the
+    /// foreground, so never more than once)
+    popover_refocused: bool,
+    /// where the floating widget stood before it went to the menu bar, to
+    /// put it back there: the popover moves the window under (or above) the icon
+    floating_at: Option<egui::Pos2>,
     /// the window is shown (it hides while Clauddy lives in the menu bar)
     shown: bool,
     /// the screen on show (Settings tab, size) and when it came in, to fade it in
@@ -158,6 +167,27 @@ fn on_top_asks() -> Vec<Instant> {
     vec![now + Duration::from_millis(500), now + Duration::from_secs(3)]
 }
 
+/// Where the popover's top-left goes (points), for the tray icon's box `r`
+/// (physical px) and the card's `size`.
+fn popover_origin(r: egui::Rect, ppp: f32, size: [f32; 2]) -> (f32, f32) {
+    place_popover(r, ppp, size, cfg!(target_os = "macos"))
+}
+
+/// The menu bar is on top on macOS: the card drops below the icon. Windows'
+/// taskbar sits at the bottom, where below the icon is off the screen, so
+/// the card rises above it, unless there's no room (a taskbar on top), and
+/// its right edge stays by the icon instead of running off the screen.
+fn place_popover(r: egui::Rect, ppp: f32, size: [f32; 2], top_bar: bool) -> (f32, f32) {
+    let centred = r.center().x / ppp - size[0] / 2.0;
+    if top_bar {
+        return (centred, r.bottom() / ppp + 2.0);
+    }
+    let x = centred.min(r.right() / ppp + 8.0 - size[0]).max(0.0);
+    let above = r.top() / ppp - size[1] - 2.0;
+    let y = if above >= 0.0 { above } else { r.bottom() / ppp + 2.0 };
+    (x, y)
+}
+
 /// Open a URL in the default browser.
 pub fn open_url(url: &str) {
     #[cfg(target_os = "macos")]
@@ -201,6 +231,9 @@ impl App {
             popover_focused: false,
             had_focus: false,
             on_top_due: on_top_asks(),
+            popover_at: Instant::now(),
+            popover_refocused: false,
+            floating_at: None,
             shown: !Prefs::load().menu_bar,
             screen: (None, Size::Expanded),
             entered: Instant::now(),
@@ -399,12 +432,13 @@ impl App {
     fn open_popover(&mut self, ctx: &Context, icon: Option<egui::Rect>) {
         let ppp = ctx.pixels_per_point();
         if let Some(r) = icon {
-            let x = r.center().x / ppp - self.size[0] / 2.0; // the card's width, centred under the icon
-            let y = r.bottom() / ppp + 2.0;
+            let (x, y) = popover_origin(r, ppp, self.size);
             ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(egui::pos2(x.round(), y.round())));
         }
         self.popover = true;
         self.popover_focused = false;
+        self.popover_at = Instant::now();
+        self.popover_refocused = false;
         if self.passthrough {
             self.passthrough = false;
             ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(false));
@@ -430,13 +464,29 @@ impl App {
         use crate::platform::tray::{Tray, TrayEvent, line};
         let wanted = self.prefs.menu_bar && self.leaving.is_none();
         if wanted && self.tray.is_none() {
+            // remember where the floating widget was, to come back there
+            // in physical pixels: the window may come back on a monitor of
+            // another scale, where points would land somewhere else
+            if self.shown {
+                let ppp = ctx.pixels_per_point();
+                self.floating_at = ctx.input(|i| i.viewport().outer_rect).map(|r| (r.min.to_vec2() * ppp).to_pos2());
+            }
             self.tray = Tray::new(ctx);
             if self.tray.is_some() {
                 self.close_popover(ctx);
+            } else {
+                // no icon to come back from: stay floating rather than vanish
+                self.prefs.menu_bar = false;
+                self.draft.menu_bar = false;
+                self.show(ctx, true);
             }
         } else if !wanted && self.tray.is_some() {
             self.tray = None;
             self.popover = false;
+            // the popover moved the window to the icon: put it back
+            if let Some(p) = self.floating_at.take() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition((p.to_vec2() / ctx.pixels_per_point()).to_pos2()));
+            }
             self.show(ctx, true);
         }
         let Some(tray) = &mut self.tray else { return };
@@ -488,11 +538,21 @@ impl App {
         }
         // a click anywhere else takes focus away: the popover goes
         let focused = ctx.input(|i| i.viewport().focused);
-        if self.popover && focused == Some(true) {
+        if self.popover && focused == Some(true) && !self.popover_focused {
             self.popover_focused = true;
         }
         if self.popover && self.popover_focused && focused == Some(false) {
-            self.close_popover(ctx);
+            // Windows: the tray menu, closing, takes focus back for a moment
+            // right after the popover opened; ask for it again instead of
+            // taking that for a click elsewhere
+            if cfg!(windows) && self.popover_at.elapsed() < Duration::from_millis(800) && !self.popover_refocused {
+                self.popover_refocused = true;
+                self.popover_focused = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                ctx.request_repaint_after(Duration::from_millis(50));
+            } else {
+                self.close_popover(ctx);
+            }
         }
     }
 
@@ -759,6 +819,20 @@ mod tests {
         u.active = active;
         u.sleeping = sleeping;
         u
+    }
+
+    #[test]
+    fn the_popover_stays_on_screen_by_a_bottom_taskbar() {
+        // a tray icon at the bottom right of a 1920x1080 screen
+        let icon = egui::Rect::from_min_size(egui::pos2(1800.0, 1050.0), egui::vec2(24.0, 24.0));
+        let (x, y) = place_popover(icon, 1.0, [340.0, 500.0], false);
+        assert!(y + 500.0 <= 1050.0 && y >= 0.0, "above the icon, got {y}");
+        assert!(x + 340.0 <= 1832.0, "its right edge by the icon, got {x}");
+        // a taskbar on top: no room above, so below
+        let top = egui::Rect::from_min_size(egui::pos2(1800.0, 4.0), egui::vec2(24.0, 24.0));
+        assert_eq!(place_popover(top, 1.0, [340.0, 500.0], false).1, 30.0);
+        // macOS keeps it under the menu bar's icon
+        assert_eq!(place_popover(top, 1.0, [340.0, 500.0], true), (1812.0 - 170.0, 30.0));
     }
 
     #[test]
