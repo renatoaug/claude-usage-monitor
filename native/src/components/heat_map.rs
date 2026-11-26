@@ -2,7 +2,6 @@
 
 use eframe::egui::{Align2, CornerRadius, FontId, Painter, Pos2, Rect, Vec2};
 
-use crate::format::tokens;
 use crate::ui::surface::hairline;
 use crate::ui::theme::{color, radius, text};
 
@@ -21,11 +20,11 @@ pub fn heat_level(v: u64, max: u64) -> usize {
     }
 }
 
-pub fn heat_map(p: &Painter, left: f32, right: f32, y: f32, days: &[u64], total: u64, palette: &[eframe::egui::Color32; 5]) {
+pub fn heat_map(p: &Painter, left: f32, right: f32, y: f32, days: &[u64], total: &str, palette: &[eframe::egui::Color32; 5]) {
     hairline(p, left, right, y);
     let my = y + 15.0;
     p.text(Pos2::new(left, my), Align2::LEFT_CENTER, "30 days", FontId::proportional(text::CAPTION), color::FG_SECTION);
-    p.text(Pos2::new(right, my), Align2::RIGHT_CENTER, format!("{} tokens", tokens(total)), FontId::proportional(text::CAPTION), color::FG_SECTION);
+    p.text(Pos2::new(right, my), Align2::RIGHT_CENTER, total, FontId::proportional(text::CAPTION), color::FG_SECTION);
     let max = days.iter().copied().max().unwrap_or(1);
     let n = days.len().max(1) as f32;
     let w = (right - left - 2.0 * (n - 1.0)) / n;

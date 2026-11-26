@@ -28,10 +28,49 @@ pub(super) fn usage(active: bool, activity: Option<&str>) -> Usage {
     u.session.tokens = 5_200_000;
     u.week.tokens = 1_120_000_000;
     u.month_tokens = 8_070_000_000;
-    let l = |label: &str, tokens: u64| Labeled { label: label.into(), tokens };
+    let l = |label: &str, tokens: u64| Labeled::new(label, tokens);
     u.by_model = vec![l("Opus 5", 915_500_000), l("Fable 5.1", 200_400_000)];
     u.by_project = vec![l("clauddy", 577_800_000), l("personal-site", 366_200_000), l("little-experiments", 70_100_000)];
     u.days30 = (0..30u64).map(|i| (i * 37 % 11) * 40_000_000).collect();
+    // what those tokens are worth at API prices
+    (u.today_cost, u.session.cost, u.week.cost, u.month_cost) = (61.4, 8.45, 1_871.0, 13_480.0);
+    for (row, cost) in u.by_model.iter_mut().zip([1_210.0, 661.0]).chain(u.by_project.iter_mut().zip([402.5, 1_390.0, 78.5])) {
+        row.cost = cost;
+    }
+    // the lists over each span, and the first project in detail
+    let l = |label: &str, tokens: u64, cost: f64| Labeled { label: label.into(), tokens, cost };
+    let clauddy = crate::usage::Project {
+        label: "clauddy".into(),
+        tokens: 577_800_000,
+        cost: 402.5,
+        input: 570_000_000,
+        cache_read: 524_400_000,
+        by_model: vec![l("Opus 5", 431_200_000, 251.0), l("Fable 5.1", 146_600_000, 151.5)],
+        days: ["Sat 7", "Sun 8", "Mon 9", "Tue 10", "Wed 11", "Thu 12", "Fri 13"]
+            .into_iter()
+            .zip([0u64, 41, 120, 96, 58, 172, 90])
+            .map(|(day, m)| l(day, m * 1_000_000 + m * 1_385, m as f64 * 0.6976))
+            .collect(),
+        worktrees: vec![l("main checkout", 398_300_000, 281.0), l("tray-menu-4c1d9e", 131_000_000, 88.0), l("wsl-logs-77aa02", 48_500_000, 33.5)],
+    };
+    let sessions = vec![
+        l("clauddy · Thu 9:12 AM", 212_400_000, 131.0),
+        l("personal-site · Wed 2:40 PM", 188_000_000, 705.0),
+        l("clauddy · Mon 4:05 PM", 96_300_000, 74.2),
+    ];
+    let mut by_cost = sessions.clone();
+    by_cost.swap(0, 1);
+    let period = crate::usage::Period {
+        tokens: u.week.tokens,
+        cost: u.week.cost,
+        unpriced: 1_200_000,
+        by_model: u.by_model.clone(),
+        by_project: u.by_project.clone(),
+        projects: vec![clauddy],
+        sessions,
+        sessions_by_cost: by_cost,
+    };
+    u.periods = vec![period; 3];
     u
 }
 
@@ -98,7 +137,7 @@ fn render_inner(case: Case, draft: Prefs) {
     let size = |f: &Frame| match (case.view.settings, case.view.size) {
         (Some(tab), _) => settings::size(f.snap, tab, f.view),
         (None, Size::Compact) => compact::size(compact::rows(f).len(), compact::reminder(f).is_some()),
-        (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up),
+        (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up, f.api_value),
         (None, Size::PetOnly) => pet_only::size(),
     };
     let mut assets: Option<(Pet, Logos)> = None;
@@ -122,6 +161,8 @@ fn render_inner(case: Case, draft: Prefs) {
             logos: &logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
+            api_value: case.name.ends_with("-api-value"),
+            plan_price: 200,
             bubble: case
                 .name
                 .ends_with("-talking")
@@ -161,6 +202,8 @@ fn render_inner(case: Case, draft: Prefs) {
             logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
+            api_value: case.name.ends_with("-api-value"),
+            plan_price: 200,
             bubble: case
                 .name
                 .ends_with("-talking")
@@ -232,6 +275,30 @@ fn expanded_working_with_details() {
         mood: Mood::Working,
         view: View { details: true, ..View::default() },
     });
+}
+
+// Settings → Appearance → Usage in API dollars: every token count reads as
+// its API value, and the lists rank by it
+#[test]
+fn expanded_details_api_value() {
+    let snap = snapshot(usage(true, Some("editing")), Some(limits(42.0, 68.0)));
+    render(Case { name: "expanded-details-api-value", snap, mood: Mood::Working, view: View { details: true, ..View::default() } });
+}
+
+// a click on a project's row opens the lists on it: its models, its last 7
+// days, its worktrees and how much of what it sent came from the cache
+#[test]
+fn expanded_project() {
+    let snap = snapshot(usage(true, Some("editing")), Some(limits(42.0, 68.0)));
+    let view = View { details: true, project: Some("clauddy".into()), ..View::default() };
+    render(Case { name: "expanded-project", snap, mood: Mood::Working, view });
+}
+
+#[test]
+fn expanded_project_api_value() {
+    let snap = snapshot(usage(true, Some("editing")), Some(limits(42.0, 68.0)));
+    let view = View { details: true, project: Some("clauddy".into()), span: crate::usage::Span::Month, ..View::default() };
+    render(Case { name: "expanded-project-api-value", snap, mood: Mood::Working, view });
 }
 
 #[test]
@@ -364,7 +431,7 @@ fn pet_only_working_with_its_glance() {
 
 pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
     use crate::codex::{CodexUsage, Window};
-    let l = |label: &str, tokens: u64| Labeled { label: label.into(), tokens };
+    let l = |label: &str, tokens: u64| Labeled::new(label, tokens);
     snap.codex = Some(CodexUsage {
         active: working,
         last_seen: Some(0),
@@ -376,6 +443,10 @@ pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
         tokens_today: 12_400_000,
         tokens_5h: 3_100_000,
         tokens_week: 88_000_000,
+        cost_today: 0.0,
+        cost_5h: 0.0,
+        cost_week: 0.0,
+        month_cost: 0.0,
         by_model: vec![l("gpt-6", 70_000_000), l("gpt-6-mini", 18_000_000)],
         by_project: vec![l("clauddy", 52_000_000), l("api", 36_000_000)],
         days30: (0..30u64).map(|i| (i * 13 % 7) * 4_000_000).collect(),
@@ -713,6 +784,8 @@ fn pet_only_glance_button_stays_out_on_the_way_to_it() {
             logos,
             menu_bar: false,
             heads_up: 80.0,
+            api_value: false,
+            plan_price: 0,
             bubble: None,
             update: Default::default(),
         };

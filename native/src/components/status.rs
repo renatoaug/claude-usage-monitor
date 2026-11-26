@@ -4,7 +4,6 @@ use eframe::egui::{Align, Color32, Context, Painter, Pos2, Rect, Vec2};
 
 use super::logos::{Logos, Provider};
 use super::pet::Mood;
-use crate::format::tokens;
 use crate::ui::skeleton::sk_line;
 use crate::ui::tag::{TagStyle, tag};
 use crate::ui::text::{bold_mid, text_mid, width};
@@ -33,8 +32,10 @@ pub fn mood_colors(m: Mood) -> (Color32, Color32) {
     }
 }
 
-/// Expanded: dot, word, today's tokens, and the live tag when the % is real.
-pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activity: Option<&str>, today: Option<u64>, live: bool) {
+/// Expanded: dot, word, today's usage ("37.8M tokens today"), and the live
+/// tag when the % is real. Returns the usage text's box, for the screen to
+/// make it a switch.
+pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activity: Option<&str>, today: Option<&str>, live: bool) -> Option<Rect> {
     let (dot, word_color) = mood_colors(mood);
     p.circle_filled(Pos2::new(left + 3.5, y), 3.5, dot);
     let r = bold_mid(p, left + 13.0, y, Align::Min, &status_word(mood, activity), text::BODY, word_color);
@@ -42,14 +43,15 @@ pub fn status_line(p: &Painter, left: f32, right: f32, y: f32, mood: Mood, activ
         // still loading: hold the tokens' place
         sk_line(p, r.right() + 10.0, y, 110.0, 8.0);
     }
-    if let Some(n) = today {
+    let shown = today.map(|n| {
         let sep = text_mid(p, r.right() + 6.0, y, Align::Min, "·", text::BODY, color::FG_MUTED.gamma_multiply(0.5));
-        text_mid(p, sep.right() + 6.0, y, Align::Min, &format!("{} tokens today", tokens(n)), text::SMALL, color::FG_MUTED);
-    }
+        text_mid(p, sep.right() + 6.0, y, Align::Min, n, text::SMALL, color::FG_MUTED)
+    });
     if live {
         let style = TagStyle { fg: color::LIVE, edge: color::LIVE_EDGE, wash: color::LIVE_WASH, pad: Vec2::new(5.0, 3.0) };
         tag(p, right, y, Align::Max, "live", &style);
     }
+    shown
 }
 
 /// Compact: under the pet, the workers' logos (or a dot) and the word,

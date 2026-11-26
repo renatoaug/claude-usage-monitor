@@ -56,6 +56,20 @@ pub fn tokens(n: u64) -> String {
     }
 }
 
+/// A dollar amount, short: "$4.20", "$1,234", "$12.3k", "$1.23M".
+pub fn dollars(usd: f64) -> String {
+    match usd.max(0.0) {
+        v if v >= 999_950.0 => format!("${:.2}M", v / 1e6),
+        v if v >= 9_999.5 => format!("${:.1}k", v / 1e3),
+        v if v >= 999.5 => {
+            let n = v.round() as u64;
+            format!("${},{:03}", n / 1000, n % 1000)
+        }
+        v if v >= 99.995 => format!("${v:.0}"),
+        v => format!("${v:.2}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,5 +83,12 @@ mod tests {
         assert_eq!(tokens(37_800_000), "37.8M");
         assert_eq!(tokens(1_120_000_000), "1.12B");
         assert_eq!(tokens(950), "950");
+        assert_eq!(dollars(0.0), "$0.00");
+        assert_eq!(dollars(4.2), "$4.20");
+        assert_eq!(dollars(123.4), "$123");
+        assert_eq!(dollars(1234.5), "$1,235");
+        assert_eq!(dollars(9_999.7), "$10.0k");
+        assert_eq!(dollars(41_230.0), "$41.2k");
+        assert_eq!(dollars(1_234_000.0), "$1.23M");
     }
 }

@@ -57,7 +57,7 @@ fn size_of(s: &Shot) -> Vec2 {
     match (s.view.settings, s.view.size) {
         (Some(tab), _) => settings::size(f.snap, tab, f.view),
         (None, Size::Compact) => compact::size(compact::rows(&f).len(), compact::reminder(&f).is_some()),
-        (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up),
+        (None, Size::Expanded) => expanded::size(f.snap, f.view, f.session, f.heads_up, f.api_value),
         (None, Size::PetOnly) => pet_only::size(),
     }
     .into()
@@ -75,6 +75,8 @@ fn frame<'a>(s: &'a Shot, pet: &'a Pet, logos: &'a Logos, area: Rect) -> Frame<'
         logos,
         menu_bar: s.menu_bar,
         heads_up: 80.0,
+        api_value: false,
+        plan_price: 0,
         bubble: s.bubble.as_ref().map(|(t, a)| (t.as_str(), *a)),
         update: Default::default(),
     }

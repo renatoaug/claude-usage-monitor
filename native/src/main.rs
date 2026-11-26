@@ -19,6 +19,7 @@ mod format;
 mod platform;
 mod poller;
 mod prefs;
+mod pricing;
 mod reminders;
 mod screens;
 mod talk;

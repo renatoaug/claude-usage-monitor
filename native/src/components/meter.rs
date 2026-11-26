@@ -59,8 +59,8 @@ const STALE_MS: i64 = 15 * 60_000;
 // a Codex or Cursor window's subtitle: its reset and tokens (Cursor has
 // none); how old it is when the reading is stale; waiting when the window
 // passed with no fresh reading; `empty` before any reading
-fn ext_sub(w: &Option<crate::codex::Window>, tokens: Option<u64>, stale: Option<i64>, empty: &str) -> String {
-    let t = tokens.map(|n| format!("{} tokens", crate::format::tokens(n)));
+fn ext_sub(w: &Option<crate::codex::Window>, spent: Option<String>, stale: Option<i64>, empty: &str) -> String {
+    let t = spent;
     let join = |parts: Vec<Option<String>>| parts.into_iter().flatten().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
     let Some(w) = w else { return join(vec![Some(empty.into()), t]) };
     if w.pct.is_none() {
@@ -76,7 +76,10 @@ fn ext_sub(w: &Option<crate::codex::Window>, tokens: Option<u64>, stale: Option<
 
 /// Codex's meters: its session (or, on a weekly-only plan, its week in that
 /// place) and its week.
-pub fn codex_meters(c: &crate::codex::CodexUsage) -> Vec<Meter> {
+/// `api_value`: the tokens read in dollars, at API prices.
+pub fn codex_meters(c: &crate::codex::CodexUsage, api_value: bool) -> Vec<Meter> {
+    let spent = |tk: u64, cost: f64| Some(if api_value { crate::format::dollars(cost) } else { tok(tk) });
+    let (session, week) = (if c.weekly_only { spent(c.tokens_week, c.cost_week) } else { spent(c.tokens_5h, c.cost_5h) }, spent(c.tokens_week, c.cost_week));
     let now = crate::usage::now_ms();
     let stale = c.limits_at.map(|at| now - at).filter(|&age| age > STALE_MS);
     let pct = |w: &Option<crate::codex::Window>| w.as_ref().and_then(|w| w.pct);
@@ -84,12 +87,16 @@ pub fn codex_meters(c: &crate::codex::CodexUsage) -> Vec<Meter> {
         note: None,
         label: if c.weekly_only { "weekly · all models".into() } else { "current session".into() },
         pct: pct(&c.session),
-        sub: ext_sub(&c.session, Some(if c.weekly_only { c.tokens_week } else { c.tokens_5h }), stale, NOT_YET),
+        sub: ext_sub(&c.session, session, stale, NOT_YET),
     }];
     if !c.weekly_only {
-        v.push(Meter { note: None, label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale, NOT_YET) });
+        v.push(Meter { note: None, label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, week, stale, NOT_YET) });
     }
     v
+}
+
+fn tok(n: u64) -> String {
+    format!("{} tokens", tokens(n))
 }
 
 const NOT_YET: &str = "limits not recorded yet";
@@ -109,7 +116,8 @@ pub fn cursor_meters(c: &crate::cursor::CursorUsage) -> Vec<Meter> {
 
 /// The session, the week, and any per-model weekly limits. Connected but not
 /// read yet (or throttled): the meters stay, empty, rather than ask to log in.
-pub fn meters(snap: &Snapshot) -> Vec<Meter> {
+/// `api_value`: the tokens read in dollars, at API prices.
+pub fn meters(snap: &Snapshot, api_value: bool) -> Vec<Meter> {
     let (limits, at, usage) = (snap.limits.as_ref(), snap.limits_at, snap.usage.as_ref());
     let Some(l) = limits else {
         if !snap.connected {
@@ -122,8 +130,9 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
         let waiting = |label: &str| Meter { note: None, label: label.into(), pct: None, sub: sub.clone() };
         return vec![waiting("current session"), waiting("weekly · all models")];
     };
-    let session_tokens = usage.map(|u| u.session.tokens).unwrap_or(0);
-    let week_tokens = usage.map(|u| u.week.tokens).unwrap_or(0);
+    let spent = |tk: u64, cost: f64| if api_value { crate::format::dollars(cost) } else { format!("{} tokens", tokens(tk)) };
+    let session_spent = usage.map(|u| spent(u.session.tokens, u.session.cost)).unwrap_or_else(|| spent(0, 0.0));
+    let week_spent = usage.map(|u| spent(u.week.tokens, u.week.cost)).unwrap_or_else(|| spent(0, 0.0));
     let session = live(&l.session, at);
     let week = live(&l.week, at);
     let weekly = |week: Option<(f64, Option<i64>)>| Meter {
@@ -131,8 +140,8 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
         label: "weekly · all models".into(),
         pct: week.map(|w| w.0),
         sub: match week {
-            Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(week_tokens)),
-            _ => format!("{} tokens · last 7 days", tokens(week_tokens)),
+            Some((_, Some(ms))) => format!("resets in {} · {week_spent}", reset_in(ms)),
+            _ => format!("{week_spent} · last 7 days"),
         },
     };
     // a weekly-only plan: the week leads, once
@@ -145,7 +154,7 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
                 label: "current session".into(),
                 pct: session.map(|s| s.0),
                 sub: match session {
-                    Some((_, Some(ms))) => format!("resets in {} · {} tokens", reset_in(ms), tokens(session_tokens)),
+                    Some((_, Some(ms))) => format!("resets in {} · {session_spent}", reset_in(ms)),
                     _ => "no active session".into(),
                 },
             },
@@ -156,15 +165,16 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
     for sc in &l.scoped {
         let Some((pct, reset)) = live(&Window { pct: sc.pct, reset_ms: sc.reset_ms }, at) else { continue };
         let key = sc.label.to_lowercase();
-        let family: u64 = usage.map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum()).unwrap_or(0);
+        let of_family = || usage.iter().flat_map(|u| &u.by_model).filter(|m| m.label.to_lowercase().starts_with(&key));
+        let family = spent(of_family().map(|m| m.tokens).sum(), of_family().map(|m| m.cost).sum());
         out.push(Meter {
             // the most of the week it may take, when the plan says
             note: sc.share.map(|s| format!("up to {s:.0}% of the week")),
             label: format!("weekly · {key}"),
             pct: Some(pct),
             sub: match reset {
-                Some(ms) => format!("resets in {} · {} tokens", reset_in(ms), tokens(family)),
-                None => format!("{} tokens", tokens(family)),
+                Some(ms) => format!("resets in {} · {family}", reset_in(ms)),
+                None => family,
             },
         });
     }
@@ -223,8 +233,8 @@ mod tests {
 
     #[test]
     fn no_account_means_no_meters() {
-        assert!(meters(&Snapshot::default()).is_empty());
-        let waiting = meters(&Snapshot { connected: true, ..Default::default() });
+        assert!(meters(&Snapshot::default(), false).is_empty());
+        let waiting = meters(&Snapshot { connected: true, ..Default::default() }, false);
         assert_eq!(waiting.len(), 2);
         assert!(waiting.iter().all(|m| m.pct.is_none()));
     }
@@ -238,8 +248,8 @@ mod codex_tests {
     #[test]
     fn a_codex_window_says_reset_tokens_or_how_old_it_is() {
         let w = Some(Window { pct: Some(20.0), reset_ms: Some(2 * 3_600_000), expired: false });
-        assert!(ext_sub(&w, Some(5_000), None, NOT_YET).starts_with("resets in 2h 0m ("));
-        assert!(ext_sub(&w, Some(5_000), Some(20 * 60_000), NOT_YET).ends_with("read 20m ago"));
+        assert!(ext_sub(&w, Some(tok(5_000)), None, NOT_YET).starts_with("resets in 2h 0m ("));
+        assert!(ext_sub(&w, Some(tok(5_000)), Some(20 * 60_000), NOT_YET).ends_with("read 20m ago"));
         let gone = Some(Window { pct: None, reset_ms: None, expired: true });
         assert_eq!(ext_sub(&gone, None, None, NOT_YET), "waiting for a fresh reading");
         assert_eq!(ext_sub(&None, None, None, NOT_YET), "limits not recorded yet");
