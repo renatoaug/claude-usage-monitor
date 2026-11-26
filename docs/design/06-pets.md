@@ -8,11 +8,13 @@ The pets Clauddy can wear besides the classic sprite: the catalog and its packs,
 
 | Pack | Pets | Its days |
 |---|---|---|
-| Everyday | Clauddy (the classic sprite), Wizard, Astronaut | — |
+| Everyday | Clauddy (the classic sprite), Wizard, Astronaut, Getaway | — |
 | Christmas | Santa, Reindeer, Gingerbread | December 24 and 25 |
 | Halloween | Pumpkin | October 31 |
 
 ![The pet picker](../../native/tests/snapshots/settings-pet-picker.png)
+
+The picker opens from **⚙ Settings → Appearance → Pet**, where the pick waits for **Save**, or from the title band's **⋯ → Change pet**, where it takes at once and closing the picker goes back to the widget.
 
 ## How a pet is drawn
 

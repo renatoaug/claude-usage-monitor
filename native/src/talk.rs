@@ -86,7 +86,6 @@ impl Told {
 pub struct Talk {
     told: Told,
     last_remark: Option<i64>,
-    greeted: bool,
     last_live: Option<f64>,
     last_ext: [Option<f64>; 2],
     away_ms: i64,
@@ -112,7 +111,6 @@ impl Talk {
         Talk {
             told: Told::load(state),
             last_remark: None,
-            greeted: false,
             last_live: None,
             last_ext: [None, None],
             away_ms: 0,
@@ -196,6 +194,25 @@ impl Talk {
         r
     }
 
+    // The day's first reading says hello with a look at yesterday; each
+    // later part of the day (afternoon, evening) says hello once more with
+    // a look at today, while the app stays open. Kept by date, so a restart
+    // doesn't repeat one. Away or just back, it waits: the welcome comes first.
+    fn greet(&mut self, seen: &Seen, days: &[u64], now: i64, tone: Tone) -> Option<Remark> {
+        let fmt = |n: u64| tokens(n);
+        let part = format!("greeted-{}", voice::part_of_day(seen.hour));
+        if !self.told.already("greeted", now) {
+            self.told.mark("greeted", now);
+            self.told.mark(&part, now);
+            return voice::greeting(days, seen.hour, &fmt).and_then(|l| remark(l, true, tone));
+        }
+        if self.told.already(&part, now) || seen.mood == Mood::Sleeping || self.was_sleeping {
+            return None;
+        }
+        self.told.mark(&part, now);
+        voice::check_in(days, seen.hour, seen.claude.map(|c| c.0), &fmt).and_then(|l| remark(l, true, tone))
+    }
+
     /// One poll's reading in; at most one remark out. The caller decides
     /// whether it's said (talk on, gap, screen).
     pub fn listen(&mut self, seen: &Seen, now: i64) -> Option<Remark> {
@@ -206,14 +223,8 @@ impl Talk {
         self.note_session(seen, now);
         let mut out = None;
 
-        if !self.greeted {
-            self.greeted = true;
-            if !self.told.already("greeted", now) {
-                self.told.mark("greeted", now);
-                if let Some(l) = voice::greeting(&u.days30, seen.hour, &fmt) {
-                    return remark(l, true, tone);
-                }
-            }
+        if let Some(r) = self.greet(seen, &u.days30, now, tone) {
+            return Some(r);
         }
         if let Some(r) = self.listen_ext(seen, now) {
             out = Some(r);
@@ -287,6 +298,7 @@ mod tests {
                 session: Window { pct: 0.0, reset_ms: None },
                 week: Window { pct: 0.0, reset_ms: None },
                 scoped: vec![],
+                by_product: vec![],
                 weekly_only: false,
             }),
             ..Default::default()
@@ -310,6 +322,28 @@ mod tests {
         let r = t.listen(&seen(&s, Mood::Idle, None), T0).unwrap();
         assert!(r.headline && r.line.text.starts_with("Good morning!"));
         assert!(t.listen(&seen(&s, Mood::Idle, None), T0 + 4000).is_none());
+    }
+
+    #[test]
+    fn each_later_part_of_the_day_says_hello_once_while_open() {
+        let mut days = vec![0; 28];
+        days.extend([3_000_000, 5_000_000, 18_000_000]);
+        let s = snap(days);
+        let mut t = talk();
+        // today is also a 30-day record; that remark has its own test
+        t.told.mark("record", T0);
+        let at = |hour: u32, mood: Mood| Seen { snap: &s, mood, claude: Some((42.0, Some(3_600_000))), fire: 90.0, hour };
+        assert!(t.listen(&at(9, Mood::Idle), T0).unwrap().line.text.starts_with("Good morning!"));
+        assert!(t.listen(&at(11, Mood::Idle), T0 + 4000).is_none());
+        // away at the turn of the afternoon: it waits until you're back
+        assert!(t.listen(&at(14, Mood::Sleeping), T0 + 8000).is_none());
+        assert!(t.listen(&at(14, Mood::Working), T0 + 12_000).is_none());
+        let r = t.listen(&at(14, Mood::Working), T0 + 16_000).unwrap();
+        assert!(r.headline);
+        assert_eq!(r.line.text, "Good afternoon! 18.0M tokens so far today, the session's at 42%.");
+        assert!(t.listen(&at(16, Mood::Working), T0 + 20_000).is_none());
+        let r = t.listen(&at(19, Mood::Idle), T0 + 24_000).unwrap();
+        assert_eq!(r.line.text, "Good evening! Big day, 18.0M tokens, your heaviest this week.");
     }
 
     #[test]
@@ -355,7 +389,6 @@ mod tests {
     fn a_long_sleep_is_welcomed_back() {
         let mut s = snap(vec![0; 30]);
         let mut t = talk();
-        t.greeted = true;
         if let Some(u) = s.usage.as_mut() {
             u.last_activity_ms = Some(3 * 3_600_000);
         }

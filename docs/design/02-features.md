@@ -8,9 +8,13 @@ What Clauddy shows and does: the panel, its sizes, the pet's moods and what the 
 |---|---|---|
 | Current session | Real % used, `resets in Xh Ym`, session tokens, and where the pace is taking you ([burn rate](04-usage.md#burn-rate)) | Account % · local logs |
 | Weekly · all models | Real % used and tokens over the last 7 days | Account % · local logs |
+| Weekly · one model | A model's own weekly limit (`weekly · fable`), with the most of the week it may take beside it, smaller, when the plan says (`up to 50% of the week`) | Account % · local logs |
 | Status line | `● working · 1.6M tok/min`, or today's tokens when idle | Local logs |
-| By model · 7 days | Opus, Sonnet, Haiku, Fable, in tokens | Local logs |
-| By project · 7 days | Which repo used the week, ranked, the tail folded into `other` | Local logs |
+| By product · this week | What Claude Code, Cowork and Chats each took of the week, in %, the biggest first | Account |
+| Span | **today**, **7 days** or **30 days**: what Claude's lists below cover | Local logs |
+| By model | Opus, Sonnet, Haiku, Fable, in tokens | Local logs |
+| By project | Which repository used the span, ranked, the tail folded into `other`. A session started in a subdirectory or in a worktree counts for its repository; a click on a row opens that project: its models, its last 7 days, its worktrees and its cache share ([usage](04-usage.md#projects)) | Local logs |
+| Top sessions | The five heaviest sessions of the span, by tokens ([usage](04-usage.md#spans-a-project-in-detail-sessions)) | Local logs |
 | 30-day map | One square per day, green (light) to red (heavy), with the monthly total | Local logs |
 
 On a Claude plan with no 5-hour window (the usage response has no `five_hour`), the week takes the session's place: it leads the panel once, and the compact rows, the pet's glance, the menu bar, the mood and the alerts follow it. An idle session that only lacks a reset time is still a session.
@@ -26,8 +30,7 @@ Everything is in tokens and percent, never in dollars. Without a connected accou
 | Just the pet | The pet alone, floating, with the usage always above it as the pet's own speech bubble: per service, the session % and the week's % beside it, a bar for each; hovering the pet or the bubble slides out the **⤢** that opens compact | The pet icon in the compact header (floating mode only) |
 
 - **Drag** the widget anywhere; in pet-only mode drag the pet itself. Enter on the focused pet opens compact.
-- **⚙** opens Settings: **Accounts**, **Alerts** and **Appearance** tabs; a dot on it means an update is out.
-- **↗** opens the official Usage page of the service on screen. **×** quits.
+- **⋯**, in the title band of expanded and compact, opens a small menu: **Change pet** (the pet picker on its own: a pick takes at once, no Save), **Settings** (**Accounts**, **Alerts** and **Appearance** tabs) and **Usage page** (the official one of the service on screen); at its foot, the version with **Check for updates**. When a newer release is out, the dots of ⋯ turn coral and ripple now and then, and the foot becomes a card with **Update**. **×** quits.
 - **Notify at reset**, under the session, arms a one-shot notification for when the session resets ([alerts](05-alerts.md)).
 - The chosen size is remembered.
 
@@ -58,6 +61,8 @@ Now and then the pet says something in a speech bubble. It speaks only when some
 | Moment | Expanded | Minimized | Blip |
 | --- | --- | --- | --- |
 | First launch of the day | _Good morning! Yesterday was your heaviest day this week, 12M tokens._ | _Morning! Big day yesterday._ | ✓ |
+| The afternoon, with the app still open | _Good afternoon! 18M tokens so far today, the session's at 42%._ | _Afternoon! 18M today._ | ✓ |
+| The evening, with the app still open | _Good evening! Big day, 40M tokens, your heaviest this week._ | _Evening! Big day today._ | ✓ |
 | Session crosses the fire threshold | _Getting warm, 91% already. At this pace you'll run out in about 40m._ | _91%, getting warm!_ | ✓ |
 | The session window resets | _Fresh window! That was 34M tokens over 4h 12m, mostly editing code._ | _Fresh window! 34M last time._ | ✓ |
 | The session hits 100% | _That's the limit. I'll be back at 2:35 PM._ | _Maxed out till 2:35 PM._ | |
@@ -67,7 +72,7 @@ Now and then the pet says something in a speech bubble. It speaks only when some
 | Codex crosses fire, hits 100% or resets | _Codex is at 91% now. It resets in 1h 12m._ | _Codex at 91%!_ | ✓ (fire, reset) |
 | Cursor crosses fire, hits 100% or starts a new month | _Cursor is at 91% now. It resets in 6d 4h._ | _Cursor at 91%!_ | ✓ (fire, reset) |
 
-The greeting follows the clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and comes once a day, as does the record. The reset recap covers only what the pet saw, so launched mid-session it says less. A click dismisses the bubble.
+The greeting follows the clock (_Good morning_, _Good afternoon_, _Good evening_, or _Still up?_ before 5 AM) and comes once a day, as does the record. With the app left open, the afternoon and the evening each get one more hello about today; if you're away when one comes due, it waits until you're back. The reset recap covers only what the pet saw, so launched mid-session it says less. A click dismisses the bubble.
 
 ### The voice
 

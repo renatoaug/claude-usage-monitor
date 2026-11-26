@@ -170,6 +170,46 @@ fn hello(hour: u32) -> &'static str {
     }
 }
 
+/// Which part of the day `hour` is, for the hello each part gets.
+pub fn part_of_day(hour: u32) -> &'static str {
+    match hour {
+        h if h < LATE_UNTIL => "late",
+        h if h < 12 => "morning",
+        h if h < 18 => "afternoon",
+        _ => "evening",
+    }
+}
+
+/// The hello for a later part of the day, with the app still open: today so
+/// far in the afternoon, how today went in the evening. The small hours and
+/// the morning belong to the day's first hello.
+pub fn check_in(days: &[u64], hour: u32, session: Option<f64>, fmt: Fmt) -> Option<Line> {
+    let today = *days.last()?;
+    let (hi, short) = (salutation(hour), hello(hour));
+    if today == 0 {
+        return matches!(part_of_day(hour), "afternoon" | "evening").then(|| line(hi, short));
+    }
+    match part_of_day(hour) {
+        "afternoon" => {
+            let at = session.map(|p| format!(", the session's at {p:.0}%")).unwrap_or_default();
+            Some(line(format!("{hi} {} tokens so far today{at}.", fmt(today)), format!("{short} {} today.", fmt(today))))
+        }
+        "evening" => {
+            let week = &days[days.len().saturating_sub(8)..days.len() - 1];
+            let worked: Vec<u64> = week.iter().copied().filter(|&v| v > 0).collect();
+            if worked.len() > 1 && today >= worked.iter().copied().max().unwrap_or(0) {
+                return Some(line(format!("{hi} Big day, {} tokens, your heaviest this week.", fmt(today)), format!("{short} Big day today.")));
+            }
+            let avg = worked.iter().sum::<u64>() as f64 / worked.len().max(1) as f64;
+            if worked.len() > 2 && (today as f64) < avg * 0.5 {
+                return Some(line(format!("{hi} A light one today, {} tokens.", fmt(today)), format!("{short} Light day.")));
+            }
+            Some(line(format!("{hi} {} tokens today.", fmt(today)), format!("{short} {} today.", fmt(today))))
+        }
+        _ => None,
+    }
+}
+
 /// `days` is the 30-day series, oldest first, today last.
 pub fn greeting(days: &[u64], hour: u32, fmt: Fmt) -> Option<Line> {
     if days.len() < 2 {

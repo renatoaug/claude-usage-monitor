@@ -22,6 +22,14 @@ impl Provider {
             Provider::Cursor => "Cursor",
         }
     }
+    /// The service's own usage page, which ⋯ → Usage page opens.
+    pub fn usage_page(self) -> &'static str {
+        match self {
+            Provider::Claude => "https://claude.ai/settings/usage",
+            Provider::Codex => "https://chatgpt.com/usage#settings/Usage",
+            Provider::Cursor => "https://cursor.com/dashboard?tab=usage",
+        }
+    }
     /// The logo tint on a selected row and in the activity line.
     pub fn tint(self) -> Color32 {
         match self {
@@ -85,5 +93,17 @@ impl Logos {
             let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
             painter.image(tex.id(), rect, uv, color);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Provider;
+
+    #[test]
+    fn each_service_opens_its_own_usage_page() {
+        assert!(Provider::Claude.usage_page().starts_with("https://claude.ai/"));
+        assert!(Provider::Codex.usage_page().starts_with("https://chatgpt.com/"));
+        assert!(Provider::Cursor.usage_page().starts_with("https://cursor.com/"));
     }
 }

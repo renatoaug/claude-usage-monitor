@@ -101,6 +101,9 @@ fn main() -> eframe::Result {
                 .with_always_on_top()
                 .with_resizable(false),
         ),
+        // Linux: XWayland in a Wayland session, so it can stay on top
+        #[cfg(target_os = "linux")]
+        event_loop_builder: platform::display::event_loop(),
         ..Default::default()
     };
     eframe::run_native(

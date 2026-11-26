@@ -16,3 +16,11 @@
 
 - [x]
 - [ ]
+
+### Snapshot gallery
+
+<!--
+  Changed something visible and have no Mac to run UPDATE_SNAPSHOTS=1 cargo test --release? The gallery renders only on macOS: when its check fails, a bot comments here with the new renders. Tick the box (now or later) and it commits them to this branch instead.
+-->
+
+- [ ] Commit the snapshot gallery's renders to this branch

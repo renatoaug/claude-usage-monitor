@@ -35,9 +35,20 @@ pub struct View {
     pub details: bool,
     pub models: bool,
     pub projects: bool,
+    pub products: bool,
+    /// the heaviest sessions are unfolded
+    pub sessions: bool,
+    /// what the lists cover: today, the week or the 30 days
+    pub span: crate::usage::Span,
+    /// the project the lists are opened on, by name (not remembered)
+    #[serde(skip)]
+    pub project: Option<String>,
     /// the account menu is open (not remembered)
     #[serde(skip)]
     pub account_menu: bool,
+    /// the ⋯ menu of the title band is open (not remembered)
+    #[serde(skip)]
+    pub more_menu: bool,
     /// an account whose × was clicked once: the next click removes it
     #[serde(skip)]
     pub pending_remove: Option<String>,
@@ -49,6 +60,10 @@ pub struct View {
     /// Settings' pet picker is open (not remembered)
     #[serde(skip)]
     pub pet_picker: bool,
+    /// the pet picker was opened from ⋯: a pick is saved at once, and
+    /// closing it leaves Settings too (not remembered)
+    #[serde(skip)]
+    pub quick_pet: bool,
 }
 
 impl Default for View {
@@ -58,11 +73,17 @@ impl Default for View {
             details: false,
             models: true,
             projects: true,
+            products: true,
+            sessions: true,
+            span: crate::usage::Span::Week,
+            project: None,
             account_menu: false,
+            more_menu: false,
             pending_remove: None,
             settings: None,
             provider: Provider::Claude,
             pet_picker: false,
+            quick_pet: false,
         }
     }
 }
@@ -71,10 +92,17 @@ impl Default for View {
 pub enum Action {
     Close,
     Resize(Size),
-    OpenUsagePage,
+    /// the usage page of the service on screen
+    OpenUsagePage(Provider),
     ToggleDetails,
     ToggleModels,
     ToggleProjects,
+    ToggleProducts,
+    ToggleSessions,
+    /// what the lists cover
+    SetSpan(crate::usage::Span),
+    /// open the lists on one project, or (None) back on all of them
+    OpenProject(Option<String>),
     ToggleAccountMenu,
     CloseAccountMenu,
     SwitchAccount(String),
@@ -94,6 +122,11 @@ pub enum Action {
     DismissBubble,
     /// the menu bar's popover goes back into the bar
     HidePopover,
+    /// the title band's ⋯ menu
+    ToggleMoreMenu,
+    /// ⋯'s Change pet: the pet picker on its own
+    QuickPet,
+    CloseMoreMenu,
     CheckUpdates,
     TogglePetPicker,
     InstallUpdate,

@@ -712,6 +712,7 @@ dependencies = [
  "tempfile",
  "tray-icon",
  "ureq",
+ "winit",
  "winresource",
 ]
 

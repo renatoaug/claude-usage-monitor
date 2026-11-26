@@ -47,9 +47,11 @@ tar -xzf Clauddy-*-linux-x64.tar.gz
 
 The tray icon needs an indicator extension on vanilla GNOME (such as "AppIndicator and KStatusNotifier Item Support"); Cinnamon, KDE and XFCE show it as is. Starting at login goes through an XDG entry in `~/.config/autostart/`.
 
+In a Wayland session (KDE Plasma on Bazzite or Fedora, GNOME on Ubuntu) the window opens through XWayland, where the compositor keeps it above other windows; Wayland itself lets no app do that. `CLAUDDY_WAYLAND=1 ./Clauddy/clauddy` keeps it on Wayland, without staying on top ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)).
+
 ## Update
 
-**⚙ Settings → Check for updates → Update now** runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
+**⋯ → Check for updates**, then **Update** in the same menu, runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
 
 ## From the code
 

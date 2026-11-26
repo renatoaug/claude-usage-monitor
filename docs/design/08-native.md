@@ -28,7 +28,7 @@ flowchart LR
 | `src/ui/` | Generic pieces that know nothing about Clauddy: the theme tokens, icons, controls, surfaces, bars, tags, text |
 | `src/components/` | Clauddy's own pieces: the pet, logos, account chip, service rows, meters, status line, breakdowns, heat map, the glance and speech bubbles, the reminder button |
 | `src/screens/` | Compact, expanded, pet-only and Settings, and the snapshot gallery |
-| `src/platform/` | What the OS has to answer: the cursor watcher, the tray, login items, activation, the Windows frame |
+| `src/platform/` | What the OS has to answer: the cursor watcher, the tray, login items, activation, the Windows frame, the Linux display server |
 | `src/voice.rs`, `src/talk.rs` | The pet's remarks and blips, and when it says them |
 | `src/updates.rs` | The release check and the installer |
 
@@ -45,6 +45,10 @@ A hidden window gets no frames, so anything that must happen while it is hidden 
 ## The window on Windows
 
 The window fits the card and is transparent around it (DWM blur-behind, with wgpu presenting over it). Underneath, the window keeps its GDI redirection surface, which Windows fills white when the window first shows; that white showed through the margin around the card and stayed, at the window's first size, after any resize. `platform/frame.rs` paints that surface black every frame (GDI's black is transparent under blur-behind), and before the first frame turns off DWM's non-client rendering, so the frame, border, shadow and Windows 11 rounding that winit's caption style and egui-winit's undecorated shadow asked for don't outline the transparent rectangle. That shadow also left the window's top pixel row outside its client area, where it showed as a light line, so the window is subclassed to answer `WM_NCCALCSIZE` with the whole window as client.
+
+## The window on Linux
+
+On Wayland a client can neither keep its window above the others nor place it: winit drops both requests, so the always-on-top widget sank under other windows. In a Wayland session with XWayland running (`WAYLAND_DISPLAY` and `DISPLAY` both set), `platform/display.rs` hands eframe an event loop on X11, where KWin and Mutter honour them; `CLAUDDY_WAYLAND=1` keeps it on Wayland ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)). Even there, winit asks to stay on top as it maps the window, before the window manager has taken it in, and KWin drops it: the app asks again half a second and three seconds after the window shows, each time it shows.
 
 ## Pets
 
@@ -64,4 +68,4 @@ What only the Electron app used goes at launch (`platform/leftovers.rs`): its Ch
 
 ## Tests
 
-`cargo test --release` in `native/` runs the unit tests (each reader is a port of its JS module and of its tests) and the snapshot gallery: `src/screens/snapshots.rs` renders every screen state into `native/tests/snapshots/*.png` and fails when a render drifts. After an intended change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
+`cargo test --release` in `native/` runs the unit tests (each reader is a port of its JS module and of its tests) and the snapshot gallery: `src/screens/snapshots.rs` renders every screen state into `native/tests/snapshots/*.png` and fails when a render drifts. After an intended change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing. The gallery renders through wgpu, which only the macOS runner has, so a contributor without a Mac can't refresh it. When a pull request's checks fail in the macOS job's tests, `.github/workflows/snapshots.yml` renders the gallery from the pull request's code, with read access only and no secrets. By default it then comments on the pull request (one comment, rewritten on each push) with how many snapshots changed and the renders to download. If the pull request asked for it, by ticking **Commit the snapshot gallery's renders to this branch** in its description (the template has the box) or with the `update-snapshots` label, a job that never runs the pull request's code checks the files are PNGs with a snapshot's name and commits them to the branch with the `SNAPSHOTS_TOKEN` secret (the owner's token, which can push to a fork that allows edits by maintainers and makes the checks run again). Ticking the box or adding the label later does it at once. It follows the checks, so a first-time contributor's pull request waits for the same approval ([ADR-016](../decisions/ADR-016-a-failing-gallery-offers-its-renders.md)).

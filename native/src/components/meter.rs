@@ -23,6 +23,8 @@ pub fn height(first: bool) -> f32 {
 
 pub struct Meter {
     pub label: String,
+    /// a quieter word after the label, smaller and dimmer ("up to 50%")
+    pub note: Option<String>,
     pub pct: Option<f64>,
     pub sub: String,
 }
@@ -79,12 +81,13 @@ pub fn codex_meters(c: &crate::codex::CodexUsage) -> Vec<Meter> {
     let stale = c.limits_at.map(|at| now - at).filter(|&age| age > STALE_MS);
     let pct = |w: &Option<crate::codex::Window>| w.as_ref().and_then(|w| w.pct);
     let mut v = vec![Meter {
+        note: None,
         label: if c.weekly_only { "weekly · all models".into() } else { "current session".into() },
         pct: pct(&c.session),
         sub: ext_sub(&c.session, Some(if c.weekly_only { c.tokens_week } else { c.tokens_5h }), stale, NOT_YET),
     }];
     if !c.weekly_only {
-        v.push(Meter { label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale, NOT_YET) });
+        v.push(Meter { note: None, label: "weekly · all models".into(), pct: pct(&c.weekly), sub: ext_sub(&c.weekly, Some(c.tokens_week), stale, NOT_YET) });
     }
     v
 }
@@ -99,8 +102,8 @@ pub fn cursor_meters(c: &crate::cursor::CursorUsage) -> Vec<Meter> {
     let pct = |w: &Option<crate::codex::Window>| w.as_ref().and_then(|w| w.pct);
     let empty = if c.signed_out { "sign in to the Cursor app" } else { "no reading yet" };
     vec![
-        Meter { label: "this month · included".into(), pct: pct(&c.session), sub: ext_sub(&c.session, None, stale, empty) },
-        Meter { label: "API models · this month".into(), pct: pct(&c.api), sub: ext_sub(&c.api, None, stale, "—") },
+        Meter { note: None, label: "this month · included".into(), pct: pct(&c.session), sub: ext_sub(&c.session, None, stale, empty) },
+        Meter { note: None, label: "API models · this month".into(), pct: pct(&c.api), sub: ext_sub(&c.api, None, stale, "—") },
     ]
 }
 
@@ -116,7 +119,7 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
             Some(t) => format!("rate limited · retrying in {}", countdown(t.saturating_duration_since(Instant::now()).as_millis() as i64 + 59_999)),
             None => "waiting for a reading".into(),
         };
-        let waiting = |label: &str| Meter { label: label.into(), pct: None, sub: sub.clone() };
+        let waiting = |label: &str| Meter { note: None, label: label.into(), pct: None, sub: sub.clone() };
         return vec![waiting("current session"), waiting("weekly · all models")];
     };
     let session_tokens = usage.map(|u| u.session.tokens).unwrap_or(0);
@@ -124,6 +127,7 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
     let session = live(&l.session, at);
     let week = live(&l.week, at);
     let weekly = |week: Option<(f64, Option<i64>)>| Meter {
+        note: None,
         label: "weekly · all models".into(),
         pct: week.map(|w| w.0),
         sub: match week {
@@ -137,6 +141,7 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
     } else {
         vec![
             Meter {
+                note: None,
                 label: "current session".into(),
                 pct: session.map(|s| s.0),
                 sub: match session {
@@ -153,6 +158,8 @@ pub fn meters(snap: &Snapshot) -> Vec<Meter> {
         let key = sc.label.to_lowercase();
         let family: u64 = usage.map(|u| u.by_model.iter().filter(|m| m.label.to_lowercase().starts_with(&key)).map(|m| m.tokens).sum()).unwrap_or(0);
         out.push(Meter {
+            // the most of the week it may take, when the plan says
+            note: sc.share.map(|s| format!("up to {s:.0}% of the week")),
             label: format!("weekly · {key}"),
             pct: Some(pct),
             sub: match reset {
@@ -176,7 +183,10 @@ pub fn meter(p: &Painter, left: f32, right: f32, y: f32, m: &Meter, hero: bool, 
         (base + 9.0, 5.0)
     } else {
         let top = y + 19.0;
-        p.text(Pos2::new(left, top), Align2::LEFT_CENTER, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+        let label = p.text(Pos2::new(left, top), Align2::LEFT_CENTER, &m.label, FontId::proportional(text::BODY), color::FG_LABEL);
+        if let Some(note) = &m.note {
+            p.text(Pos2::new(label.right() + 5.0, top + 0.5), Align2::LEFT_CENTER, note, FontId::proportional(text::SMALL), color::FG_SUB);
+        }
         bold(p, Pos2::new(right, top), Align2::RIGHT_CENTER, &value, text::VALUE, num);
         (top + 14.0, 4.0)
     };

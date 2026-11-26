@@ -32,6 +32,24 @@ pub(super) fn usage(active: bool, activity: Option<&str>) -> Usage {
     u.by_model = vec![l("Opus 5", 915_500_000), l("Fable 5.1", 200_400_000)];
     u.by_project = vec![l("clauddy", 577_800_000), l("personal-site", 366_200_000), l("little-experiments", 70_100_000)];
     u.days30 = (0..30u64).map(|i| (i * 37 % 11) * 40_000_000).collect();
+    // the lists over each span, and the first project in detail
+    let clauddy = crate::usage::Project {
+        label: "clauddy".into(),
+        tokens: 577_800_000,
+        input: 570_000_000,
+        cache_read: 524_400_000,
+        by_model: vec![l("Opus 5", 431_200_000), l("Fable 5.1", 146_600_000)],
+        days: ["Sat 7", "Sun 8", "Mon 9", "Tue 10", "Wed 11", "Thu 12", "Fri 13"]
+            .into_iter()
+            .zip([0u64, 41, 120, 96, 58, 172, 90])
+            .map(|(day, m)| l(day, m * 1_000_000 + m * 1_385))
+            .collect(),
+        worktrees: vec![l("main checkout", 398_300_000), l("tray-menu-4c1d9e", 131_000_000), l("wsl-logs-77aa02", 48_500_000)],
+    };
+    let sessions = vec![l("clauddy · Thu 9:12 AM", 212_400_000), l("personal-site · Wed 2:40 PM", 188_000_000), l("clauddy · Mon 4:05 PM", 96_300_000)];
+    let period =
+        crate::usage::Period { tokens: u.week.tokens, by_model: u.by_model.clone(), by_project: u.by_project.clone(), projects: vec![clauddy], sessions };
+    u.periods = vec![period; 3];
     u
 }
 
@@ -39,7 +57,12 @@ pub(super) fn limits(session: f64, week: f64) -> Limits {
     Limits {
         session: Window { pct: session, reset_ms: Some(2 * H + 13 * 60_000) },
         week: Window { pct: week, reset_ms: Some(25 * H) },
-        scoped: vec![Scoped { label: "Fable".into(), pct: 12.0, reset_ms: Some(25 * H) }],
+        scoped: vec![Scoped { label: "Fable".into(), pct: 12.0, reset_ms: Some(25 * H), share: Some(50.0) }],
+        by_product: vec![
+            crate::auth::Product { label: "Claude Code".into(), pct: 77.0 },
+            crate::auth::Product { label: "Cowork".into(), pct: 23.0 },
+            crate::auth::Product { label: "Chats".into(), pct: 0.0 },
+        ],
         weekly_only: false,
     }
 }
@@ -123,15 +146,28 @@ fn render_inner(case: Case, draft: Prefs) {
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
             update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
         };
-        size(&f)
+        let card = size(&f);
+        // compact's open ⋯ menu runs past the card: the window grows to hold
+        // it, as the app's does, and the card keeps its size
+        let menu = if case.view.size == Size::Compact && case.view.settings.is_none() && case.view.more_menu {
+            let at = eframe::egui::Rect::from_min_size(
+                eframe::egui::pos2(super::MARGIN, super::MARGIN),
+                eframe::egui::vec2(card[0], card[1]) - eframe::egui::Vec2::splat(2.0 * super::MARGIN),
+            );
+            compact::more_menu_box(at, &f.update).bottom() + super::MARGIN
+        } else {
+            0.0
+        };
+        (card, [card[0], card[1].max(menu)])
     };
+    let (card_size, window) = window;
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
-        let area = ctx.content_rect().shrink(super::MARGIN);
+        let area = eframe::egui::Rect::from_min_size(ctx.content_rect().min, card_size.into()).shrink(super::MARGIN);
         let f = Frame {
             area,
             card: area,
@@ -214,6 +250,15 @@ fn expanded_working_with_details() {
         mood: Mood::Working,
         view: View { details: true, ..View::default() },
     });
+}
+
+// a click on a project's row opens the lists on it: its models, its last 7
+// days, its worktrees and how much of what it sent came from the cache
+#[test]
+fn expanded_project() {
+    let snap = snapshot(usage(true, Some("editing")), Some(limits(42.0, 68.0)));
+    let view = View { details: true, project: Some("clauddy".into()), ..View::default() };
+    render(Case { name: "expanded-project", snap, mood: Mood::Working, view });
 }
 
 #[test]
@@ -487,6 +532,33 @@ fn expanded_in_the_menu_bar() {
     render(Case { name: "expanded-menu-bar", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
 }
 
+fn more_menu(name: &'static str, size: Size) {
+    let view = View { size, more_menu: true, ..View::default() };
+    render(Case { name, snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view });
+}
+
+#[test]
+fn expanded_more_menu() {
+    more_menu("expanded-more-menu", Size::Expanded);
+}
+
+#[test]
+fn compact_more_menu() {
+    more_menu("compact-more-menu", Size::Compact);
+}
+
+#[test]
+fn expanded_more_menu_with_an_update() {
+    // the dot on ⋯ and on Settings inside it
+    more_menu("expanded-more-menu-update", Size::Expanded);
+}
+
+#[test]
+fn expanded_more_menu_in_the_menu_bar() {
+    // back to floating instead of to the bar
+    more_menu("expanded-more-menu-in-the-menu-bar", Size::Expanded);
+}
+
 #[test]
 fn expanded_offering_a_reset_reminder() {
     let mut snap = snapshot(usage(false, None), Some(limits(86.0, 68.0)));
@@ -556,6 +628,26 @@ fn wizard_compact_on_fire() {
 #[test]
 fn wizard_pet_only() {
     render(Case { name: "wizard-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn getaway_expanded() {
+    render(Case { name: "getaway-expanded", snap: pet_snap(42.0, false), mood: Mood::Idle, view: View::default() });
+}
+
+#[test]
+fn getaway_expanded_working() {
+    render(Case { name: "getaway-expanded-working", snap: pet_snap(42.0, true), mood: Mood::Working, view: View::default() });
+}
+
+#[test]
+fn getaway_compact_on_fire() {
+    render(Case { name: "getaway-compact-fire", snap: pet_snap(93.0, false), mood: Mood::Fire, view: compact_view() });
+}
+
+#[test]
+fn getaway_pet_only() {
+    render(Case { name: "getaway-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
 }
 
 #[test]

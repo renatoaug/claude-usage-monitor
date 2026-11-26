@@ -28,7 +28,7 @@ CLAUDDY_STATE=fire cargo run --release   # forces a mood
 
 Before a pull request:
 
-1. `cargo fmt --check`, `cargo clippy --release --all-targets -- -D warnings` and `cargo test --release` pass in `native/`. A visual change updates the snapshot gallery (`UPDATE_SNAPSHOTS=1 cargo test --release`), and a new state gets a new case.
+1. `cargo fmt --check`, `cargo clippy --release --all-targets -- -D warnings` and `cargo test --release` pass in `native/`. A visual change updates the snapshot gallery (`UPDATE_SNAPSHOTS=1 cargo test --release`), and a new state gets a new case. The gallery renders only on macOS: without a Mac, push the change as it is. When the macOS check fails on the gallery, a bot comments on the pull request with what changed and the new renders to download. Tick **Commit the snapshot gallery's renders to this branch** in the description (when opening it or later) and the bot commits them to your branch instead; pull before you push again.
 2. `native/scripts/bundle.sh` builds an app that launches.
 3. A change to the npm launcher passes `bun run check` and `bun run test`.
 4. A change to how something works updates its note in [`docs/design/`](docs/design/) in the same pull request, and a structural decision gets a record in [`docs/decisions/`](docs/decisions/).

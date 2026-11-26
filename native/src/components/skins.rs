@@ -66,6 +66,19 @@ pub const SKINS: &[Skin] = &[
         stand_box: [0.164, 0.172, 0.891, 0.848],
     },
     Skin {
+        id: "getaway",
+        name: "Getaway",
+        pack: "everyday",
+        working: include_bytes!("../../assets/getaway-working.png"),
+        moods: include_bytes!("../../assets/getaway-moods.png"),
+        // the car and the palm tree
+        work_box: [0.031, 0.16, 0.973, 0.934],
+        // the flames and the siren on top
+        fire_box: [0.078, 0.043, 0.922, 0.867],
+        // the shades and the jacket stand with it; the twirling keys swing out
+        stand_box: [0.137, 0.133, 0.902, 0.867],
+    },
+    Skin {
         id: "santa",
         name: "Santa",
         pack: "christmas",

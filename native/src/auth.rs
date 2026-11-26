@@ -120,6 +120,16 @@ pub struct Scoped {
     pub label: String,
     pub pct: f64,
     pub reset_ms: Option<i64>,
+    /// the most of the week this model may take, in % of it (Fable: 50)
+    #[serde(default)]
+    pub share: Option<f64>,
+}
+
+/// One product's part of the week's usage (Claude Code, Cowork, Chats).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Product {
+    pub label: String,
+    pub pct: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -128,6 +138,9 @@ pub struct Limits {
     pub session: Window,
     pub week: Window,
     pub scoped: Vec<Scoped>,
+    /// what each product took of the week, the biggest first
+    #[serde(default)]
+    pub by_product: Vec<Product>,
     /// the plan has no 5-hour window, only weekly ones
     #[serde(default)]
     pub weekly_only: bool,
@@ -199,6 +212,7 @@ fn limits(j: &Value) -> Limits {
         session: if weekly_only { week.clone() } else { j.get("five_hour").and_then(window) }.unwrap_or_else(empty),
         week: week.unwrap_or_else(empty),
         scoped: scoped_weeks(j),
+        by_product: by_product(j),
         weekly_only,
     }
 }
@@ -211,27 +225,55 @@ fn window(o: &Value) -> Option<Window> {
 
 // Weekly limits scoped to one model (e.g. "Fable" on Max) live in `limits`;
 // the older seven_day_<model> windows are the fallback.
+// `weekly_scoped_shares` says how much of the week each of those may take,
+// by its index in `limits`.
 fn scoped_weeks(j: &Value) -> Vec<Scoped> {
+    let share = |i: usize| {
+        j.get("weekly_scoped_shares")?
+            .as_array()?
+            .iter()
+            .find(|s| s.get("limit_index").and_then(Value::as_u64) == Some(i as u64))?
+            .get("allowance_percent_of_weekly")?
+            .as_f64()
+    };
     let mut out: Vec<Scoped> = j
         .get("limits")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter(|l| l.get("kind").and_then(Value::as_str) == Some("weekly_scoped"))
-        .filter_map(|l| {
+        .enumerate()
+        .filter(|(_, l)| l.get("kind").and_then(Value::as_str) == Some("weekly_scoped"))
+        .filter_map(|(i, l)| {
             let pct = l.get("percent")?.as_f64()?;
             let label = l.pointer("/scope/model/display_name")?.as_str().filter(|s| !s.is_empty())?;
             let reset_ms = l.get("resets_at").and_then(Value::as_str).and_then(parse_date).map(|t| t - now_ms());
-            Some(Scoped { label: label.into(), pct, reset_ms })
+            Some(Scoped { label: label.into(), pct, reset_ms, share: share(i) })
         })
         .collect();
     if out.is_empty() {
         for (key, label) in [("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet")] {
             if let Some(w) = j.get(key).and_then(window) {
-                out.push(Scoped { label: label.into(), pct: w.pct, reset_ms: w.reset_ms });
+                out.push(Scoped { label: label.into(), pct: w.pct, reset_ms: w.reset_ms, share: None });
             }
         }
     }
+    out
+}
+
+/// The week's usage by product, from `seven_day_breakdown`: what each took
+/// of the week's total, the biggest first.
+fn by_product(j: &Value) -> Vec<Product> {
+    let mut out: Vec<Product> = j
+        .pointer("/seven_day_breakdown/rows")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|r| {
+            let label = r.get("display_name")?.as_str().filter(|s| !s.is_empty())?;
+            Some(Product { label: label.into(), pct: r.get("percent")?.as_f64()? })
+        })
+        .collect();
+    out.sort_by(|a, b| b.pct.total_cmp(&a.pct));
     out
 }
 
