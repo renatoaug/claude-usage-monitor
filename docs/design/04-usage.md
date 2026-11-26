@@ -11,6 +11,25 @@ Where every number comes from: the Claude account and its local logs, several su
 
 Without a connected account the limits area shows _"Connect your account"_ instead of a %. The tokens still work.
 
+### Projects
+
+Claude Code keeps one log directory per working directory, named after its path. "By project" groups them by the project they belong to (`project_root` in `usage.rs`), not by that directory:
+
+- a worktree Claude Code made (`<project>/.claude/worktrees/<name>`) counts for `<project>`, read from the directory's name, so it still does once the worktree is deleted;
+- any other directory counts for the git repository it is in: the nearest parent with a `.git`, and for a git worktree kept elsewhere (its `.git` is a file) the repository that file points to;
+- a directory in no repository is its own project, and a home directory kept in git is never the project of what is under it.
+
+Projects are told apart by their path, so two repositories of the same name stay two rows, each shown with its parent (`acme/web`, `globex/web`). A path that no longer exists keeps its raw tail as the name: a wrong name is worse than an ugly one.
+
+### Spans, a project in detail, sessions
+
+Under **Details**, Claude's lists cover one span, picked on the panel and remembered: **today**, **7 days** (the week, from its reset when the account gives one) or **30 days**. The reader counts all three on every poll (`Usage.periods`), so switching shows at once.
+
+- **By project**: a click on a row opens the lists on that project: its models over the span, its last 7 days one by one (whatever the span), its worktrees (its own checkout among them, when it used any) and the share of what it sent that was read from the cache (cache reads over every token sent in: fresh input, cache writes and cache reads). **all projects** goes back. Only the ranked projects open, not the folded `other` row.
+- **Top sessions**: the five heaviest sessions of the span, each named after its project and when it started. A session is one log file with the subagents that log under its directory.
+
+Codex has the week's two lists only.
+
 On Windows, Claude Code run inside WSL keeps its logs in the distro's home, out of Windows' sight. **⚙ Settings → Accounts → Claude → Claude Code in WSL** (off by default, Windows only, [ADR-015](../decisions/ADR-015-wsl-logs-are-opt-in.md)) makes the default account also read `\\wsl.localhost\<distro>\home\*\.claude\projects` (and `/root`'s) of every **running** distro, found with `wsl.exe --list --running` once a minute on a thread of its own, so a slow answer never holds up a poll (`platform/wsl.rs`). Those logs sit behind 9P, under 1 ms a directory, so they are walked whole once a minute; in between, a poll lists only the projects, walks again the ones whose directory changed (a new session) and re-reads the size of the logs written in the last half hour (a turn going on). A long-quiet log that grows again (a resumed session) counts from the next whole walk. A stopped distro is never opened, since that would boot it: its tokens drop out of the counts until it runs again. Project names from WSL resolve against the distro's own `/`.
 
 ## The Claude account

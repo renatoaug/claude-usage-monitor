@@ -32,6 +32,24 @@ pub(super) fn usage(active: bool, activity: Option<&str>) -> Usage {
     u.by_model = vec![l("Opus 5", 915_500_000), l("Fable 5.1", 200_400_000)];
     u.by_project = vec![l("clauddy", 577_800_000), l("personal-site", 366_200_000), l("little-experiments", 70_100_000)];
     u.days30 = (0..30u64).map(|i| (i * 37 % 11) * 40_000_000).collect();
+    // the lists over each span, and the first project in detail
+    let clauddy = crate::usage::Project {
+        label: "clauddy".into(),
+        tokens: 577_800_000,
+        input: 570_000_000,
+        cache_read: 524_400_000,
+        by_model: vec![l("Opus 5", 431_200_000), l("Fable 5.1", 146_600_000)],
+        days: ["Sat 7", "Sun 8", "Mon 9", "Tue 10", "Wed 11", "Thu 12", "Fri 13"]
+            .into_iter()
+            .zip([0u64, 41, 120, 96, 58, 172, 90])
+            .map(|(day, m)| l(day, m * 1_000_000 + m * 1_385))
+            .collect(),
+        worktrees: vec![l("main checkout", 398_300_000), l("tray-menu-4c1d9e", 131_000_000), l("wsl-logs-77aa02", 48_500_000)],
+    };
+    let sessions = vec![l("clauddy · Thu 9:12 AM", 212_400_000), l("personal-site · Wed 2:40 PM", 188_000_000), l("clauddy · Mon 4:05 PM", 96_300_000)];
+    let period =
+        crate::usage::Period { tokens: u.week.tokens, by_model: u.by_model.clone(), by_project: u.by_project.clone(), projects: vec![clauddy], sessions };
+    u.periods = vec![period; 3];
     u
 }
 
@@ -232,6 +250,15 @@ fn expanded_working_with_details() {
         mood: Mood::Working,
         view: View { details: true, ..View::default() },
     });
+}
+
+// a click on a project's row opens the lists on it: its models, its last 7
+// days, its worktrees and how much of what it sent came from the cache
+#[test]
+fn expanded_project() {
+    let snap = snapshot(usage(true, Some("editing")), Some(limits(42.0, 68.0)));
+    let view = View { details: true, project: Some("clauddy".into()), ..View::default() };
+    render(Case { name: "expanded-project", snap, mood: Mood::Working, view });
 }
 
 #[test]

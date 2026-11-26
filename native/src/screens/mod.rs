@@ -36,6 +36,13 @@ pub struct View {
     pub models: bool,
     pub projects: bool,
     pub products: bool,
+    /// the heaviest sessions are unfolded
+    pub sessions: bool,
+    /// what the lists cover: today, the week or the 30 days
+    pub span: crate::usage::Span,
+    /// the project the lists are opened on, by name (not remembered)
+    #[serde(skip)]
+    pub project: Option<String>,
     /// the account menu is open (not remembered)
     #[serde(skip)]
     pub account_menu: bool,
@@ -67,6 +74,9 @@ impl Default for View {
             models: true,
             projects: true,
             products: true,
+            sessions: true,
+            span: crate::usage::Span::Week,
+            project: None,
             account_menu: false,
             more_menu: false,
             pending_remove: None,
@@ -88,6 +98,11 @@ pub enum Action {
     ToggleModels,
     ToggleProjects,
     ToggleProducts,
+    ToggleSessions,
+    /// what the lists cover
+    SetSpan(crate::usage::Span),
+    /// open the lists on one project, or (None) back on all of them
+    OpenProject(Option<String>),
     ToggleAccountMenu,
     CloseAccountMenu,
     SwitchAccount(String),

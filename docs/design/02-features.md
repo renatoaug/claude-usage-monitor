@@ -11,8 +11,10 @@ What Clauddy shows and does: the panel, its sizes, the pet's moods and what the 
 | Weekly · one model | A model's own weekly limit (`weekly · fable`), with the most of the week it may take beside it, smaller, when the plan says (`up to 50% of the week`) | Account % · local logs |
 | Status line | `● working · 1.6M tok/min`, or today's tokens when idle | Local logs |
 | By product · this week | What Claude Code, Cowork and Chats each took of the week, in %, the biggest first | Account |
-| By model · 7 days | Opus, Sonnet, Haiku, Fable, in tokens | Local logs |
-| By project · 7 days | Which repo used the week, ranked, the tail folded into `other` | Local logs |
+| Span | **today**, **7 days** or **30 days**: what Claude's lists below cover | Local logs |
+| By model | Opus, Sonnet, Haiku, Fable, in tokens | Local logs |
+| By project | Which repository used the span, ranked, the tail folded into `other`. A session started in a subdirectory or in a worktree counts for its repository; a click on a row opens that project: its models, its last 7 days, its worktrees and its cache share ([usage](04-usage.md#projects)) | Local logs |
+| Top sessions | The five heaviest sessions of the span, by tokens ([usage](04-usage.md#spans-a-project-in-detail-sessions)) | Local logs |
 | 30-day map | One square per day, green (light) to red (heavy), with the monthly total | Local logs |
 
 On a Claude plan with no 5-hour window (the usage response has no `five_hour`), the week takes the session's place: it leads the panel once, and the compact rows, the pet's glance, the menu bar, the mood and the alerts follow it. An idle session that only lacks a reset time is still a session.

@@ -72,6 +72,62 @@ pub struct Labeled {
     pub tokens: u64,
 }
 
+/// What the panel's lists can cover.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Span {
+    Today,
+    #[default]
+    Week,
+    Month,
+}
+
+impl Span {
+    pub const ALL: [Span; 3] = [Span::Today, Span::Week, Span::Month];
+
+    pub fn index(self) -> usize {
+        self as usize
+    }
+
+    /// As the section titles say it: "by model · 7 days".
+    pub fn label(self) -> &'static str {
+        ["today", "7 days", "30 days"][self.index()]
+    }
+}
+
+/// One project over a span: what it used, on which models, day by day, and
+/// in which of its worktrees.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub label: String,
+    pub tokens: u64,
+    /// every token sent in (fresh, written to the cache, read from it), and
+    /// the part read from the cache: the share that cost the least
+    pub input: u64,
+    pub cache_read: u64,
+    pub by_model: Vec<Labeled>,
+    /// the last 7 days, oldest first, whatever the span
+    pub days: Vec<Labeled>,
+    /// by worktree, the project's own checkout among them; empty when no
+    /// worktree was used
+    pub worktrees: Vec<Labeled>,
+}
+
+/// The lists over one span.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Period {
+    pub tokens: u64,
+    pub by_model: Vec<Labeled>,
+    /// ranked, the tail folded into `other`
+    pub by_project: Vec<Labeled>,
+    /// the ranked projects in detail (not the folded tail)
+    pub projects: Vec<Project>,
+    /// the heaviest sessions, by tokens
+    pub sessions: Vec<Labeled>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Usage {
@@ -80,6 +136,9 @@ pub struct Usage {
     pub today_tokens: u64,
     pub by_model: Vec<Labeled>,
     pub by_project: Vec<Labeled>,
+    /// the lists over each span, in `Span::ALL` order (`by_model` and
+    /// `by_project` above are the week's)
+    pub periods: Vec<Period>,
     pub days30: Vec<u64>,
     pub month_tokens: u64,
     pub tokens_per_min: u64,
@@ -101,6 +160,7 @@ impl Usage {
             today_tokens: 0,
             by_model: vec![],
             by_project: vec![],
+            periods: vec![Period::default(); Span::ALL.len()],
             days30: vec![0; DAYS],
             month_tokens: 0,
             tokens_per_min: 0,
@@ -118,6 +178,9 @@ struct Entry {
     ts: i64,
     model: Option<String>,
     tokens: u64,
+    /// every token sent in, and the part read from the cache
+    input: u64,
+    cache_read: u64,
     key: String,
 }
 
@@ -144,7 +207,7 @@ struct LogFile {
 pub struct Reader {
     claude_dir: PathBuf,
     files: HashMap<PathBuf, FileState>,
-    labels: HashMap<String, String>,
+    labels: HashMap<String, ProjectRef>,
     /// reading the default dir (the only one WSL's logs join)
     default_dir: bool,
     /// whether to look into WSL too: opted into, on Windows
@@ -279,15 +342,18 @@ impl Reader {
         let newest_file = newest.map(|f| f.path.clone());
 
         let mut seen = HashSet::new();
-        let (mut today, mut week, mut month, mut last5m) = (0u64, 0u64, 0u64, 0u64);
-        let mut by_model = Tally::default();
-        let mut by_project = Tally::default();
+        let mut last5m = 0u64;
+        let mut spans: [Acc; 3] = Default::default();
         let mut days30 = vec![0u64; DAYS];
         let mut recent: Vec<(i64, u64)> = Vec::new();
+        let starts = [today_ms, week_start, start30];
+        let week_ago = today_ms - (WEEK_DAYS as i64 - 1) * DAY_MS;
 
         for f in &files {
             let (fs_root, projects_dir) = &roots[f.root];
-            let proj = project_dir_of(projects_dir, &f.path).map(|d| project_label(&mut self.labels, fs_root, &d));
+            let at = log_place(projects_dir, &f.path);
+            let proj = at.as_ref().map(|(dir, _)| project_of(&mut self.labels, fs_root, dir));
+            let session = at.map(|(dir, id)| format!("{}|{dir}|{id}", f.root));
             let entries = parse_file(&mut self.files, &f.path, f.size);
             for e in entries {
                 if e.ts < start30 {
@@ -297,18 +363,13 @@ impl Reader {
                     continue;
                 }
                 let t = e.tokens;
-                month += t;
                 let idx = ((e.ts - start30) / DAY_MS).clamp(0, DAYS as i64 - 1) as usize;
                 days30[idx] += t;
-                if e.ts >= week_start {
-                    week += t;
-                    by_model.add(label_for(e.model.as_deref()), t);
-                    if let Some(p) = &proj {
-                        by_project.add(p.clone(), t);
+                let day = (e.ts >= week_ago).then(|| ((e.ts - week_ago) / DAY_MS).clamp(0, WEEK_DAYS as i64 - 1) as usize);
+                for (acc, start) in spans.iter_mut().zip(starts) {
+                    if e.ts >= start {
+                        acc.add(e, proj.as_ref(), session.as_deref(), day);
                     }
-                }
-                if e.ts >= today_ms {
-                    today += t;
                 }
                 if e.ts >= recent_cutoff {
                     recent.push((e.ts, t));
@@ -318,6 +379,7 @@ impl Reader {
                 }
             }
         }
+        let [today, week, month] = spans.each_ref().map(|acc| acc.tokens);
 
         // 5h session window (like /usage "Current session"): a window opens at
         // the first turn after the previous one expired
@@ -367,20 +429,20 @@ impl Reader {
         let active_file = open_file.clone().or(if quiet_rule { newest_file } else { None });
         let activity = active_file.and_then(|f| detect_activity(&f)).or_else(|| open_file.map(|_| "working".into()));
 
-        // ranked, then everything past the top N folded into one row
-        let ranked = by_project.ranked();
-        let mut by_project: Vec<Labeled> = ranked.iter().take(TOP_PROJECTS).cloned().collect();
-        let rest = &ranked[ranked.len().min(TOP_PROJECTS)..];
-        if !rest.is_empty() {
-            by_project.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum() });
-        }
+        // the day split is the last 7 days' whatever the span, so it is read
+        // from the widest one
+        let day_names: Vec<String> =
+            (0..WEEK_DAYS as i64).map(|d| crate::format::local(week_ago + d * DAY_MS + DAY_MS / 2).format("%a %-d").to_string()).collect();
+        let periods: Vec<Period> = spans.iter().map(|acc| acc.finish(&spans[2], &day_names)).collect();
+        let by_project = periods[Span::Week.index()].by_project.clone();
 
         Usage {
             session,
             week: Week { tokens: week, pct: pct(week, weekly_budget), reset_ms: week_reset_ms },
             today_tokens: today,
-            by_model: by_model.ranked(),
+            by_model: periods[Span::Week.index()].by_model.clone(),
             by_project,
+            periods,
             days30,
             month_tokens: month,
             tokens_per_min: (last5m as f64 / 5.0).round() as u64,
@@ -414,6 +476,134 @@ impl Tally {
         let mut rows = self.rows.clone();
         rows.sort_by_key(|r| std::cmp::Reverse(r.tokens)); // stable
         rows
+    }
+}
+
+// how many rows a project's worktrees and the sessions take before the fold
+const TOP_WORKTREES: usize = 5;
+const TOP_SESSIONS: usize = 5;
+const WEEK_DAYS: usize = 7;
+// a project's own checkout, among its worktrees
+const MAIN_CHECKOUT: &str = "main checkout";
+
+/// The top `n` rows, the rest folded into one `other · N` row.
+fn folded(ranked: &[Labeled], n: usize) -> Vec<Labeled> {
+    let mut rows: Vec<Labeled> = ranked.iter().take(n).cloned().collect();
+    let rest = &ranked[ranked.len().min(n)..];
+    if !rest.is_empty() {
+        rows.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum() });
+    }
+    rows
+}
+
+#[derive(Default)]
+struct ProjAcc {
+    label: String,
+    parent: String,
+    tokens: u64,
+    input: u64,
+    cache_read: u64,
+    by_model: Tally,
+    worktrees: Tally,
+    days: [u64; WEEK_DAYS],
+}
+
+#[derive(Default)]
+struct SessAcc {
+    project: String,
+    first: i64,
+    tokens: u64,
+}
+
+/// Everything counted over one span, before it is ranked.
+#[derive(Default)]
+struct Acc {
+    tokens: u64,
+    by_model: Tally,
+    // by the project's path, so two projects of the same name stay two; in
+    // first-seen order so ties rank the same on every poll
+    projects: HashMap<String, ProjAcc>,
+    project_order: Vec<String>,
+    sessions: HashMap<String, SessAcc>,
+    session_order: Vec<String>,
+}
+
+impl Acc {
+    fn add(&mut self, e: &Entry, proj: Option<&ProjectRef>, session: Option<&str>, day: Option<usize>) {
+        self.tokens += e.tokens;
+        self.by_model.add(label_for(e.model.as_deref()), e.tokens);
+        let Some(proj) = proj else { return };
+        if !self.projects.contains_key(&proj.key) {
+            self.project_order.push(proj.key.clone());
+        }
+        let p = self.projects.entry(proj.key.clone()).or_default();
+        if p.label.is_empty() {
+            (p.label, p.parent) = (proj.label.clone(), proj.parent.clone());
+        }
+        p.tokens += e.tokens;
+        p.input += e.input;
+        p.cache_read += e.cache_read;
+        p.by_model.add(label_for(e.model.as_deref()), e.tokens);
+        p.worktrees.add(proj.worktree.clone().unwrap_or_else(|| MAIN_CHECKOUT.into()), e.tokens);
+        if let Some(d) = day {
+            p.days[d] += e.tokens;
+        }
+        let Some(session) = session else { return };
+        if !self.sessions.contains_key(session) {
+            self.session_order.push(session.to_string());
+        }
+        let s = self.sessions.entry(session.to_string()).or_default();
+        if s.first == 0 || e.ts < s.first {
+            s.first = e.ts;
+        }
+        s.project = proj.key.clone();
+        s.tokens += e.tokens;
+    }
+
+    /// The name a project shows under: its directory's, with its parent's
+    /// when another project here has the same.
+    fn name(&self, key: &str) -> String {
+        let Some(p) = self.projects.get(key) else { return String::new() };
+        let twin = self.projects.iter().any(|(k, o)| k != key && o.label == p.label);
+        if twin && !p.parent.is_empty() { format!("{}/{}", p.parent, p.label) } else { p.label.clone() }
+    }
+
+    /// Ranked and folded. `widest` is the 30 days' count, for the day split.
+    fn finish(&self, widest: &Acc, day_names: &[String]) -> Period {
+        let mut keys: Vec<&String> = self.project_order.iter().collect();
+        keys.sort_by_key(|k| std::cmp::Reverse(self.projects[*k].tokens)); // stable
+        let ranked: Vec<Labeled> = keys.iter().map(|k| Labeled { label: self.name(k), tokens: self.projects[*k].tokens }).collect();
+        let projects = keys
+            .iter()
+            .take(TOP_PROJECTS)
+            .map(|k| {
+                let p = &self.projects[*k];
+                let days = widest.projects.get(*k).map(|w| w.days).unwrap_or_default();
+                let trees = p.worktrees.ranked();
+                Project {
+                    label: self.name(k),
+                    tokens: p.tokens,
+                    input: p.input,
+                    cache_read: p.cache_read,
+                    by_model: p.by_model.ranked(),
+                    days: day_names.iter().zip(days).map(|(name, tokens)| Labeled { label: name.clone(), tokens }).collect(),
+                    worktrees: if trees.iter().any(|t| t.label != MAIN_CHECKOUT) { folded(&trees, TOP_WORKTREES) } else { vec![] },
+                }
+            })
+            .collect();
+        let sessions: Vec<Labeled> = self
+            .session_order
+            .iter()
+            .map(|k| {
+                let s = &self.sessions[k];
+                let started = crate::format::local(s.first).format("%a %-I:%M %p");
+                Labeled { label: format!("{} · {started}", self.name(&s.project)), tokens: s.tokens }
+            })
+            .collect();
+        let mut top = sessions;
+        top.sort_by_key(|r| std::cmp::Reverse(r.tokens)); // stable
+        top.truncate(TOP_SESSIONS);
+        Period { tokens: self.tokens, by_model: self.by_model.ranked(), by_project: folded(&ranked, TOP_PROJECTS), projects, sessions: top }
     }
 }
 
@@ -547,36 +737,100 @@ fn resolve_project_path(fs_root: &Path, dir_name: &str) -> (Option<PathBuf>, Opt
     (rest.is_empty().then_some(cur), consumed)
 }
 
-/// The readable name for a project directory: its basename when the path
-/// still exists, otherwise the raw tail. A wrong name is worse than an ugly one.
-fn project_label(cache: &mut HashMap<String, String>, fs_root: &Path, dir_name: &str) -> String {
+// where Claude Code keeps the worktrees it makes, inside the project, as the
+// directory name spells it (`/.claude/worktrees/` flattened)
+const WORKTREES: &str = "--claude-worktrees-";
+
+/// The project a working directory belongs to: the repository it is in, so a
+/// session started in a subdirectory or in a worktree counts for its project
+/// instead of standing as one of its own. A git worktree's `.git` is a file
+/// pointing into the main repository; a directory in no repository is its
+/// own project.
+fn project_root(dir: &Path) -> PathBuf {
+    let home = std::env::home_dir();
+    for at in dir.ancestors() {
+        // a home kept in git (dotfiles) isn't the project of all under it
+        if at != dir && home.as_deref() == Some(at) {
+            break;
+        }
+        let git = at.join(".git");
+        let Ok(meta) = fs::metadata(&git) else { continue };
+        if meta.is_file()
+            && let Ok(body) = fs::read_to_string(&git)
+            && let Some(main) = body.trim().strip_prefix("gitdir:").and_then(|p| p.trim().split_once("/.git/worktrees/"))
+        {
+            return PathBuf::from(main.0);
+        }
+        return at.to_path_buf();
+    }
+    dir.to_path_buf()
+}
+
+/// The project a log directory belongs to.
+#[derive(Clone, Debug, PartialEq)]
+struct ProjectRef {
+    /// what tells projects apart: the project's path (or, for a path that is
+    /// gone, its raw name)
+    key: String,
+    /// the project directory's name, and its parent's
+    label: String,
+    parent: String,
+    /// the worktree the directory is, when it is one
+    worktree: Option<String>,
+}
+
+fn name_of(p: &Path) -> String {
+    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.to_string_lossy().into_owned())
+}
+
+/// The project a log directory stands for: the project its path is in when
+/// the path still exists, otherwise the raw tail as its name. A wrong name
+/// is worse than an ugly one.
+fn project_of(cache: &mut HashMap<String, ProjectRef>, fs_root: &Path, dir_name: &str) -> ProjectRef {
     // the same name can stand for different paths in this machine and in WSL
-    let key = format!("{}|{dir_name}", fs_root.display());
-    if let Some(hit) = cache.get(&key) {
+    let cache_key = format!("{}|{dir_name}", fs_root.display());
+    if let Some(hit) = cache.get(&cache_key) {
         return hit.clone();
     }
-    let (full, consumed) = resolve_project_path(fs_root, dir_name);
-    let label = match full {
-        Some(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.to_string_lossy().into_owned()),
+    // a worktree Claude Code made is under its project, and is often gone
+    // by now: what comes before it is the project's own directory
+    let (base, tree) = match dir_name.split_once(WORKTREES) {
+        Some((project, tree)) => (project, Some(tree.to_string())),
+        None => (dir_name, None),
+    };
+    let (full, consumed) = resolve_project_path(fs_root, base);
+    let found = match full {
+        Some(p) => {
+            let root = project_root(&p);
+            // a git worktree kept elsewhere goes by its directory's name
+            let worktree = tree.or_else(|| (!p.starts_with(&root)).then(|| name_of(&p)));
+            ProjectRef { key: root.to_string_lossy().into_owned(), label: name_of(&root), parent: root.parent().map(name_of).unwrap_or_default(), worktree }
+        }
         None => {
-            let raw = consumed.as_deref().unwrap_or(dir_name).trim_start_matches('-');
+            let raw = consumed.as_deref().unwrap_or(base).trim_start_matches('-');
             let chars: Vec<char> = raw.chars().collect();
-            if chars.len() > LABEL_MAX { format!("…{}", chars[chars.len() - (LABEL_MAX - 1)..].iter().collect::<String>()) } else { raw.to_string() }
+            let label =
+                if chars.len() > LABEL_MAX { format!("…{}", chars[chars.len() - (LABEL_MAX - 1)..].iter().collect::<String>()) } else { raw.to_string() };
+            ProjectRef { key: format!("?{base}"), label, parent: String::new(), worktree: tree }
         }
     };
-    cache.insert(key, label.clone());
-    label
+    cache.insert(cache_key, found.clone());
+    found
 }
 
 #[cfg(test)]
 pub fn project_label_uncached(dir_name: &str) -> String {
-    project_label(&mut HashMap::new(), Path::new("/"), dir_name)
+    project_of(&mut HashMap::new(), Path::new("/"), dir_name).label
 }
 
-fn project_dir_of(projects_dir: &Path, file: &Path) -> Option<String> {
+/// Where a log sits under the projects dir: its project directory and its
+/// session (a session's subagents log under a directory named after it).
+fn log_place(projects_dir: &Path, file: &Path) -> Option<(String, String)> {
     let rel = file.strip_prefix(projects_dir).ok()?;
-    let first = rel.components().next()?;
-    Some(first.as_os_str().to_string_lossy().into_owned())
+    let mut parts = rel.components().map(|c| c.as_os_str().to_string_lossy().into_owned());
+    let dir = parts.next()?;
+    let session = parts.next()?;
+    Some((dir, session.trim_end_matches(".jsonl").to_string()))
 }
 
 fn walk_jsonl(dir: &Path, out: &mut Vec<LogFile>, cutoff: i64) {
@@ -719,8 +973,11 @@ fn ingest_line(entries: &mut Vec<Entry>, line: &[u8]) {
         return;
     }
     let tokens = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens].iter().map(|t| t.unwrap_or(0)).sum();
+    // every token sent in: fresh, read from the cache, written to it
+    let cache_read = u.cache_read_input_tokens.unwrap_or(0);
+    let input = u.input_tokens.unwrap_or(0) + cache_read + u.cache_creation_input_tokens.unwrap_or(0);
     let req = nonempty(&obj.request_id).or_else(|| nonempty(&obj.uuid)).unwrap_or("");
-    entries.push(Entry { ts, model: model.map(str::to_string), tokens, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
+    entries.push(Entry { ts, model: model.map(str::to_string), tokens, input, cache_read, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
 }
 
 // Session logs only grow, and a long one passes 500 MB: a poll reads just the
