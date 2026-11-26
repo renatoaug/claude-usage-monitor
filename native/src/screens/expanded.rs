@@ -6,7 +6,7 @@ use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stro
 use super::{Action, Frame, MARGIN, Size, View, connected, shown};
 use crate::components::account::account_chip;
 use crate::components::account_menu::{MenuPick, account_label, account_menu, menu_rect};
-use crate::components::breakdown::{self, section};
+use crate::components::breakdown::{self, Hit, Section, section};
 use crate::components::heat_map::{HEAT_H, heat_map};
 use crate::components::login::{LOGIN_H, LoginPick, login_panel};
 use crate::components::logos::Provider;
@@ -17,16 +17,18 @@ use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::reminder;
 use crate::components::status::{STATUS_H, status_line};
+use crate::format::tokens;
 use crate::poller::Login;
 use crate::poller::Snapshot;
 use crate::ui::controls::BUTTON;
 use crate::ui::controls::{button_row, click_area};
 use crate::ui::icon;
+use crate::ui::segmented::segmented;
 use crate::ui::surface::card_tinted;
 use crate::ui::surface::{hairline, pane};
 use crate::ui::text::text_mid;
 use crate::ui::theme::{color, radius, text};
-use crate::usage::Labeled;
+use crate::usage::{Labeled, Period, Span};
 
 const CARD_W: f32 = 280.0;
 const SIDE: f32 = 18.0;
@@ -37,6 +39,9 @@ const TOGGLE_H: f32 = 32.0;
 const MODEL_ROWS: usize = 4;
 const PRODUCT_ROWS: usize = 4;
 const PROJECT_ROWS: usize = 6;
+const CONTROLS_H: f32 = 34.0;
+const BACK_H: f32 = 30.0;
+const NOTE_H: f32 = 20.0;
 const PAD_BOTTOM: f32 = 14.0;
 
 const TABS_H: f32 = 10.0 + 26.0;
@@ -58,6 +63,8 @@ struct Service<'a> {
     details: bool,
     by_model: &'a [Labeled],
     by_project: &'a [Labeled],
+    /// the lists over each span; none for Codex, which has the week's only
+    periods: &'a [Period],
     days30: &'a [u64],
     month: u64,
 }
@@ -77,6 +84,7 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
             details: false,
             by_model: &[],
             by_project: &[],
+            periods: &[],
             days30: &[],
             month: 0,
         },
@@ -93,6 +101,7 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
             details: true,
             by_model: &c.by_model,
             by_project: &c.by_project,
+            periods: &[],
             days30: &c.days30,
             month: c.month_tokens,
         },
@@ -111,6 +120,7 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
                 details: true,
                 by_model: &u.by_model,
                 by_project: &u.by_project,
+                periods: &u.periods,
                 days30: &u.days30,
                 month: u.month_tokens,
             }
@@ -127,7 +137,7 @@ fn meters_h(count: usize) -> f32 {
     (0..count).map(|i| meter::height(i == 0)).sum()
 }
 
-fn height(meter_count: usize, view: &View, details: Option<(usize, usize, usize)>, logging_in: bool) -> f32 {
+fn height(meter_count: usize, view: &View, details: Option<f32>, logging_in: bool) -> f32 {
     let mut h = STAGE_TOP + STAGE_H + STATUS_H;
     h += if logging_in {
         LOGIN_H
@@ -136,15 +146,105 @@ fn height(meter_count: usize, view: &View, details: Option<(usize, usize, usize)
     } else {
         CONNECT_H
     };
-    let Some((products, models, projects)) = details else { return h + PAD_BOTTOM - 12.0 };
+    let Some(details) = details else { return h + PAD_BOTTOM - 12.0 };
     h += TOGGLE_H;
     if view.details {
-        if products > 0 {
-            h += breakdown::height(products, view.products);
-        }
-        h += breakdown::height(models.min(MODEL_ROWS), view.models) + breakdown::height(projects.min(PROJECT_ROWS), view.projects) + HEAT_H;
+        h += details;
     }
     h + PAD_BOTTOM
+}
+
+/// One piece of Details, top to bottom. The panel's height and its drawing
+/// both come from this list, so they can't disagree.
+enum Block {
+    /// what the lists cover: today, 7 days or 30 days
+    Controls,
+    Rows {
+        id: &'static str,
+        title: String,
+        rows: Vec<Labeled>,
+        open: bool,
+        value: fn(u64) -> String,
+        /// what its head does; None for a section that doesn't fold
+        fold: Option<Action>,
+        /// a row opens its project
+        pick: bool,
+    },
+    /// the project the lists are opened on, and the way back
+    Back(String),
+    Note(String),
+    Heat,
+}
+
+impl Block {
+    fn height(&self) -> f32 {
+        match self {
+            Block::Controls => CONTROLS_H,
+            Block::Rows { rows, open, .. } => breakdown::height(rows.len(), *open),
+            Block::Back(_) => BACK_H,
+            Block::Note(_) => NOTE_H,
+            Block::Heat => HEAT_H,
+        }
+    }
+}
+
+/// The first `most` rows.
+fn rows(list: &[Labeled], most: usize) -> Vec<Labeled> {
+    list.iter().take(most).cloned().collect()
+}
+
+/// Details for the service shown: Claude's lists over the chosen span (or
+/// one project's), Codex's week.
+fn blocks(snap: &Snapshot, view: &View, s: &Service) -> Vec<Block> {
+    let value = breakdown::tokens;
+    let list = |id, title: String, rows, open, fold| Block::Rows { id, title, rows, open, value, fold, pick: false };
+    let Some(period) = s.periods.get(view.span.index()) else {
+        return vec![
+            list("models", "by model · 7 days".into(), rows(s.by_model, MODEL_ROWS), view.models, Some(Action::ToggleModels)),
+            list("projects", "by project · 7 days".into(), rows(s.by_project, PROJECT_ROWS), view.projects, Some(Action::ToggleProjects)),
+            Block::Heat,
+        ];
+    };
+    let span = view.span.label();
+    let mut out = vec![Block::Controls];
+    if let Some(p) = view.project.as_ref().and_then(|name| period.projects.iter().find(|p| &p.label == name)) {
+        out.push(Block::Back(format!("{} · {} tokens", p.label, tokens(p.tokens))));
+        out.push(list("project-models", format!("by model · {span}"), rows(&p.by_model, MODEL_ROWS), true, None));
+        out.push(list("project-days", "by day · 7 days".into(), rows(&p.days, p.days.len()), true, None));
+        if !p.worktrees.is_empty() {
+            out.push(list("project-worktrees", format!("by worktree · {span}"), rows(&p.worktrees, PROJECT_ROWS), true, None));
+        }
+        if p.input > 0 {
+            out.push(Block::Note(format!("{:.0}% of what it sent was read from the cache", p.cache_read as f64 / p.input as f64 * 100.0)));
+        }
+    } else {
+        let products = products(snap, s.provider);
+        if !products.is_empty() {
+            out.push(Block::Rows {
+                id: "products",
+                title: "by product · this week".into(),
+                rows: products,
+                open: view.products,
+                value: breakdown::percent,
+                fold: Some(Action::ToggleProducts),
+                pick: false,
+            });
+        }
+        out.push(list("models", format!("by model · {span}"), rows(&period.by_model, MODEL_ROWS), view.models, Some(Action::ToggleModels)));
+        out.push(Block::Rows {
+            id: "projects",
+            title: format!("by project · {span}"),
+            rows: rows(&period.by_project, PROJECT_ROWS),
+            open: view.projects,
+            value,
+            fold: Some(Action::ToggleProjects),
+            pick: true,
+        });
+        let sessions = &period.sessions;
+        out.push(list("sessions", format!("top sessions · {span}"), rows(sessions, sessions.len()), view.sessions, Some(Action::ToggleSessions)));
+    }
+    out.push(Block::Heat);
+    out
 }
 
 fn logging_in(snap: &Snapshot) -> bool {
@@ -168,10 +268,8 @@ pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, h
     let extra = if snap.loaded && !login && !s.meters.is_empty() { reminder_h(snap, s.provider, session, heads_up) } else { 0.0 };
     let m = if snap.loaded { s.meters.len() } else { 2 };
     let tabs = if connected(snap).len() > 1 { TABS_H } else { 0.0 };
-    [
-        CARD_W + 2.0 * MARGIN,
-        height(m, view, s.details.then_some((products(snap, s.provider).len(), s.by_model.len(), s.by_project.len())), login) + tabs + extra + 2.0 * MARGIN,
-    ]
+    let details = s.details.then(|| blocks(snap, view, &s).iter().map(Block::height).sum());
+    [CARD_W + 2.0 * MARGIN, height(m, view, details, login) + tabs + extra + 2.0 * MARGIN]
 }
 
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
@@ -423,24 +521,45 @@ fn products(snap: &Snapshot, provider: Provider) -> Vec<crate::usage::Labeled> {
 }
 
 fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Service, f: &Frame, actions: &mut Vec<Action>) {
-    let models = &s.by_model[..s.by_model.len().min(MODEL_ROWS)];
-    let projects = &s.by_project[..s.by_project.len().min(PROJECT_ROWS)];
-    let products = products(f.snap, s.provider);
-    if !products.is_empty() {
-        if section(ui, left, right, y, "products", "by product · this week", &products, f.view.products, !f.snap.loaded, s.bar, breakdown::percent) {
-            actions.push(Action::ToggleProducts);
+    for block in blocks(f.snap, f.view, s) {
+        let h = block.height();
+        match block {
+            Block::Controls => {
+                let spans = Rect::from_min_size(Pos2::new(left, y + 5.0), Vec2::new(152.0, 24.0));
+                let labels = Span::ALL.map(Span::label);
+                if let Some(i) = segmented(ui, spans, "span", &labels, f.view.span.index(), text::SMALL, &[]) {
+                    actions.push(Action::SetSpan(Span::ALL[i]));
+                }
+            }
+            Block::Rows { id, title, rows, open, value, fold, pick } => {
+                let sec = Section { id, title: &title, rows: &rows, open, loading: !f.snap.loaded, bar: s.bar, value, foldable: fold.is_some(), pick };
+                match section(ui, left, right, y, &sec) {
+                    Some(Hit::Head) => actions.extend(fold),
+                    Some(Hit::Row(i)) => actions.push(Action::OpenProject(Some(rows[i].label.clone()))),
+                    None => {}
+                }
+            }
+            Block::Back(name) => {
+                hairline(p, left, right, y);
+                let row = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, BACK_H));
+                let resp = click_area(ui, row, "project-back");
+                let mid = y + BACK_H / 2.0 + 1.0;
+                let back = text_mid(p, right, mid, egui::Align::Max, "all projects", text::SMALL, if resp.hovered() { color::FG } else { color::ADD });
+                let clip = p.with_clip_rect(Rect::from_min_max(row.min, Pos2::new(back.left() - 8.0, row.bottom())));
+                crate::ui::text::bold_mid(&clip, left, mid, egui::Align::Min, &name, text::BODY, color::FG);
+                if resp.clicked() {
+                    actions.push(Action::OpenProject(None));
+                }
+            }
+            Block::Note(note) => {
+                text_mid(p, left, y + NOTE_H / 2.0 - 2.0, egui::Align::Min, &note, text::CAPTION, color::FG_MUTED);
+            }
+            Block::Heat => {
+                heat_map(p, left, right, y, s.days30, s.month, s.heat);
+            }
         }
-        y += breakdown::height(products.len(), f.view.products);
+        y += h;
     }
-    if section(ui, left, right, y, "models", "by model · 7 days", models, f.view.models, !f.snap.loaded, s.bar, breakdown::tokens) {
-        actions.push(Action::ToggleModels);
-    }
-    y += breakdown::height(models.len(), f.view.models);
-    if section(ui, left, right, y, "projects", "by project · 7 days", projects, f.view.projects, !f.snap.loaded, s.bar, breakdown::tokens) {
-        actions.push(Action::ToggleProjects);
-    }
-    y += breakdown::height(projects.len(), f.view.projects);
-    heat_map(p, left, right, y, s.days30, s.month, s.heat);
 }
 
 // the service tabs: logo, name and session % each; the chosen one on a
@@ -493,11 +612,12 @@ mod tests {
 
     #[test]
     fn details_grow_the_panel_and_folding_shrinks_it() {
-        let closed = View { details: false, ..View::default() };
-        let open = View { details: true, ..View::default() };
-        let folded = View { details: true, models: false, projects: false, ..View::default() };
-        assert!(height(2, &open, Some((0, 3, 5)), false) > height(2, &closed, Some((0, 3, 5)), false));
-        let _ = TABS_H;
-        assert!(height(2, &folded, Some((0, 3, 5)), false) < height(2, &open, Some((0, 3, 5)), false));
+        let snap = Snapshot::default();
+        let h = |view: View| size(&snap, &view, None, 80.0)[1];
+        let closed = h(View { details: false, ..View::default() });
+        let open = h(View { details: true, ..View::default() });
+        let folded = h(View { details: true, models: false, projects: false, sessions: false, ..View::default() });
+        assert!(open > closed);
+        assert!(folded < open && folded > closed);
     }
 }
