@@ -49,7 +49,7 @@ fn line(l: L) -> String {
     .to_string()
 }
 
-// a list's names and tokens
+// a list's names and tokens (what they cost has its own test)
 fn counts(rows: &[Labeled]) -> Vec<(&str, u64)> {
     rows.iter().map(|r| (r.label.as_str(), r.tokens)).collect()
 }
@@ -379,17 +379,58 @@ fn a_project_opens_on_its_models_days_worktrees_and_cache_share() {
 }
 
 #[test]
-fn sessions_rank_by_tokens_with_their_subagents() {
+fn sessions_rank_by_tokens_and_by_value_with_their_subagents() {
     let mut fx = Fx::new();
     let dir = fx.real_dir("epsilon");
-    fx.write_log_in(&[tok(100)], "aaa.jsonl", &enc(&dir));
-    fx.write_log_in(&[tok(90)], "bbb.jsonl", &enc(&dir));
+    // many cheap tokens against few dear ones
+    fx.write_log_in(&[line(L { tokens: 900, model: Some("claude-haiku-5-5"), ..Default::default() })], "aaa.jsonl", &enc(&dir));
+    fx.write_log_in(&[line(L { tokens: 100, model: Some("claude-fable-5-2"), ..Default::default() })], "bbb.jsonl", &enc(&dir));
     // a subagent logs under a directory named after its session
-    fx.write_log_in(&[tok(50)], "bbb/subagents/agent-1.jsonl", &enc(&dir));
+    fx.write_log_in(&[line(L { tokens: 50, model: Some("claude-fable-5-2"), ..Default::default() })], "bbb/subagents/agent-1.jsonl", &enc(&dir));
     let u = fx.usage(&budget());
     let week = &u.periods[Span::Week.index()];
-    assert_eq!(week.sessions.iter().map(|s| s.tokens).collect::<Vec<_>>(), [140, 100]);
+    assert_eq!(week.sessions.iter().map(|s| s.tokens).collect::<Vec<_>>(), [900, 150]);
+    assert_eq!(week.sessions_by_cost.iter().map(|s| s.tokens).collect::<Vec<_>>(), [150, 900]);
     assert!(week.sessions[0].label.starts_with("epsilon · "), "{}", week.sessions[0].label);
+}
+
+// ---- API value ----
+
+#[test]
+fn tokens_are_priced_at_their_model_and_kind() {
+    let mut fx = Fx::new();
+    let dir = fx.real_dir("priced");
+    let answer = |model: &str, usage: serde_json::Value| {
+        let n = SEQ.fetch_add(1, Ordering::SeqCst);
+        json!({"type": "assistant", "timestamp": iso(now_ms()), "requestId": format!("req-{n}"), "message": {"id": format!("msg-{n}"), "model": model, "usage": usage}}).to_string()
+    };
+    let m = 1_000_000;
+    fx.write_log_in(
+        &[
+            // $4 in + $20 out + $0.20 read + $5 written for 5 min + $8 written for an hour
+            answer(
+                "claude-opus-5-5",
+                json!({"input_tokens": m, "output_tokens": m, "cache_read_input_tokens": m, "cache_creation_input_tokens": 2 * m,
+                       "cache_creation": {"ephemeral_5m_input_tokens": m, "ephemeral_1h_input_tokens": m}}),
+            ),
+            // no split: a 5-minute write, $2.50 on Sonnet 5.5
+            answer("claude-sonnet-5-5", json!({"cache_creation_input_tokens": m})),
+            // not Claude's: counted, never priced
+            answer("some-other-model", json!({"input_tokens": m})),
+        ],
+        "session.jsonl",
+        &enc(&dir),
+    );
+    let u = fx.usage(&budget());
+    let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+    assert!(near(u.week.cost, 39.7), "{}", u.week.cost);
+    assert!(near(u.today_cost, 39.7) && near(u.month_cost, 39.7) && near(u.session.cost, 39.7));
+    assert_eq!(u.by_project.len(), 1);
+    assert!(near(u.by_project[0].cost, 39.7));
+    let cost = |label: &str| u.by_model.iter().find(|r| r.label == label).map(|r| r.cost).unwrap();
+    assert!(near(cost("Opus 5.5"), 37.2) && near(cost("Sonnet 5.5"), 2.5) && near(cost("some-other-model"), 0.0));
+    // what has no price is said, not hidden in the total
+    assert_eq!(u.periods[Span::Week.index()].unpriced, m);
 }
 
 #[test]

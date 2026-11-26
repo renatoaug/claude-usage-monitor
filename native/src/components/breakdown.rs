@@ -1,6 +1,7 @@
 // "by product · this week", "by model · 7 days", "by project · 7 days" and the
-// like: a section of ranked rows, foldable or not, each with a dot, the name,
-// a bar against the top row, and a value (the tokens, or a share of the week).
+// like: a section of ranked rows, foldable or not, each with a dot, the name, a bar against
+// the top row, and a value (the tokens, their API value, or a share of the
+// week).
 
 use eframe::egui::{Align2, FontId, Pos2, Rect, Ui, Vec2};
 
@@ -22,6 +23,11 @@ pub fn tokens(v: u64) -> String {
 /// A row's share of the week, as the product section shows it.
 pub fn percent(v: u64) -> String {
     format!("{v}%")
+}
+
+/// A row's API value, held in cents.
+pub fn dollars(cents: u64) -> String {
+    crate::format::dollars(cents as f64 / 100.0)
 }
 
 pub fn height(rows: usize, open: bool) -> f32 {

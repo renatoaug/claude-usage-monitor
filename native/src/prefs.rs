@@ -30,6 +30,11 @@ pub struct Prefs {
     pub muted_until: i64,
     /// the pet picked in Settings (a seasonal one may take over on its days)
     pub pet: String,
+    /// Claude's tokens read as what they'd cost on the API, in dollars (opt-in)
+    pub api_value: bool,
+    /// what the plan costs a month, in USD, to compare the API value with
+    /// (0 = not set: only a plan with one price is known)
+    pub plan_price: i32,
 }
 
 impl Default for Prefs {
@@ -48,6 +53,8 @@ impl Default for Prefs {
             sound: false,
             muted_until: 0,
             pet: crate::components::skins::DEFAULT.into(),
+            api_value: false,
+            plan_price: 0,
         }
     }
 }
@@ -77,6 +84,8 @@ impl Prefs {
             talk: v["talk"].as_bool() != Some(false),
             pet: v["pet"].as_str().unwrap_or(crate::components::skins::DEFAULT).to_string(),
             sound: v["sound"].as_bool().unwrap_or(false),
+            api_value: v["apiValue"].as_bool().unwrap_or(false),
+            plan_price: v["planPrice"].as_f64().map(|p| p.round() as i32).unwrap_or(d.plan_price),
             muted_until: v["soundMutedUntil"].as_f64().unwrap_or(0.0) as i64,
             zoom: v["zoom"].as_f64().map(|z| z.round() as i32).unwrap_or(d.zoom),
         }
@@ -93,6 +102,7 @@ impl Prefs {
         self.near_limit = self.near_limit.clamp(1, 100);
         self.fire = self.fire.clamp(1, 99);
         self.zoom = self.zoom.clamp(100, 200);
+        self.plan_price = self.plan_price.clamp(0, 2000);
         self
     }
 
@@ -109,6 +119,8 @@ impl Prefs {
         v["sound"] = json!(self.sound);
         v["soundMutedUntil"] = json!(self.muted_until);
         v["pet"] = json!(self.pet);
+        v["apiValue"] = json!(self.api_value);
+        v["planPrice"] = json!(self.plan_price);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor), ("wsl", self.wsl)] {
             if !v[key].is_object() {
@@ -151,6 +163,8 @@ mod tests {
                 sound: false,
                 muted_until: 0,
                 pet: "clauddy".into(),
+                api_value: false,
+                plan_price: 0,
             }
         );
         assert_eq!(Prefs::from_value(&json!({"pet": "wizard"})).pet, "wizard");
@@ -158,6 +172,8 @@ mod tests {
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"wsl": {"enabled": true}})).wsl);
         assert!(!Prefs::default().wsl);
+        assert!(Prefs::from_value(&json!({"apiValue": true})).api_value);
+        assert_eq!(Prefs::from_value(&json!({"planPrice": 200})).plan_price, 200);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
         assert_eq!(Prefs::from_value(&json!({"zoom": 150})).zoom, 150);
         assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 200);

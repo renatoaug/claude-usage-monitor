@@ -117,6 +117,8 @@ pub enum Action {
     SetCursor(bool),
     /// Windows: read Claude Code's logs in WSL too
     SetWsl(bool),
+    /// Claude's tokens read in dollars at API prices, or as tokens
+    SetApiValue(bool),
     Remind(Provider, bool),
     /// the speech bubble was clicked away
     DismissBubble,
@@ -154,6 +156,10 @@ pub struct Frame<'a> {
     pub menu_bar: bool,
     /// the lowest alert threshold: from here a reset reminder is offered
     pub heads_up: f64,
+    /// Claude's tokens read in dollars, at API prices
+    pub api_value: bool,
+    /// what the plan costs a month, as set in Settings (0 = not set)
+    pub plan_price: i32,
     /// what the pet is saying, and how far it has appeared (0..1)
     pub bubble: Option<(&'a str, f32)>,
     /// where the update check stands

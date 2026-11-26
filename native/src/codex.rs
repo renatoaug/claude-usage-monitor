@@ -74,6 +74,11 @@ pub struct CodexUsage {
     pub tokens_today: u64,
     pub tokens_5h: u64,
     pub tokens_week: u64,
+    /// the same at OpenAI's API prices, in USD (0 for a model with no price)
+    pub cost_today: f64,
+    pub cost_5h: f64,
+    pub cost_week: f64,
+    pub month_cost: f64,
     pub by_model: Vec<Labeled>,
     pub by_project: Vec<Labeled>,
     pub days30: Vec<u64>,
@@ -84,6 +89,7 @@ pub struct CodexUsage {
 struct Event {
     ts: i64,
     tokens: u64,
+    cost: f64,
     model: Option<String>,
     cwd: Option<String>,
 }
@@ -93,6 +99,8 @@ struct Summary {
     offset: u64,
     rest: Vec<u8>,
     last_total: u64,
+    /// the running totals by kind (input, cached input, output) at the last count
+    last_kinds: [u64; 3],
     events: Vec<Event>,
     limits: Option<Limits>,
     model: Option<String>,
@@ -229,7 +237,14 @@ fn ingest_line(sum: &mut Summary, line: &[u8]) {
     if let Some(total) = p.pointer("/info/total_token_usage/total_tokens").and_then(Value::as_u64)
         && total > sum.last_total
     {
-        sum.events.push(Event { ts, tokens: total - sum.last_total, model: sum.model.clone(), cwd: sum.cwd.clone() });
+        // priced on the same delta, by kind; a rollout that doesn't split
+        // its total has no price
+        let kind = |k: &str| p.pointer(&format!("/info/total_token_usage/{k}")).and_then(Value::as_u64).unwrap_or(0);
+        let kinds = [kind("input_tokens"), kind("cached_input_tokens"), kind("output_tokens")];
+        let [input, cached, output] = [0, 1, 2].map(|i| kinds[i].saturating_sub(sum.last_kinds[i]));
+        let cost = crate::pricing::openai_cost(sum.model.as_deref(), input, cached, output);
+        sum.last_kinds = kinds;
+        sum.events.push(Event { ts, tokens: total - sum.last_total, cost, model: sum.model.clone(), cwd: sum.cwd.clone() });
         sum.last_total = total;
     }
     if let Some(lim) = p.get("rate_limits").and_then(|rl| limits_of(rl, ts))
@@ -265,9 +280,9 @@ fn window_now(w: Option<&RawWindow>, now: i64) -> Option<Window> {
     Some(Window { pct: (!expired).then_some(w.pct), reset_ms: w.resets_at.filter(|_| !expired).map(|r| r - now), expired })
 }
 
-fn ranked(map: HashMap<String, u64>, order: &[String]) -> Vec<Labeled> {
+fn ranked(map: HashMap<String, (u64, f64)>, order: &[String]) -> Vec<Labeled> {
     // first-seen order breaks ties, as a JS Map does
-    let mut rows: Vec<Labeled> = order.iter().filter_map(|k| map.get(k).map(|&t| Labeled { label: k.clone(), tokens: t })).collect();
+    let mut rows: Vec<Labeled> = order.iter().filter_map(|k| map.get(k).map(|&(tokens, cost)| Labeled { label: k.clone(), tokens, cost })).collect();
     rows.sort_by_key(|r| std::cmp::Reverse(r.tokens));
     rows
 }
@@ -432,14 +447,17 @@ impl Codex {
         let mut limits: Option<Limits> = None;
         let mut latest: Option<i64> = None;
         let (mut today, mut h5, mut week, mut month) = (0u64, 0u64, 0u64, 0u64);
+        let (mut cost_today, mut cost_5h, mut cost_week, mut month_cost) = (0f64, 0f64, 0f64, 0f64);
         let mut days30 = vec![0u64; DAYS];
         let (mut by_model, mut model_order) = (HashMap::new(), vec![]);
         let (mut by_project, mut project_order) = (HashMap::new(), vec![]);
-        let tally = |map: &mut HashMap<String, u64>, order: &mut Vec<String>, k: String, t: u64| {
+        let tally = |map: &mut HashMap<String, (u64, f64)>, order: &mut Vec<String>, k: String, t: u64, cost: f64| {
             if !map.contains_key(&k) {
                 order.push(k.clone());
             }
-            *map.entry(k).or_insert(0) += t;
+            let row = map.entry(k).or_insert((0, 0.0));
+            row.0 += t;
+            row.1 += cost;
         };
         let mut recent: Vec<(Option<bool>, i64)> = vec![];
         for (p, size, m) in files {
@@ -461,19 +479,23 @@ impl Codex {
                     continue;
                 }
                 month += e.tokens;
+                month_cost += e.cost;
                 days30[(((e.ts - start30) / DAY) as usize).min(DAYS - 1)] += e.tokens;
                 if e.ts >= start_of_day {
                     today += e.tokens;
+                    cost_today += e.cost;
                 }
                 if now - e.ts < 5 * 3_600_000 {
                     h5 += e.tokens;
+                    cost_5h += e.cost;
                 }
                 if now - e.ts < WEEK {
                     week += e.tokens;
-                    tally(&mut by_model, &mut model_order, e.model.clone().unwrap_or_else(|| "unknown".into()), e.tokens);
+                    cost_week += e.cost;
+                    tally(&mut by_model, &mut model_order, e.model.clone().unwrap_or_else(|| "unknown".into()), e.tokens, e.cost);
                     if let Some(cwd) = &e.cwd {
                         let name = Path::new(cwd).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| cwd.clone());
-                        tally(&mut by_project, &mut project_order, name, e.tokens);
+                        tally(&mut by_project, &mut project_order, name, e.tokens, e.cost);
                     }
                 }
             }
@@ -490,7 +512,11 @@ impl Codex {
         let mut by_project: Vec<Labeled> = projects.iter().take(TOP_PROJECTS).cloned().collect();
         let rest = &projects[projects.len().min(TOP_PROJECTS)..];
         if !rest.is_empty() {
-            by_project.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum() });
+            by_project.push(Labeled {
+                label: format!("other · {}", rest.len()),
+                tokens: rest.iter().map(|p| p.tokens).sum(),
+                cost: rest.iter().map(|p| p.cost).sum(),
+            });
         }
         let weekly_only = limits.as_ref().is_some_and(|l| l.weekly.is_some() && l.session.is_none());
         Some(CodexUsage {
@@ -504,6 +530,10 @@ impl Codex {
             tokens_today: today,
             tokens_5h: h5,
             tokens_week: week,
+            cost_today,
+            cost_5h,
+            cost_week,
+            month_cost,
             by_model: ranked(by_model, &model_order),
             by_project,
             days30,

@@ -132,7 +132,7 @@ pub fn initial_size() -> [f32; 2] {
     let size = if Prefs::load().menu_bar { Size::Expanded } else { view.size };
     match size {
         Size::Compact => compact::size(1, false),
-        Size::Expanded => expanded::size(&Snapshot::default(), &view, None, 80.0),
+        Size::Expanded => expanded::size(&Snapshot::default(), &view, None, 80.0, false),
         Size::PetOnly => pet_only::size(),
     }
 }
@@ -310,6 +310,12 @@ impl App {
                 }
                 Action::Logout => self.send(Command::Logout),
                 Action::SelectProvider(p) => self.view.provider = p,
+                Action::SetApiValue(on) => {
+                    // a switch on the panel itself: at once, like its folds
+                    self.prefs.api_value = on;
+                    self.draft.api_value = on;
+                    self.prefs.save();
+                }
                 Action::SetCodex(on) => {
                     // connecting a service takes effect at once, like logging in
                     self.prefs.codex = on;
@@ -557,7 +563,7 @@ impl eframe::App for App {
                 let remind = snap.loaded && crate::components::reminder::state(&snap, shown, session, heads_up).is_some();
                 compact::size(services.len(), remind)
             }
-            (None, Size::Expanded) => expanded::size(&snap, &self.view, session, self.prefs.heads_up.min(self.prefs.near_limit) as f64),
+            (None, Size::Expanded) => expanded::size(&snap, &self.view, session, self.prefs.heads_up.min(self.prefs.near_limit) as f64, self.prefs.api_value),
             (None, Size::PetOnly) => pet_only::size(),
         };
         let card_of = |s: [f32; 2]| Vec2::new(s[0] - 2.0 * MARGIN, s[1] - 2.0 * MARGIN);
@@ -698,6 +704,8 @@ impl eframe::App for App {
             logos: &self.logos,
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
+            api_value: self.prefs.api_value,
+            plan_price: self.prefs.plan_price,
             bubble,
             update: self.updater.state(),
         };

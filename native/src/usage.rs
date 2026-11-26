@@ -53,6 +53,8 @@ pub fn plan_budget(plan: &str) -> Option<(f64, f64)> {
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub tokens: u64,
+    /// what those tokens cost on the API, in USD
+    pub cost: f64,
     pub pct: f64,
     pub reset_ms: i64,
     pub active: bool,
@@ -62,6 +64,7 @@ pub struct Session {
 #[serde(rename_all = "camelCase")]
 pub struct Week {
     pub tokens: u64,
+    pub cost: f64,
     pub pct: f64,
     pub reset_ms: Option<i64>,
 }
@@ -70,6 +73,14 @@ pub struct Week {
 pub struct Labeled {
     pub label: String,
     pub tokens: u64,
+    /// what those tokens cost on the API, in USD (0 where there's no price)
+    pub cost: f64,
+}
+
+impl Labeled {
+    pub fn new(label: impl Into<String>, tokens: u64) -> Self {
+        Labeled { label: label.into(), tokens, cost: 0.0 }
+    }
 }
 
 /// What the panel's lists can cover.
@@ -102,6 +113,7 @@ impl Span {
 pub struct Project {
     pub label: String,
     pub tokens: u64,
+    pub cost: f64,
     /// every token sent in (fresh, written to the cache, read from it), and
     /// the part read from the cache: the share that cost the least
     pub input: u64,
@@ -119,13 +131,17 @@ pub struct Project {
 #[serde(rename_all = "camelCase")]
 pub struct Period {
     pub tokens: u64,
+    pub cost: f64,
+    /// tokens of models the price list doesn't know: in `tokens`, not in `cost`
+    pub unpriced: u64,
     pub by_model: Vec<Labeled>,
     /// ranked, the tail folded into `other`
     pub by_project: Vec<Labeled>,
     /// the ranked projects in detail (not the folded tail)
     pub projects: Vec<Project>,
-    /// the heaviest sessions, by tokens
+    /// the heaviest sessions, by tokens and by API value
     pub sessions: Vec<Labeled>,
+    pub sessions_by_cost: Vec<Labeled>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,6 +150,9 @@ pub struct Usage {
     pub session: Session,
     pub week: Week,
     pub today_tokens: u64,
+    /// today's, the 30 days' tokens at API prices, in USD
+    pub today_cost: f64,
+    pub month_cost: f64,
     pub by_model: Vec<Labeled>,
     pub by_project: Vec<Labeled>,
     /// the lists over each span, in `Span::ALL` order (`by_model` and
@@ -158,6 +177,8 @@ impl Usage {
             session: Session::default(),
             week: Week::default(),
             today_tokens: 0,
+            today_cost: 0.0,
+            month_cost: 0.0,
             by_model: vec![],
             by_project: vec![],
             periods: vec![Period::default(); Span::ALL.len()],
@@ -178,9 +199,13 @@ struct Entry {
     ts: i64,
     model: Option<String>,
     tokens: u64,
+    /// at the model's API prices, in USD
+    cost: f64,
     /// every token sent in, and the part read from the cache
     input: u64,
     cache_read: u64,
+    /// the price list doesn't know the model
+    unpriced: bool,
     key: String,
 }
 
@@ -345,7 +370,7 @@ impl Reader {
         let mut last5m = 0u64;
         let mut spans: [Acc; 3] = Default::default();
         let mut days30 = vec![0u64; DAYS];
-        let mut recent: Vec<(i64, u64)> = Vec::new();
+        let mut recent: Vec<(i64, u64, f64)> = Vec::new();
         let starts = [today_ms, week_start, start30];
         let week_ago = today_ms - (WEEK_DAYS as i64 - 1) * DAY_MS;
 
@@ -372,20 +397,22 @@ impl Reader {
                     }
                 }
                 if e.ts >= recent_cutoff {
-                    recent.push((e.ts, t));
+                    recent.push((e.ts, t, e.cost));
                 }
                 if e.ts >= five_min_ago {
                     last5m += t;
                 }
             }
         }
-        let [today, week, month] = spans.each_ref().map(|acc| acc.tokens);
+        let (today, today_cost) = (spans[0].tokens, spans[0].cost);
+        let (week, week_cost) = (spans[1].tokens, spans[1].cost);
+        let (month, month_cost) = (spans[2].tokens, spans[2].cost);
 
         // 5h session window (like /usage "Current session"): a window opens at
         // the first turn after the previous one expired
         recent.sort_by_key(|e| e.0);
         let mut window: Option<(i64, i64)> = None;
-        for &(ts, _) in &recent {
+        for &(ts, ..) in &recent {
             if window.is_none_or(|(_, end)| ts >= end) {
                 window = Some((ts, ts + SESSION_MS));
             }
@@ -398,8 +425,9 @@ impl Reader {
 
         let mut session = Session::default();
         if let Some((start, end)) = window.filter(|&(_, end)| now < end) {
-            let tk = recent.iter().filter(|e| e.0 >= start && e.0 < end).map(|e| e.1).sum();
-            session = Session { tokens: tk, pct: pct(tk, session_budget), reset_ms: end - now, active: true };
+            let inside = || recent.iter().filter(|e| e.0 >= start && e.0 < end);
+            let tk = inside().map(|e| e.1).sum();
+            session = Session { tokens: tk, cost: inside().map(|e| e.2).sum(), pct: pct(tk, session_budget), reset_ms: end - now, active: true };
         }
 
         let last_activity_ms = (last_mtime > 0).then(|| now - last_mtime);
@@ -438,8 +466,10 @@ impl Reader {
 
         Usage {
             session,
-            week: Week { tokens: week, pct: pct(week, weekly_budget), reset_ms: week_reset_ms },
+            week: Week { tokens: week, cost: week_cost, pct: pct(week, weekly_budget), reset_ms: week_reset_ms },
             today_tokens: today,
+            today_cost,
+            month_cost,
             by_model: periods[Span::Week.index()].by_model.clone(),
             by_project,
             periods,
@@ -463,12 +493,15 @@ struct Tally {
 }
 
 impl Tally {
-    fn add(&mut self, label: String, tokens: u64) {
+    fn add(&mut self, label: String, tokens: u64, cost: f64) {
         match self.index.get(&label) {
-            Some(&i) => self.rows[i].tokens += tokens,
+            Some(&i) => {
+                self.rows[i].tokens += tokens;
+                self.rows[i].cost += cost;
+            }
             None => {
                 self.index.insert(label.clone(), self.rows.len());
-                self.rows.push(Labeled { label, tokens });
+                self.rows.push(Labeled { label, tokens, cost });
             }
         }
     }
@@ -491,7 +524,7 @@ fn folded(ranked: &[Labeled], n: usize) -> Vec<Labeled> {
     let mut rows: Vec<Labeled> = ranked.iter().take(n).cloned().collect();
     let rest = &ranked[ranked.len().min(n)..];
     if !rest.is_empty() {
-        rows.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum() });
+        rows.push(Labeled { label: format!("other · {}", rest.len()), tokens: rest.iter().map(|p| p.tokens).sum(), cost: rest.iter().map(|p| p.cost).sum() });
     }
     rows
 }
@@ -501,11 +534,12 @@ struct ProjAcc {
     label: String,
     parent: String,
     tokens: u64,
+    cost: f64,
     input: u64,
     cache_read: u64,
     by_model: Tally,
     worktrees: Tally,
-    days: [u64; WEEK_DAYS],
+    days: [(u64, f64); WEEK_DAYS],
 }
 
 #[derive(Default)]
@@ -513,12 +547,15 @@ struct SessAcc {
     project: String,
     first: i64,
     tokens: u64,
+    cost: f64,
 }
 
 /// Everything counted over one span, before it is ranked.
 #[derive(Default)]
 struct Acc {
     tokens: u64,
+    cost: f64,
+    unpriced: u64,
     by_model: Tally,
     // by the project's path, so two projects of the same name stay two; in
     // first-seen order so ties rank the same on every poll
@@ -531,7 +568,11 @@ struct Acc {
 impl Acc {
     fn add(&mut self, e: &Entry, proj: Option<&ProjectRef>, session: Option<&str>, day: Option<usize>) {
         self.tokens += e.tokens;
-        self.by_model.add(label_for(e.model.as_deref()), e.tokens);
+        self.cost += e.cost;
+        if e.unpriced {
+            self.unpriced += e.tokens;
+        }
+        self.by_model.add(label_for(e.model.as_deref()), e.tokens, e.cost);
         let Some(proj) = proj else { return };
         if !self.projects.contains_key(&proj.key) {
             self.project_order.push(proj.key.clone());
@@ -541,12 +582,14 @@ impl Acc {
             (p.label, p.parent) = (proj.label.clone(), proj.parent.clone());
         }
         p.tokens += e.tokens;
+        p.cost += e.cost;
         p.input += e.input;
         p.cache_read += e.cache_read;
-        p.by_model.add(label_for(e.model.as_deref()), e.tokens);
-        p.worktrees.add(proj.worktree.clone().unwrap_or_else(|| MAIN_CHECKOUT.into()), e.tokens);
+        p.by_model.add(label_for(e.model.as_deref()), e.tokens, e.cost);
+        p.worktrees.add(proj.worktree.clone().unwrap_or_else(|| MAIN_CHECKOUT.into()), e.tokens, e.cost);
         if let Some(d) = day {
-            p.days[d] += e.tokens;
+            p.days[d].0 += e.tokens;
+            p.days[d].1 += e.cost;
         }
         let Some(session) = session else { return };
         if !self.sessions.contains_key(session) {
@@ -558,6 +601,7 @@ impl Acc {
         }
         s.project = proj.key.clone();
         s.tokens += e.tokens;
+        s.cost += e.cost;
     }
 
     /// The name a project shows under: its directory's, with its parent's
@@ -572,7 +616,8 @@ impl Acc {
     fn finish(&self, widest: &Acc, day_names: &[String]) -> Period {
         let mut keys: Vec<&String> = self.project_order.iter().collect();
         keys.sort_by_key(|k| std::cmp::Reverse(self.projects[*k].tokens)); // stable
-        let ranked: Vec<Labeled> = keys.iter().map(|k| Labeled { label: self.name(k), tokens: self.projects[*k].tokens }).collect();
+        let ranked: Vec<Labeled> =
+            keys.iter().map(|k| Labeled { label: self.name(k), tokens: self.projects[*k].tokens, cost: self.projects[*k].cost }).collect();
         let projects = keys
             .iter()
             .take(TOP_PROJECTS)
@@ -583,10 +628,11 @@ impl Acc {
                 Project {
                     label: self.name(k),
                     tokens: p.tokens,
+                    cost: p.cost,
                     input: p.input,
                     cache_read: p.cache_read,
                     by_model: p.by_model.ranked(),
-                    days: day_names.iter().zip(days).map(|(name, tokens)| Labeled { label: name.clone(), tokens }).collect(),
+                    days: day_names.iter().zip(days).map(|(name, (tokens, cost))| Labeled { label: name.clone(), tokens, cost }).collect(),
                     worktrees: if trees.iter().any(|t| t.label != MAIN_CHECKOUT) { folded(&trees, TOP_WORKTREES) } else { vec![] },
                 }
             })
@@ -597,13 +643,29 @@ impl Acc {
             .map(|k| {
                 let s = &self.sessions[k];
                 let started = crate::format::local(s.first).format("%a %-I:%M %p");
-                Labeled { label: format!("{} · {started}", self.name(&s.project)), tokens: s.tokens }
+                Labeled { label: format!("{} · {started}", self.name(&s.project)), tokens: s.tokens, cost: s.cost }
             })
             .collect();
-        let mut top = sessions;
-        top.sort_by_key(|r| std::cmp::Reverse(r.tokens)); // stable
-        top.truncate(TOP_SESSIONS);
-        Period { tokens: self.tokens, by_model: self.by_model.ranked(), by_project: folded(&ranked, TOP_PROJECTS), projects, sessions: top }
+        let top = |by_cost: bool| {
+            let mut rows = sessions.clone();
+            if by_cost {
+                rows.sort_by(|a, b| b.cost.total_cmp(&a.cost));
+            } else {
+                rows.sort_by_key(|r| std::cmp::Reverse(r.tokens));
+            }
+            rows.truncate(TOP_SESSIONS);
+            rows
+        };
+        Period {
+            tokens: self.tokens,
+            cost: self.cost,
+            unpriced: self.unpriced,
+            by_model: self.by_model.ranked(),
+            by_project: folded(&ranked, TOP_PROJECTS),
+            projects,
+            sessions: top(false),
+            sessions_by_cost: top(true),
+        }
     }
 }
 
@@ -942,6 +1004,14 @@ struct RawUsage {
     output_tokens: Option<u64>,
     cache_read_input_tokens: Option<u64>,
     cache_creation_input_tokens: Option<u64>,
+    cache_creation: Option<RawCacheCreation>,
+}
+
+// cache writes by how long they are kept: an hour costs more than 5 minutes
+#[derive(Deserialize)]
+struct RawCacheCreation {
+    ephemeral_5m_input_tokens: Option<u64>,
+    ephemeral_1h_input_tokens: Option<u64>,
 }
 
 fn nonempty<'a>(s: &'a Option<Cow<'a, str>>) -> Option<&'a str> {
@@ -973,11 +1043,31 @@ fn ingest_line(entries: &mut Vec<Entry>, line: &[u8]) {
         return;
     }
     let tokens = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens].iter().map(|t| t.unwrap_or(0)).sum();
-    // every token sent in: fresh, read from the cache, written to it
-    let cache_read = u.cache_read_input_tokens.unwrap_or(0);
-    let input = u.input_tokens.unwrap_or(0) + cache_read + u.cache_creation_input_tokens.unwrap_or(0);
+    // writes with no split are the default, 5 minutes
+    let written = u.cache_creation_input_tokens.unwrap_or(0);
+    let write_1h = u.cache_creation.as_ref().and_then(|c| c.ephemeral_1h_input_tokens).unwrap_or(0).min(written);
+    let write_5m = u.cache_creation.as_ref().and_then(|c| c.ephemeral_5m_input_tokens).unwrap_or(written - write_1h).min(written - write_1h);
+    let billed = crate::pricing::Tokens {
+        input: u.input_tokens.unwrap_or(0),
+        output: u.output_tokens.unwrap_or(0),
+        cache_read: u.cache_read_input_tokens.unwrap_or(0),
+        write_5m,
+        write_1h,
+    };
+    let cost = crate::pricing::cost(model, &billed);
+    let input = billed.input + billed.cache_read + written;
+    let unpriced = model.and_then(crate::pricing::rates).is_none();
     let req = nonempty(&obj.request_id).or_else(|| nonempty(&obj.uuid)).unwrap_or("");
-    entries.push(Entry { ts, model: model.map(str::to_string), tokens, input, cache_read, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
+    entries.push(Entry {
+        ts,
+        model: model.map(str::to_string),
+        tokens,
+        cost,
+        input,
+        cache_read: billed.cache_read,
+        unpriced,
+        key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req),
+    });
 }
 
 // Session logs only grow, and a long one passes 500 MB: a poll reads just the

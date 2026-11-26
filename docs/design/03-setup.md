@@ -74,6 +74,8 @@ Settings saved from the UI live in `~/.claude-usage-monitor/config.json`, so the
   "alertThresholds": [80, 95], // notify when the session or week crosses these %
   "fireThreshold": 90, // session % at which the pet catches fire (maxed out stays at 100)
   "zoom": 100, // widget scale %, 100 to 200
+  "apiValue": false, // the tokens read in dollars, at API list prices
+  "planPrice": 0, // what the plan costs a month in USD, to set the API value against (0 = not set)
   "pet": "clauddy", // the chosen pet (native/src/components/skins.rs); holidays override it on their days
   "pollIntervalMs": 4000, // how often the local logs are read
   "activeThresholdMs": 20000, // fallback "active" window, for a log whose tail does not say whether a turn is open

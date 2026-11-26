@@ -118,6 +118,34 @@ fn reads_limits_tokens_model_and_activity_from_a_rollout() {
 }
 
 #[test]
+fn a_rollout_is_priced_by_kind_on_the_model_in_effect() {
+    let mut fx = Fx::new();
+    let count = |ts: &str, input: u64, cached: u64, output: u64| {
+        json!({"timestamp": ts, "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage":
+            {"total_tokens": input + output, "input_tokens": input, "cached_input_tokens": cached, "output_tokens": output}}}})
+        .to_string()
+    };
+    let m = 1_000_000;
+    fx.write(
+        "rollout-p.jsonl",
+        &[
+            json!({"type": "turn_context", "payload": {"model": "gpt-5", "cwd": "/x/proj"}}).to_string(),
+            // 1M in (half cached) and 1M out on gpt-5: $0.625 + $0.0625 + $10
+            count("2026-09-12T19:00:00Z", m, m / 2, m),
+            // then a model with no listed price: its tokens count, its dollars don't
+            json!({"type": "turn_context", "payload": {"model": "gpt-6", "cwd": "/x/proj"}}).to_string(),
+            count("2026-09-12T19:10:00Z", 2 * m, m / 2, m),
+        ],
+        now() - 10_000,
+    );
+    let u = fx.codex.get_usage(now()).unwrap();
+    assert_eq!(u.tokens_week, 3 * m);
+    assert!((u.cost_week - 10.6875).abs() < 1e-9, "{}", u.cost_week);
+    assert!((u.by_project[0].cost - 10.6875).abs() < 1e-9);
+    assert_eq!(u.by_model.iter().map(|r| (r.label.as_str(), r.cost > 0.0)).collect::<Vec<_>>(), [("gpt-5", true), ("gpt-6", false)]);
+}
+
+#[test]
 fn a_weekly_only_plan_puts_its_week_in_the_session_slot() {
     let mut fx = Fx::new();
     let n = now() as f64 / 1000.0;
@@ -217,7 +245,7 @@ fn attributes_each_delta_to_the_model_and_project_in_effect() {
 fn an_event_with_no_model_still_counts() {
     let mut fx = Fx::new();
     fx.write("rollout-e.jsonl", &[token_count("2026-09-12T19:00:00Z", 50, Value::Null)], now() - 10_000);
-    assert_eq!(fx.codex.get_usage(now()).unwrap().by_model, vec![Labeled { label: "unknown".into(), tokens: 50 }]);
+    assert_eq!(fx.codex.get_usage(now()).unwrap().by_model, vec![Labeled::new("unknown", 50)]);
 }
 
 #[test]

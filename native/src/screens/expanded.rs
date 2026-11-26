@@ -17,7 +17,7 @@ use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::reminder;
 use crate::components::status::{STATUS_H, status_line};
-use crate::format::tokens;
+use crate::format::{dollars, tokens};
 use crate::poller::Login;
 use crate::poller::Snapshot;
 use crate::ui::controls::BUTTON;
@@ -67,9 +67,12 @@ struct Service<'a> {
     periods: &'a [Period],
     days30: &'a [u64],
     month: u64,
+    /// today's and the 30 days' tokens at API prices; None where there's no
+    /// price list (Codex)
+    cost: Option<(f64, f64)>,
 }
 
-fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::Usage) -> Service<'a> {
+fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::Usage, api_value: bool) -> Service<'a> {
     match provider {
         Provider::Cursor if let Some(c) = &snap.cursor => Service {
             provider,
@@ -87,10 +90,11 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
             periods: &[],
             days30: &[],
             month: 0,
+            cost: None,
         },
         Provider::Codex if let Some(c) = &snap.codex => Service {
             provider,
-            meters: codex_meters(c),
+            meters: codex_meters(c, api_value && c.month_cost > 0.0),
             accent: color::CODEX_BAR,
             bar: color::CODEX_BAR,
             heat: &color::HEAT_CODEX,
@@ -104,12 +108,14 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
             periods: &[],
             days30: &c.days30,
             month: c.month_tokens,
+            // in dollars once one of its models has a price
+            cost: (api_value && c.month_cost > 0.0).then_some((c.cost_today, c.month_cost)),
         },
         _ => {
             let u = snap.usage.as_ref().unwrap_or(empty);
             Service {
                 provider: Provider::Claude,
-                meters: meters(snap),
+                meters: meters(snap, api_value),
                 accent: color::ACCENT,
                 bar: color::BREAKDOWN,
                 heat: &color::HEAT,
@@ -123,6 +129,7 @@ fn service<'a>(snap: &'a Snapshot, provider: Provider, empty: &'a crate::usage::
                 periods: &u.periods,
                 days30: &u.days30,
                 month: u.month_tokens,
+                cost: api_value.then_some((u.today_cost, u.month_cost)),
             }
         }
     }
@@ -157,7 +164,7 @@ fn height(meter_count: usize, view: &View, details: Option<f32>, logging_in: boo
 /// One piece of Details, top to bottom. The panel's height and its drawing
 /// both come from this list, so they can't disagree.
 enum Block {
-    /// what the lists cover: today, 7 days or 30 days
+    /// what the lists cover, and tokens or dollars
     Controls,
     Rows {
         id: &'static str,
@@ -188,31 +195,40 @@ impl Block {
     }
 }
 
-/// The first `most` rows.
-fn rows(list: &[Labeled], most: usize) -> Vec<Labeled> {
-    list.iter().take(most).cloned().collect()
+/// The rows as a section draws them: by tokens, or by API value (held in
+/// cents). `rank` puts the dearest first, the `other` row staying last.
+fn rows(list: &[Labeled], money: bool, rank: bool, most: usize) -> Vec<Labeled> {
+    let mut rows: Vec<Labeled> =
+        list.iter().map(|r| if money { Labeled { tokens: (r.cost * 100.0).round() as u64, ..r.clone() } } else { r.clone() }).collect();
+    if money && rank {
+        rows.sort_by_key(|r| (r.label.starts_with("other · "), std::cmp::Reverse(r.tokens)));
+    }
+    rows.truncate(most);
+    rows
 }
 
 /// Details for the service shown: Claude's lists over the chosen span (or
 /// one project's), Codex's week.
 fn blocks(snap: &Snapshot, view: &View, s: &Service) -> Vec<Block> {
-    let value = breakdown::tokens;
+    let money = s.cost.is_some();
+    let value = if money { breakdown::dollars } else { breakdown::tokens };
+    let amount = |tokens: u64, cost: f64| if money { dollars(cost) } else { format!("{} tokens", crate::format::tokens(tokens)) };
     let list = |id, title: String, rows, open, fold| Block::Rows { id, title, rows, open, value, fold, pick: false };
     let Some(period) = s.periods.get(view.span.index()) else {
         return vec![
-            list("models", "by model · 7 days".into(), rows(s.by_model, MODEL_ROWS), view.models, Some(Action::ToggleModels)),
-            list("projects", "by project · 7 days".into(), rows(s.by_project, PROJECT_ROWS), view.projects, Some(Action::ToggleProjects)),
+            list("models", "by model · 7 days".into(), rows(s.by_model, money, true, MODEL_ROWS), view.models, Some(Action::ToggleModels)),
+            list("projects", "by project · 7 days".into(), rows(s.by_project, money, true, PROJECT_ROWS), view.projects, Some(Action::ToggleProjects)),
             Block::Heat,
         ];
     };
     let span = view.span.label();
     let mut out = vec![Block::Controls];
     if let Some(p) = view.project.as_ref().and_then(|name| period.projects.iter().find(|p| &p.label == name)) {
-        out.push(Block::Back(format!("{} · {} tokens", p.label, tokens(p.tokens))));
-        out.push(list("project-models", format!("by model · {span}"), rows(&p.by_model, MODEL_ROWS), true, None));
-        out.push(list("project-days", "by day · 7 days".into(), rows(&p.days, p.days.len()), true, None));
+        out.push(Block::Back(format!("{} · {}", p.label, amount(p.tokens, p.cost))));
+        out.push(list("project-models", format!("by model · {span}"), rows(&p.by_model, money, true, MODEL_ROWS), true, None));
+        out.push(list("project-days", "by day · 7 days".into(), rows(&p.days, money, false, p.days.len()), true, None));
         if !p.worktrees.is_empty() {
-            out.push(list("project-worktrees", format!("by worktree · {span}"), rows(&p.worktrees, PROJECT_ROWS), true, None));
+            out.push(list("project-worktrees", format!("by worktree · {span}"), rows(&p.worktrees, money, true, PROJECT_ROWS), true, None));
         }
         if p.input > 0 {
             out.push(Block::Note(format!("{:.0}% of what it sent was read from the cache", p.cache_read as f64 / p.input as f64 * 100.0)));
@@ -230,18 +246,22 @@ fn blocks(snap: &Snapshot, view: &View, s: &Service) -> Vec<Block> {
                 pick: false,
             });
         }
-        out.push(list("models", format!("by model · {span}"), rows(&period.by_model, MODEL_ROWS), view.models, Some(Action::ToggleModels)));
+        out.push(list("models", format!("by model · {span}"), rows(&period.by_model, money, true, MODEL_ROWS), view.models, Some(Action::ToggleModels)));
         out.push(Block::Rows {
             id: "projects",
             title: format!("by project · {span}"),
-            rows: rows(&period.by_project, PROJECT_ROWS),
+            rows: rows(&period.by_project, money, true, PROJECT_ROWS),
             open: view.projects,
             value,
             fold: Some(Action::ToggleProjects),
             pick: true,
         });
-        let sessions = &period.sessions;
-        out.push(list("sessions", format!("top sessions · {span}"), rows(sessions, sessions.len()), view.sessions, Some(Action::ToggleSessions)));
+        let sessions = if money { &period.sessions_by_cost } else { &period.sessions };
+        out.push(list("sessions", format!("top sessions · {span}"), rows(sessions, money, true, sessions.len()), view.sessions, Some(Action::ToggleSessions)));
+        // a model with no price is in the tokens and missing from the dollars
+        if money && period.unpriced > 0 {
+            out.push(Block::Note(format!("{} tokens of unlisted models have no price", crate::format::tokens(period.unpriced))));
+        }
     }
     out.push(Block::Heat);
     out
@@ -261,9 +281,9 @@ fn reminder_h(snap: &Snapshot, provider: Provider, session: Option<(f64, Option<
 
 /// Window size for this content. Before the first reading, the skeleton's
 /// shape: two meters and Details as it was left.
-pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, heads_up: f64) -> [f32; 2] {
+pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, heads_up: f64, api_value: bool) -> [f32; 2] {
     let empty = crate::usage::Usage::empty();
-    let s = service(snap, shown_in(snap, view), &empty);
+    let s = service(snap, shown_in(snap, view), &empty, api_value);
     let login = s.provider == Provider::Claude && logging_in(snap);
     let extra = if snap.loaded && !login && !s.meters.is_empty() { reminder_h(snap, s.provider, session, heads_up) } else { 0.0 };
     let m = if snap.loaded { s.meters.len() } else { 2 };
@@ -275,7 +295,7 @@ pub fn size(snap: &Snapshot, view: &View, session: Option<(f64, Option<i64>)>, h
 pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Action> {
     let mut actions = vec![];
     let empty = crate::usage::Usage::empty();
-    let svc = service(f.snap, shown(f), &empty);
+    let svc = service(f.snap, shown(f), &empty, f.api_value);
     let rect = f.area;
     card_tinted(ui, ctx, f.card, svc.provider.surface());
     let (left, right) = (rect.left() + SIDE, rect.right() - SIDE);
@@ -314,7 +334,25 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
         (false, Mood::Working) => Mood::Idle, // the other service is the one working
         (false, m) => m,
     };
-    status_line(p, left, right, stage.bottom() + 17.0, mood, activity, svc.today, svc.live);
+    let today = svc.today.map(|n| match svc.cost {
+        Some((today, _)) => format!("{} today", dollars(today)),
+        None => format!("{} tokens today", tokens(n)),
+    });
+    let today_at = status_line(p, left, right, stage.bottom() + 17.0, mood, activity, today.as_deref(), svc.live);
+    // a click on today's usage switches Claude's numbers between tokens and
+    // their API value in dollars (Codex and Cursor have no price list)
+    if svc.provider == Provider::Claude
+        && let Some(at) = today_at
+    {
+        let resp = click_area(ui, at.expand2(Vec2::new(4.0, 6.0)), "api-value");
+        if resp.hovered() {
+            let under = at.bottom() + 2.0;
+            p.line_segment([Pos2::new(at.left(), under), Pos2::new(at.right(), under)], Stroke::new(1.0, color::FG_MUTED));
+        }
+        if resp.on_hover_text(if f.api_value { "Show tokens" } else { "Show the API value in dollars" }).clicked() {
+            actions.push(Action::SetApiValue(!f.api_value));
+        }
+    }
     let mut y = stage.bottom() + STATUS_H;
     hairline(p, left, right, y);
 
@@ -517,7 +555,7 @@ pub fn account_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip:
 /// none for the other services, or before a reading.
 fn products(snap: &Snapshot, provider: Provider) -> Vec<crate::usage::Labeled> {
     let rows = snap.limits.as_ref().filter(|_| provider == Provider::Claude).map(|l| l.by_product.as_slice()).unwrap_or_default();
-    rows.iter().take(PRODUCT_ROWS).map(|r| crate::usage::Labeled { label: r.label.clone(), tokens: r.pct.round() as u64 }).collect()
+    rows.iter().take(PRODUCT_ROWS).map(|r| crate::usage::Labeled::new(r.label.clone(), r.pct.round() as u64)).collect()
 }
 
 fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Service, f: &Frame, actions: &mut Vec<Action>) {
@@ -529,6 +567,10 @@ fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Se
                 let labels = Span::ALL.map(Span::label);
                 if let Some(i) = segmented(ui, spans, "span", &labels, f.view.span.index(), text::SMALL, &[]) {
                     actions.push(Action::SetSpan(Span::ALL[i]));
+                }
+                let unit = Rect::from_min_size(Pos2::new(right - 84.0, y + 5.0), Vec2::new(84.0, 24.0));
+                if let Some(i) = segmented(ui, unit, "unit", &["tokens", "$"], f.api_value as usize, text::SMALL, &[]) {
+                    actions.push(Action::SetApiValue(i == 1));
                 }
             }
             Block::Rows { id, title, rows, open, value, fold, pick } => {
@@ -555,11 +597,26 @@ fn details(ui: &Ui, p: &egui::Painter, left: f32, right: f32, mut y: f32, s: &Se
                 text_mid(p, left, y + NOTE_H / 2.0 - 2.0, egui::Align::Min, &note, text::CAPTION, color::FG_MUTED);
             }
             Block::Heat => {
-                heat_map(p, left, right, y, s.days30, s.month, s.heat);
+                let total = match s.cost {
+                    // against the plan's price, when it is known
+                    Some((_, month)) => match plan_price(f, s.provider).filter(|price| *price > 0.0 && month > 0.0) {
+                        Some(price) if month / price >= 10.0 => format!("{} · {:.0}× the plan", dollars(month), month / price),
+                        Some(price) => format!("{} · {:.1}× the plan", dollars(month), month / price),
+                        None => format!("{} at API prices", dollars(month)),
+                    },
+                    None => format!("{} tokens", tokens(s.month)),
+                };
+                heat_map(p, left, right, y, s.days30, &total, s.heat);
             }
         }
         y += h;
     }
+}
+
+/// What the shown plan costs a month: Claude's, from Settings or the plan.
+fn plan_price(f: &Frame, provider: Provider) -> Option<f64> {
+    let plan = f.snap.profile.as_ref().and_then(|pr| pr.plan.as_deref());
+    (provider == Provider::Claude).then(|| crate::pricing::plan_price(plan, f.plan_price)).flatten()
 }
 
 // the service tabs: logo, name and session % each; the chosen one on a
@@ -613,11 +670,21 @@ mod tests {
     #[test]
     fn details_grow_the_panel_and_folding_shrinks_it() {
         let snap = Snapshot::default();
-        let h = |view: View| size(&snap, &view, None, 80.0)[1];
+        let h = |view: View| size(&snap, &view, None, 80.0, false)[1];
         let closed = h(View { details: false, ..View::default() });
         let open = h(View { details: true, ..View::default() });
         let folded = h(View { details: true, models: false, projects: false, sessions: false, ..View::default() });
         assert!(open > closed);
         assert!(folded < open && folded > closed);
+    }
+
+    #[test]
+    fn a_list_in_dollars_ranks_by_value_and_keeps_other_last() {
+        let l = |label: &str, tokens: u64, cost: f64| Labeled { label: label.into(), tokens, cost };
+        let list = [l("big", 900, 1.0), l("dear", 100, 5.0), l("other · 3", 50, 9.0)];
+        let names = |money| rows(&list, money, true, 6).into_iter().map(|r| r.label).collect::<Vec<_>>();
+        assert_eq!(names(false), ["big", "dear", "other · 3"]);
+        assert_eq!(names(true), ["dear", "big", "other · 3"]);
+        assert_eq!(rows(&list, true, true, 6)[0].tokens, 500);
     }
 }

@@ -52,7 +52,7 @@ bun run test       # the launcher's test
 
 ## Data & secrets
 
-- All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json` (OAuth token, mode 600), `config.json` (settings), `alerts.json` (which notifications are already armed, so restarts don't repeat them), `reset-reminders.json` (one-shot deadlines and recently delivered reminders), `accounts.json` (the account list + the active one), `native-ui.json`, `native-voice.json`, `limits-cache.json` (the app's own state), `bin/` (the launcher's downloads).
+- All user data lives in `~/.claude-usage-monitor/` (NOT in the repo): `auth.json` (OAuth token, mode 600), `config.json` (settings), `alerts.json` (which notifications are already armed, so restarts don't repeat them), `reset-reminders.json` (one-shot deadlines and recently delivered reminders), `accounts.json` (the account list + the active one), `native-ui.json`, `native-voice.json`, `limits-cache.json` (the app's own state), `prices.json` (optional: prices that add to the built-in list or correct it), `bin/` (the launcher's downloads).
 - Extra accounts nest their own `auth.json`/`alerts.json` under `accounts/<id>/`; the first account keeps the top-level paths, so existing installs are untouched. Switching rebinds the token, the Claude logs directory and the alert state — only the active account is polled, so only it can notify.
 - **Never commit** `auth.json` or any token/credential. It's gitignored — keep it that way.
 
