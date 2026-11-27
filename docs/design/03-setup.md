@@ -51,7 +51,7 @@ In a Wayland session (KDE Plasma on Bazzite or Fedora, GNOME on Ubuntu) the wind
 
 ## Update
 
-**⋯ → Check for updates**, then **Update** in the same menu, runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
+**⋯ → Check**, then **Update** in the same menu (it stays open while it checks), runs the same installer and relaunches the new build. A check also runs 8 seconds after launch and every 6 hours.
 
 ## From the code
 

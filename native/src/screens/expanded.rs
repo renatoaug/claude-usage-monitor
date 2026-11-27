@@ -448,9 +448,10 @@ fn more_slot(f: &Frame, rect: Rect) -> Rect {
     Rect::from_center_size(Pos2::new(x, rect.top() + 19.0), Vec2::splat(BUTTON))
 }
 
-/// A newer release is out (or going in): ⋯ calls for attention.
+/// A newer release is out (or going in): ⋯ calls for attention, unless
+/// its menu is open and already shows it.
 pub fn update_out(f: &Frame) -> bool {
-    matches!(f.update, crate::updates::Update::Available(_))
+    matches!(f.update, crate::updates::Update::Available(_)) && !f.view.more_menu
 }
 
 /// The title band's menus, over everything: the account's and ⋯.
@@ -464,6 +465,8 @@ pub fn band_overlays(ui: &Ui, ctx: &Context, f: &Frame, rect: Rect, chip: Rect, 
 pub fn more_menu_overlay(ui: &Ui, ctx: &Context, f: &Frame, button: Rect, top_right: Pos2, actions: &mut Vec<Action>) {
     let open = f.view.more_menu;
     match more_menu(ui, ctx, top_right, open, &f.update) {
+        // checking answers in the menu itself: it stays open
+        Some(MorePick::CheckUpdates) => actions.push(Action::CheckUpdates),
         Some(pick) => {
             actions.push(Action::CloseMoreMenu);
             actions.push(match pick {
