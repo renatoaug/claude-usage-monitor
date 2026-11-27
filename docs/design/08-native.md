@@ -28,8 +28,9 @@ flowchart LR
 | `src/ui/` | Generic pieces that know nothing about Clauddy: the theme tokens, icons, controls, surfaces, bars, tags, text |
 | `src/components/` | Clauddy's own pieces: the pet, logos, account chip, service rows, meters, status line, breakdowns, heat map, the glance and speech bubbles, the reminder button |
 | `src/screens/` | Compact, expanded, pet-only and Settings, and the snapshot gallery |
-| `src/platform/` | What the OS has to answer: the cursor watcher, the tray, login items, activation, the Windows frame, the Linux display server |
+| `src/platform/` | What the OS has to answer: the cursor watcher, where other apps' windows are (`desk.rs`), the tray, login items, activation, the Windows frame, the Linux display server |
 | `src/voice.rs`, `src/talk.rs` | The pet's remarks and blips, and when it says them |
+| `src/play.rs`, `src/stage.rs` | Just the pet at play: the weather, the hops and the throw (in screen points, stepped by the app), and when they start and the window they're drawn on |
 | `src/updates.rs` | The release check and the installer |
 
 The theme (`ui/theme.rs`) keeps the raw palette private; everything else uses semantic names, and a test fails on a raw colour anywhere else.
@@ -49,6 +50,16 @@ The window fits the card and is transparent around it (DWM blur-behind, with wgp
 ## The window on Linux
 
 On Wayland a client can neither keep its window above the others nor place it: winit drops both requests, so the always-on-top widget sank under other windows. In a Wayland session with XWayland running (`WAYLAND_DISPLAY` and `DISPLAY` both set), `platform/display.rs` hands eframe an event loop on X11, where KWin and Mutter honour them; `CLAUDDY_WAYLAND=1` keeps it on Wayland ([ADR-017](../decisions/ADR-017-linux-opens-on-xwayland.md)). Even there, winit asks to stay on top as it maps the window, before the window manager has taken it in, and KWin drops it: the app asks again half a second and three seconds after the window shows, each time it shows.
+
+## The stage
+
+Just the pet plays on a second window ([ADR-019](../decisions/ADR-019-the-pet-plays-on-a-window-over-the-screen.md)): an egui immediate viewport, borderless, transparent, always on top and click-through, the size of the screen the pet is on. It is shown only on frames where something plays and goes away when nothing does, and the pet's own window draws nothing while the pet is out.
+
+- `play.rs` holds the state in screen points (each pet's number: scripted beats for the peekaboo, the spell and the haunt, a beat able to hide the pet below a window's edge, the drive, the sleigh and its presents, the dare, the float, the gallop, the hops; the snow and its piles by column; a throw) and moves it by the time that passed; it never reads the clock or the OS, so its tests drive it in steps.
+- `stage.rs` decides when something starts, reads the screen (`NSScreen` on macOS, for the floor above the Dock), the other windows (`platform/desk.rs`) about twice a second and the cursor every frame while something plays, and draws the play on the viewport. macOS keeps the overlay inside the usable area and may place it lower than asked, so the play is drawn from where the window really is.
+- `CLAUDDY_PLAY=act|drive|sleigh|dare|peek|spell|float|haunt|gallop|snow|visit` starts a number 3 seconds after launch, and `CLAUDDY_PET=<id>` shows a pet whatever is saved (dev aids).
+- The surfaces the pet and the snow land on are the visible stretches of each window's top edge: the parts no window in front covers (`desk::ledges`), plus the floor.
+- On macOS a drag on the pet is the app's own, not the OS's: it moves the window after the cursor and keeps the last 120 ms of it, so a fast release can be thrown. The thrown pet's window moves once, to where it lands.
 
 ## Pets
 

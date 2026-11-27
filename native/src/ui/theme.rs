@@ -191,6 +191,16 @@ pub mod color {
     pub const GLANCE_BAR: Color32 = CORAL_500;
     pub const INK_URGENT: Color32 = BRICK_600;
 
+    // the pet at play on the screen (just the pet): snow, exhaust, its shadow
+    pub const SNOW: Color32 = rgb(0xf4f6fb);
+    pub const SNOW_SHADE: Color32 = rgb(0xc9d3e6);
+    pub const SNOW_OUTLINE: Color32 = rgba(0x3a, 0x4a, 0x66, 0x55);
+    pub const PUFF: Color32 = rgb(0xb9b4ad);
+    /// the wizard's sparks (gold, pink) and the reindeer's trail (white)
+    pub const SPARK: [Color32; 3] = [rgb(0xffd84a), rgb(0xff8fc8), rgb(0xf4f6fb)];
+    pub const PET_SHADOW: Color32 = rgba(0, 0, 0, 0x55);
+    pub const DIZZY_STAR: Color32 = rgb(0xffd84a);
+
     // tags
     pub const PLAN: Color32 = TAN_300;
     pub const PLAN_EDGE: Color32 = TAN_EDGE;

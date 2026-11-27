@@ -62,3 +62,4 @@ The first records were written after the fact, from the code and the pull reques
 | [ADR-015](ADR-015-wsl-logs-are-opt-in.md) | Claude Code's logs in WSL are read only when switched on | Accepted |
 | [ADR-016](ADR-016-a-failing-gallery-offers-its-renders.md) | A failing snapshot gallery offers its renders, and commits them when asked | Accepted |
 | [ADR-017](ADR-017-linux-opens-on-xwayland.md) | On Linux, a Wayland session opens the window on XWayland | Accepted |
+| [ADR-019](ADR-019-the-pet-plays-on-a-window-over-the-screen.md) | Just the pet plays on a see-through window over the screen | Accepted |

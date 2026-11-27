@@ -167,6 +167,7 @@ fn render_inner(case: Case, draft: Prefs) {
         if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
+        pet.set_hat(&draft.hat);
         let area = eframe::egui::Rect::from_min_size(ctx.content_rect().min, card_size.into()).shrink(super::MARGIN);
         let f = Frame {
             area,
@@ -698,6 +699,27 @@ fn astronaut_expanded() {
 #[test]
 fn astronaut_pet_only() {
     render(Case { name: "astronaut-pet-only", snap: pet_snap(42.0, false), mood: Mood::Idle, view: pet_only_view() });
+}
+
+#[test]
+fn settings_picking_a_hat() {
+    // the hats show under the pets while Clauddy is picked
+    let draft = Prefs { hat: "crown".into(), ..Prefs::default() };
+    render_with(
+        Case {
+            name: "settings-hat-picker",
+            snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))),
+            mood: Mood::Idle,
+            view: View { settings: Some(settings::Tab::Appearance), pet_picker: true, ..View::default() },
+        },
+        draft,
+    );
+}
+
+#[test]
+fn pet_only_in_a_hat() {
+    let draft = Prefs { hat: "santa".into(), ..Prefs::default() };
+    render_with(Case { name: "pet-only-hat", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: pet_only_view() }, draft);
 }
 
 #[test]

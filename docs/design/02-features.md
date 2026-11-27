@@ -54,6 +54,48 @@ Switching takes effect at once, with no restart.
 
 In compact and pet-only sizes the mood follows whichever connected service is working, with provider logos naming the workers. With none active, the hottest session sets the mood: on fire past the fire threshold, maxed out at 100%, resting otherwise; the logo of the service on fire takes the status dot's place. "Working" means a turn is open, not that a file was written recently ([ADR-006](../decisions/ADR-006-working-means-an-open-turn.md)). What Claude is doing (reading, editing, running, planning, researching, delegating, waiting) shows in the status line.
 
+## Just the pet at play
+
+In pet-only size the pet doesn't only stand in its corner. Every half hour, on its own, each pet does a number of its own on the screen, drawn on a see-through window over everything that clicks go through ([ADR-019](../decisions/ADR-019-the-pet-plays-on-a-window-over-the-screen.md)).
+
+### When it plays
+
+| What | When | How long |
+|---|---|---|
+| The pet's number | 90 seconds after launch, then once every 30 minutes | See below |
+| Clauddy hops onto the window in front | A Claude Code turn of a minute or more ends | About 15 s: it sits there 12 s |
+| A throw (macOS) | You drag the pet and let go fast | Until it lands, then 1.8 s of stars |
+
+Nothing plays while the pet sleeps (no Claude Code activity for 5 minutes), outside pet-only size, in the menu bar, while Settings is open, or with **Plays on the screen** off. A number that comes due while the pet sleeps is skipped, and the next one waits another 30 minutes.
+
+| Pet | How long its number lasts, about |
+|---|---|
+| Clauddy | 7 s |
+| Getaway | 10 to 12 s (longer on a wider screen) |
+| Santa | 13 s for the sleigh; the snow falls 45 s, and the presents rest 7 s where they land |
+| Gingerbread | 18 s of dare, then the run home |
+| Reindeer | 9 s |
+| Wizard | 5 s |
+| Astronaut | 13 s of flight, then the flight home |
+| Pumpkin | 3 s of cackling; the bats fly a few seconds more and the ghost follows the cursor 7 s |
+
+### What each pet does
+
+| Pet | Its number |
+|---|---|
+| **Getaway** | Takes the car down to the top of the Dock (or the taskbar), drives off the right side of the screen leaving puffs of exhaust, comes back in from the left, stops halfway to wave at you, and hops back up to its place |
+| **Santa** | Flies his sleigh and two reindeer across the top of the screen with snow falling along, waves as he passes the middle, and drops four presents: three along the way and one right over your cursor. They land on the window edges or the floor, rest a few seconds and go. The sleigh comes back down to his place, and the snow keeps falling round him a while |
+| **Gingerbread** | Hops down to the floor and dares you: it jogs back and forth on its own, stops now and then to tease (tongue out, hands at its ears), and sprints away from the cursor whenever it comes near. Cornered at the screen's edge, it leaps over the cursor. After 18 seconds it runs home |
+| **Reindeer** | Takes off in an arc off the right side of the screen, comes back from the left up high with its nose aglow and waving, and lands home, leaving a trail of sparkles |
+| **Wizard** | Vanishes in a poof, reappears on top of a window in reach (or on the floor), raises its wand and shoots sparks at your cursor, waves, and poofs home |
+| **Astronaut** | Takes off on a little rocket and cruises round the screen for 13 seconds from one spot to the next, its nose turned the way it goes, waving as it passes the middle, then flies home |
+| **Pumpkin** | Cackles while eight bats fly out of its mouth and off the screen; then a little ghost comes out and follows your cursor for a few seconds |
+| **Clauddy** | Plays peekaboo: hops onto the top edge of the window in front, drops behind it, peeks over the edge (only its head and eyes show), ducks, peeks again further along with a wave, and hops out and home. With a window filling the screen, it hides behind the bottom of the screen, over the Dock. When a Claude Code turn of a minute or more ends, it also hops onto the window in front, to tell you |
+
+On macOS any pet can also be **thrown**: drag it and let go fast, and it flies, bounces off the screen's sides, lands on a window edge or the floor, sees stars, and stays where it landed. A window that moves or closes under the pet drops it to whatever is below. Clauddy reads where other apps' windows are, never what they show; on Linux it reads no windows, so the pet lands only on the floor.
+
+**⚙ Settings → Appearance → Plays on the screen** turns all of it off; it is on by default. The classic Clauddy can also wear a hat, picked under the pets in the pet picker ([pets](06-pets.md#hats-and-play)).
+
 ## The pet talks
 
 Now and then the pet says something in a speech bubble. It speaks only when something changes, never on a timer, and keeps quiet when it has nothing specific to say. Remarks are at least 10 minutes apart; the big moments can cut that line.
