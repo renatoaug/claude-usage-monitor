@@ -56,17 +56,17 @@ In compact and pet-only sizes the mood follows whichever connected service is wo
 
 ## Just the pet at play
 
-In pet-only size the pet doesn't only stand in its corner. Now and then, on its own, each pet does a number of its own on the screen, drawn on a see-through window over everything that clicks go through ([ADR-019](../decisions/ADR-019-the-pet-plays-on-a-window-over-the-screen.md)).
+In pet-only size the pet doesn't only stand in its corner. Every half hour, on its own, each pet does a number of its own on the screen, drawn on a see-through window over everything that clicks go through ([ADR-019](../decisions/ADR-019-the-pet-plays-on-a-window-over-the-screen.md)).
 
 ### When it plays
 
 | What | When | How long |
 |---|---|---|
-| The pet's number | 90 seconds after launch, then once every 12 to 20 minutes (a random wait each time) | See below |
+| The pet's number | 90 seconds after launch, then once every 30 minutes | See below |
 | Clauddy hops onto the window in front | A Claude Code turn of a minute or more ends | About 15 s: it sits there 12 s |
 | A throw (macOS) | You drag the pet and let go fast | Until it lands, then 1.8 s of stars |
 
-Nothing plays while the pet sleeps (no Claude Code activity for 5 minutes), outside pet-only size, in the menu bar, while Settings is open, or with **Plays on the screen** off. A number that comes due while the pet sleeps is skipped, and the next one waits its 12 to 20 minutes.
+Nothing plays while the pet sleeps (no Claude Code activity for 5 minutes), outside pet-only size, in the menu bar, while Settings is open, or with **Plays on the screen** off. A number that comes due while the pet sleeps is skipped, and the next one waits another 30 minutes.
 
 | Pet | How long its number lasts, about |
 |---|---|

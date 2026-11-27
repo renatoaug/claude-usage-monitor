@@ -17,10 +17,9 @@ use crate::play::{Done, Play, World};
 
 // a turn at least this long gets a visit when it ends
 const LONG_TURN: Duration = Duration::from_secs(60);
-// the first number a while after launch, then one every 12 to 20 minutes
+// the first number a while after launch, then one every half hour
 const FIRST_ACT: Duration = Duration::from_secs(90);
-const ACT_EVERY: Duration = Duration::from_secs(12 * 60);
-const ACT_JITTER: Duration = Duration::from_secs(8 * 60);
+const ACT_EVERY: Duration = Duration::from_secs(30 * 60);
 // how often the windows are read while something is on
 const LOOK_EVERY: Duration = Duration::from_millis(400);
 // a release faster than this (points per second) is a throw
@@ -198,7 +197,7 @@ impl Stage {
         }
         // now and then, awake, its number
         if now >= self.next_act {
-            self.next_act = now + ACT_EVERY + jitter(ACT_JITTER);
+            self.next_act = now + ACT_EVERY;
             if !asleep {
                 self.act(s);
             }
@@ -348,10 +347,4 @@ impl Scene {
     fn body(&self) -> f32 {
         self.cell * 0.66
     }
-}
-
-// up to `max`, different each time
-fn jitter(max: Duration) -> Duration {
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
-    max.mul_f64(nanos as f64 / 1e9)
 }
