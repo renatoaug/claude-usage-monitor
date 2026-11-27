@@ -144,7 +144,7 @@ fn render_inner(case: Case, draft: Prefs) {
                 .name
                 .ends_with("-talking")
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
-            update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
+            update: update_for(case.name),
         };
         let card = size(&f);
         // compact's open ⋯ menu runs past the card: the window grows to hold
@@ -184,7 +184,7 @@ fn render_inner(case: Case, draft: Prefs) {
                 .name
                 .ends_with("-talking")
                 .then_some((if case.name.starts_with("compact") { "91%, getting warm!" } else { "Getting warm, 91% already. It resets in 1h 12m." }, 1.0)),
-            update: if case.name.ends_with("-update") { crate::updates::Update::Available("v1.4.0".into()) } else { Default::default() },
+            update: update_for(case.name),
         };
         let _ = match (case.view.settings, case.view.size) {
             (Some(tab), _) => settings::draw(ui, &ctx, &f, tab, &draft, &Prefs::default(), &mut String::new()),
@@ -533,6 +533,17 @@ fn expanded_in_the_menu_bar() {
     render(Case { name: "expanded-menu-bar", snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view: View::default() });
 }
 
+/// The update state a case's name asks for.
+fn update_for(name: &str) -> crate::updates::Update {
+    use crate::updates::Update;
+    match name {
+        n if n.ends_with("-update") => Update::Available("v1.4.0".into()),
+        n if n.ends_with("-checking") => Update::Checking,
+        n if n.ends_with("-up-to-date") => Update::UpToDate,
+        _ => Update::Idle,
+    }
+}
+
 fn more_menu(name: &'static str, size: Size) {
     let view = View { size, more_menu: true, ..View::default() };
     render(Case { name, snap: snapshot(usage(false, None), Some(limits(42.0, 68.0))), mood: Mood::Idle, view });
@@ -546,6 +557,17 @@ fn expanded_more_menu() {
 #[test]
 fn compact_more_menu() {
     more_menu("compact-more-menu", Size::Compact);
+}
+
+#[test]
+fn expanded_more_menu_checking() {
+    // the check answers in the menu, which stays open
+    more_menu("expanded-more-menu-checking", Size::Expanded);
+}
+
+#[test]
+fn expanded_more_menu_up_to_date() {
+    more_menu("expanded-more-menu-up-to-date", Size::Expanded);
 }
 
 #[test]
