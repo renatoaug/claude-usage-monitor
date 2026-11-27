@@ -23,11 +23,50 @@ impl Sheet {
         Sheet { tex: ctx.load_texture(name, img, TextureOptions::LINEAR), cols, rows }
     }
 
+    /// A frame's width over its height.
+    pub fn aspect(&self) -> f32 {
+        let [w, h] = self.tex.size();
+        (w as f32 / self.cols as f32) / (h as f32 / self.rows as f32)
+    }
+
     /// Draw `frame` (row-major) filling `rect`.
     pub fn draw(&self, p: &Painter, rect: Rect, frame: usize) {
+        self.draw_facing(p, rect, frame, false);
+    }
+
+    /// `draw`, see-through by `fade` (1: solid).
+    pub fn draw_faded(&self, p: &Painter, rect: Rect, frame: usize, fade: f32) {
+        let (c, r) = ((frame % self.cols) as f32, (frame / self.cols) as f32);
+        let (w, h) = (1.0 / self.cols as f32, 1.0 / self.rows as f32);
+        p.image(self.tex.id(), rect, Rect::from_min_size(Pos2::new(c * w, r * h), Vec2::new(w, h)), color::NO_TINT.gamma_multiply(fade));
+    }
+
+    fn uv(&self, frame: usize, flip: bool) -> Rect {
         let (c, r) = ((frame % self.cols) as f32, (frame / self.cols) as f32);
         let (w, h) = (1.0 / self.cols as f32, 1.0 / self.rows as f32);
         let uv = Rect::from_min_size(Pos2::new(c * w, r * h), Vec2::new(w, h));
+        if flip { Rect::from_min_max(Pos2::new(uv.max.x, uv.min.y), Pos2::new(uv.min.x, uv.max.y)) } else { uv }
+    }
+
+    /// `draw_facing`, turned by `angle` (radians) round `pivot`.
+    pub fn draw_turned(&self, p: &Painter, rect: Rect, frame: usize, flip: bool, angle: f32, pivot: Pos2) {
+        let mut mesh = egui::Mesh::with_texture(self.tex.id());
+        mesh.add_rect_with_uv(rect, self.uv(frame, flip), color::NO_TINT);
+        mesh.rotate(egui::emath::Rot2::from_angle(angle), pivot);
+        p.add(mesh);
+    }
+
+    /// `draw_facing`, see-through by `fade`.
+    pub fn draw_turned_faded(&self, p: &Painter, rect: Rect, frame: usize, flip: bool, fade: f32) {
+        p.image(self.tex.id(), rect, self.uv(frame, flip), color::NO_TINT.gamma_multiply(fade));
+    }
+
+    /// `draw`, mirrored when `flip` (facing the other way).
+    pub fn draw_facing(&self, p: &Painter, rect: Rect, frame: usize, flip: bool) {
+        let (c, r) = ((frame % self.cols) as f32, (frame / self.cols) as f32);
+        let (w, h) = (1.0 / self.cols as f32, 1.0 / self.rows as f32);
+        let uv = Rect::from_min_size(Pos2::new(c * w, r * h), Vec2::new(w, h));
+        let uv = if flip { Rect::from_min_max(Pos2::new(uv.max.x, uv.min.y), Pos2::new(uv.min.x, uv.max.y)) } else { uv };
         p.image(self.tex.id(), rect, uv, color::NO_TINT);
     }
 }

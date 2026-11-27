@@ -91,6 +91,8 @@ impl Default for View {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Action {
     Close,
+    /// just the pet: picked up, to be moved (and maybe thrown) by the app
+    Grab,
     Resize(Size),
     /// the usage page of the service on screen
     OpenUsagePage(Provider),

@@ -65,7 +65,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
     match tab {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 } + wsl,
         Tab::Alerts => block_h(3) + GAP + block_h(1),
-        Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
+        Tab::Appearance => block_h(2) + GAP + block_h(2) + GAP + block_h(2),
     }
 }
 
@@ -389,6 +389,43 @@ fn picker(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, chosen: &str) -> Op
     pick
 }
 
+// the hats under the pets: a label, then none and each hat in two rows
+const HATS_H: f32 = 22.0 + 2.0 * HAT_TILE + TILE_GAP + 4.0;
+const HAT_TILE: f32 = 40.0;
+const HATS_PER_ROW: usize = 5;
+
+/// The hat row: "" for none, or a hat's id. A pick takes at once and
+/// leaves the picker open.
+fn hat_picker(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, chosen: &str) -> Option<&'static str> {
+    let p = ui.painter();
+    text_mid(p, left, y + 8.0, Align::Min, "Hat", text::SMALL, color::FG_SECTION);
+    let gap = (right - left - HAT_TILE * HATS_PER_ROW as f32) / (HATS_PER_ROW - 1) as f32;
+    let options = std::iter::once(("", "None")).chain(skins::HATS);
+    let mut pick = None;
+    for (i, (id, name)) in options.enumerate() {
+        let (c, r) = ((i % HATS_PER_ROW) as f32, (i / HATS_PER_ROW) as f32);
+        let tile = Rect::from_min_size(Pos2::new(left + c * (HAT_TILE + gap), y + 22.0 + r * (HAT_TILE + TILE_GAP)), Vec2::splat(HAT_TILE));
+        let resp = click_area(ui, tile, ("hat", id)).on_hover_text(name);
+        let on = id == chosen;
+        let edge = match (on, resp.hovered()) {
+            (true, _) => color::TILE_EDGE_ON,
+            (false, true) => color::CONTROL_HOVER.gamma_multiply(0.6),
+            (false, false) => color::HAIR,
+        };
+        p.rect(tile, CornerRadius::same(radius::CONTROL + 2), if on { color::TILE_ON } else { color::TILE }, Stroke::new(1.0, edge), StrokeKind::Inside);
+        match skins::HATS.iter().position(|h| h.0 == id) {
+            Some(hat) => f.pet.draw_hat_icon(p, tile.shrink(5.0), hat),
+            None => {
+                text_mid(p, tile.center().x, tile.center().y, Align::Center, "None", text::SMALL, if on { color::FG } else { color::FG_MUTED });
+            }
+        }
+        if resp.clicked() {
+            pick = Some(id);
+        }
+    }
+    pick
+}
+
 // The pet picker, a modal over the card: the card dims, a panel with every
 // pet opens in the middle. A pick previews and closes it; so do Esc, the
 // close button and a click outside the panel.
@@ -399,7 +436,9 @@ fn pet_modal(ui: &Ui, ctx: &Context, f: &Frame, area: Rect, draft: &Prefs, actio
     let _ = click_area(ui, area, "pet-modal-scrim");
 
     let rows = skins::SKINS.len().div_ceil(PER_ROW) as f32;
-    let h = MODAL_HEAD + rows * TILE.y + (rows - 1.0) * TILE_GAP + MODAL_PAD;
+    // the hats show under the pets while the one that wears them is picked
+    let hats = draft.pet == skins::HAT_WEARER;
+    let h = MODAL_HEAD + rows * TILE.y + (rows - 1.0) * TILE_GAP + MODAL_PAD + if hats { HATS_H } else { 0.0 };
     let panel = Rect::from_center_size(area.center(), Vec2::new(area.width() - 2.0 * 10.0, h));
     p.rect(panel, CornerRadius::same(radius::CARD), color::SETTINGS, Stroke::new(1.0, color::MENU_EDGE), StrokeKind::Inside);
     let _ = click_area(ui, panel, "pet-modal");
@@ -407,6 +446,12 @@ fn pet_modal(ui: &Ui, ctx: &Context, f: &Frame, area: Rect, draft: &Prefs, actio
     bold_mid(p, left, panel.top() + MODAL_HEAD / 2.0, Align::Min, "Choose a pet", text::BODY, color::FG);
     let close = icon_button(ui, Pos2::new(right - 6.0, panel.top() + MODAL_HEAD / 2.0), "pet-modal-close", icon::CLOSE).clicked();
 
+    if hats {
+        let top = panel.top() + MODAL_HEAD + rows * TILE.y + (rows - 1.0) * TILE_GAP + 8.0;
+        if let Some(hat) = hat_picker(ui, f, left, right, top, &draft.hat) {
+            actions.push(Action::EditPrefs(Prefs { hat: hat.into(), ..draft.clone() }));
+        }
+    }
     if let Some(id) = picker(ui, f, left, right, panel.top() + MODAL_HEAD, &draft.pet) {
         if id != draft.pet {
             actions.push(Action::EditPrefs(Prefs { pet: id.into(), ..draft.clone() }));
@@ -427,7 +472,7 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     let row = crate::ui::group::ROW;
 
     let gy = group_label(&p, left, y, "pet");
-    let rows = group(&p, left, right, gy, 1);
+    let rows = group(&p, left, right, gy, 2);
     let chosen = skins::find(&draft.pet).unwrap_or(&skins::SKINS[0]);
     let thumb = Rect::from_center_size(Pos2::new(left + 22.0, rows[0]), Vec2::splat(22.0));
     let _ = f.pet.draw_skin_fit(&p, thumb, Mood::Idle, chosen);
@@ -440,7 +485,12 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     if resp.clicked() {
         actions.push(Action::TogglePetPicker);
     }
-    let below = gy + row;
+    // just the pet: snow, hops onto windows, a throw
+    row_label(&p, left, rows[1], "Plays on the screen", false);
+    if toggle(ui, right - 10.0, rows[1], "play", draft.play, true).clicked() {
+        actions.push(Action::EditPrefs(Prefs { play: !draft.play, ..draft.clone() }));
+    }
+    let below = gy + 2.0 * row;
 
     let gy = group_label(&p, left, below + GAP, "display");
     let rows = group(&p, left, right, gy, 2);

@@ -42,8 +42,9 @@ winresource = "0.1.34"
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6.2"
 objc2 = "0.6.5"
-objc2-app-kit = { version = "0.3.2", features = ["NSApplication", "NSResponder", "NSWindow"] }
-objc2-core-graphics = { version = "0.3.2", features = ["CGEvent", "CGEventTypes"] }
+objc2-app-kit = { version = "0.3.2", features = ["NSApplication", "NSResponder", "NSScreen", "NSWindow"] }
+objc2-core-foundation = { version = "0.3.2", features = ["CFString"] }
+objc2-core-graphics = { version = "0.3.2", features = ["CGEvent", "CGEventTypes", "CGWindow"] }
 objc2-foundation = { version = "0.3.2", features = ["NSString", "NSBundle", "NSError", "NSGeometry", "NSArray", "NSTimer", "NSDate", "block2"] }
 objc2-service-management = { version = "0.3.2", features = ["SMAppService"] }
 objc2-user-notifications = { version = "0.3.2", features = ["UNUserNotificationCenter", "UNNotificationContent", "UNNotificationRequest", "UNNotificationSound", "UNNotificationTrigger", "block2"] }

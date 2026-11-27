@@ -61,6 +61,14 @@ impl Watch {
     }
 }
 
+/// The cursor in global points, where the OS says (macOS); None elsewhere.
+pub fn now() -> Option<eframe::egui::Pos2> {
+    #[cfg(target_os = "macos")]
+    return Some(mac::cursor());
+    #[cfg(not(target_os = "macos"))]
+    None
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use eframe::egui::Pos2;

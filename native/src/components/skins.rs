@@ -19,9 +19,41 @@ pub struct Skin {
     pub fire_box: Box4,
     /// standing: the body alone, so switching moods doesn't move it
     pub stand_box: Box4,
+    /// out on the screen (4 x 1): crouching, jumping, falling, dizzy; a pet
+    /// without one plays with its moods
+    pub play: Option<&'static [u8]>,
+    /// its own number on the screen (4 x 1), when it has one (the Getaway's
+    /// drive), and where the art sits in a frame
+    pub act: Option<&'static [u8]>,
+    pub act_box: Box4,
+    /// how wide an act frame is drawn against a standing one, so the pet
+    /// in it is the size it is everywhere else
+    pub act_scale: f32,
 }
 
 pub const DEFAULT: &str = "clauddy";
+
+/// The hats Clauddy can wear (the classic pet only: the others come
+/// dressed), in the order of `assets/hats.png` (4 x 2): (id, name).
+pub const HATS: [(&str, &str); 8] = [
+    ("santa", "Santa"),
+    ("party", "Party"),
+    ("crown", "Crown"),
+    ("viking", "Viking"),
+    ("cowboy", "Cowboy"),
+    ("top", "Top hat"),
+    ("beanie", "Beanie"),
+    ("grad", "Grad cap"),
+];
+
+pub const HATS_PNG: &[u8] = include_bytes!("../../assets/hats.png");
+
+/// The presents Santa's sleigh drops (4 x 1), and where a box sits in a frame.
+pub const GIFTS_PNG: &[u8] = include_bytes!("../../assets/gifts.png");
+pub const GIFT_BOX: Box4 = [0.266, 0.273, 0.734, 0.781];
+
+/// The pet that wears hats.
+pub const HAT_WEARER: &str = "clauddy";
 
 pub struct Pack {
     pub id: &'static str,
@@ -42,6 +74,11 @@ pub const SKINS: &[Skin] = &[
         work_box: [0.047, 0.203, 0.961, 0.93],
         fire_box: [0.086, 0.062, 0.898, 0.812],
         stand_box: [0.18, 0.27, 0.84, 0.79],
+        play: Some(include_bytes!("../../assets/clauddy-play.png")),
+        act: Some(include_bytes!("../../assets/clauddy-act.png")),
+        // up at the glass: looking, knocking, pressed flat, waving
+        act_box: [0.1, 0.258, 0.86, 0.84],
+        act_scale: 0.9,
     },
     Skin {
         id: "wizard",
@@ -53,6 +90,11 @@ pub const SKINS: &[Skin] = &[
         fire_box: [0.031, 0.012, 0.91, 0.844],
         // the hat, wand and owl stand with it
         stand_box: [0.059, 0.07, 0.852, 0.828],
+        play: None,
+        act: Some(include_bytes!("../../assets/wizard-act.png")),
+        // the wand raised, sparks shot, a poof of smoke, a wave
+        act_box: [0.2, 0.074, 0.84, 0.875],
+        act_scale: 1.0,
     },
     Skin {
         id: "astronaut",
@@ -64,6 +106,12 @@ pub const SKINS: &[Skin] = &[
         fire_box: [0.09, 0.062, 0.898, 0.883],
         // the helmet and the backpack stand with it
         stand_box: [0.164, 0.172, 0.891, 0.848],
+        play: None,
+        act: Some(include_bytes!("../../assets/astronaut-act.png")),
+        // riding its rocket: two sizes of flame, cruising, a wave; the box
+        // is the rocket and the rider (the flame trails off the left)
+        act_box: [0.25, 0.11, 0.86, 0.88],
+        act_scale: 1.1,
     },
     Skin {
         id: "getaway",
@@ -77,6 +125,11 @@ pub const SKINS: &[Skin] = &[
         fire_box: [0.078, 0.043, 0.922, 0.867],
         // the shades and the jacket stand with it; the twirling keys swing out
         stand_box: [0.137, 0.133, 0.902, 0.867],
+        play: None,
+        act: Some(include_bytes!("../../assets/getaway-act.png")),
+        // the car, wheels at the bottom (its exhaust and speed lines trail off the left)
+        act_box: [0.113, 0.223, 0.918, 0.918],
+        act_scale: 1.25,
     },
     Skin {
         id: "santa",
@@ -88,6 +141,11 @@ pub const SKINS: &[Skin] = &[
         fire_box: [0.09, 0.074, 0.941, 0.875],
         // the hat, the gift and the sack stand with it
         stand_box: [0.141, 0.172, 0.941, 0.871],
+        play: None,
+        act: Some(include_bytes!("../../assets/santa-act.png")),
+        // the sleigh and its two reindeer (4 x 1 at 512 x 256), the runners at the bottom
+        act_box: [0.021, 0.043, 0.965, 0.887],
+        act_scale: 1.5,
     },
     Skin {
         id: "reindeer",
@@ -98,6 +156,11 @@ pub const SKINS: &[Skin] = &[
         work_box: [0.043, 0.07, 0.965, 0.934],
         fire_box: [0.086, 0.059, 0.906, 0.832],
         stand_box: [0.176, 0.152, 0.836, 0.812],
+        play: None,
+        act: Some(include_bytes!("../../assets/reindeer-act.png")),
+        // a flying gallop (three frames) and a wave with its nose aglow
+        act_box: [0.2, 0.15, 0.9, 0.78],
+        act_scale: 1.0,
     },
     Skin {
         id: "gingerbread",
@@ -108,6 +171,11 @@ pub const SKINS: &[Skin] = &[
         work_box: [0.047, 0.145, 0.965, 0.938],
         fire_box: [0.082, 0.062, 0.91, 0.816],
         stand_box: [0.121, 0.238, 0.875, 0.793],
+        play: None,
+        act: Some(include_bytes!("../../assets/gingerbread-act.png")),
+        // running (its crumbs trail off the left) and teasing, feet at the bottom
+        act_box: [0.156, 0.2, 0.898, 0.812],
+        act_scale: 0.9,
     },
     Skin {
         id: "pumpkin",
@@ -118,6 +186,11 @@ pub const SKINS: &[Skin] = &[
         work_box: [0.047, 0.109, 0.969, 0.934],
         fire_box: [0.082, 0.0, 0.91, 0.785],
         stand_box: [0.176, 0.16, 0.93, 0.785],
+        play: None,
+        act: Some(include_bytes!("../../assets/pumpkin-act.png")),
+        // cackling; then its bat (two frames) and its ghost, drawn on their own
+        act_box: [0.14, 0.22, 0.86, 0.742],
+        act_scale: 1.0,
     },
 ];
 

@@ -67,6 +67,13 @@ pub struct App {
     /// the card's size as it shows now, and the morph under way (from, started)
     card_now: Vec2,
     morph: Option<(Vec2, Instant)>,
+    /// just the pet at play on the screen, and where its body was last
+    /// drawn in the window
+    stage: crate::stage::Stage,
+    pet_body: egui::Rect,
+    /// where its feet are and how wide its frame is, in the window
+    pet_feet: egui::Pos2,
+    pet_cell: f32,
 }
 
 /// Working wins; otherwise the session's heat; otherwise rest.
@@ -213,6 +220,10 @@ impl App {
             said: None,
             card_now: Vec2::ZERO,
             morph: None,
+            stage: crate::stage::Stage::new(),
+            pet_body: egui::Rect::NOTHING,
+            pet_feet: egui::Pos2::ZERO,
+            pet_cell: 0.0,
         }
     }
 
@@ -220,6 +231,14 @@ impl App {
         for a in actions {
             match a {
                 Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                Action::Grab => {
+                    let z = ctx.zoom_factor();
+                    let (outer, inner) = ctx.input(|i| (i.viewport().outer_rect, i.viewport().inner_rect));
+                    if let (Some(cursor), Some(outer), Some(inner)) = (crate::platform::cursor::now(), outer, inner) {
+                        let feet = (inner.min + self.pet_feet.to_vec2()) * z;
+                        self.stage.grab(cursor, egui::Rect::from_min_size((outer.min.to_vec2() * z).to_pos2(), outer.size() * z), feet);
+                    }
+                }
                 Action::Resize(s) => {
                     // from Settings, minimize and pet-only leave it the way Cancel does
                     if self.view.settings.take().is_some() {
@@ -382,6 +401,29 @@ impl App {
         self.said = Some(Said { text: r.line.text.clone(), short: r.line.short.clone(), since: start, until: start + stay });
         if r.headline && self.prefs.sound && !self.prefs.menu_bar && size == Size::Expanded && self.prefs.muted_until <= now {
             crate::voice::play(&r.line.text, r.tone);
+        }
+    }
+
+    /// Just the pet at play on the screen (see `stage.rs`).
+    fn play(&mut self, ctx: &Context, mood: Mood, size: Size) {
+        let z = ctx.zoom_factor();
+        let (outer, inner, monitor, native) =
+            ctx.input(|i| (i.viewport().outer_rect, i.viewport().inner_rect, i.viewport().monitor_size, i.viewport().native_pixels_per_point));
+        let (Some(_), Some(inner)) = (outer, inner) else { return };
+        let body = self.pet_body;
+        let on = self.prefs.play && size == Size::PetOnly && self.shown && !self.prefs.menu_bar && self.view.settings.is_none() && body.is_positive();
+        let scene = crate::stage::Scene {
+            on,
+            mood,
+            skin: self.pet.skin_id(),
+            feet: (inner.min + self.pet_feet.to_vec2()) * z,
+            cell: self.pet_cell * z,
+            zoom: z,
+            ppp: native.unwrap_or(1.0),
+            monitor,
+        };
+        if let Some(to) = self.stage.frame(ctx, &scene, &self.pet) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition((to.to_vec2() / z).to_pos2()));
         }
     }
 
@@ -650,10 +692,13 @@ impl eframe::App for App {
         }
         // the pet: the one being picked while Settings is open, else the
         // saved one, unless the season's takes over today
-        let chosen = if self.view.settings.is_some() { &self.draft.pet } else { &self.prefs.pet };
+        // CLAUDDY_PET=<id> shows that pet whatever is saved (dev aid)
+        let pinned = std::env::var("CLAUDDY_PET").ok();
+        let chosen = pinned.as_ref().unwrap_or(if self.view.settings.is_some() { &self.draft.pet } else { &self.prefs.pet });
         let today = chrono::Local::now();
         let (y, m, d) = (chrono::Datelike::year(&today), chrono::Datelike::month(&today), chrono::Datelike::day(&today));
         self.pet.set_skin(crate::components::skins::active(chosen, y, m, d));
+        self.pet.set_hat(if self.view.settings.is_some() { &self.draft.hat } else { &self.prefs.hat });
         // a new poll: what the pet makes of it
         if snap.seq != self.heard {
             self.heard = snap.seq;
@@ -715,8 +760,12 @@ impl eframe::App for App {
                 // the OS's answer where there is one; else what this window sees
                 let seen = ctx.input(|i| i.pointer.hover_pos().is_some());
                 let over = if cfg!(target_os = "macos") { Some(self.cursor.inside(seen)) } else { None };
-                let out = pet_only::draw(ui, &ctx, &f, over);
+                let grab = crate::platform::cursor::now().is_some();
+                let out = pet_only::draw_with(ui, &ctx, &f, over, self.stage.away(), grab);
                 hot = out.hot;
+                self.pet_body = out.body;
+                self.pet_feet = out.feet;
+                self.pet_cell = out.cell;
                 out.actions
             }
         };
@@ -739,6 +788,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(through));
         }
         self.apply(&ctx, actions);
+        self.play(&ctx, mood, size);
         self.menu_bar(&ctx, &snap, session);
         self.shoot(&ctx);
         let mut next = self.pet.next_frame(mood).min(Duration::from_secs(30));

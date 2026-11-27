@@ -13,6 +13,11 @@ use crate::components::glance::glance;
 const CARD: Vec2 = Vec2::new(268.0, 166.0);
 // the pet sits low in the window; the glance rises above it
 const STAGE: Vec2 = Vec2::new(100.0, 102.0);
+// the classic pet's body in its frame (its standing box), what sets the size
+const CLASSIC_BODY: Vec2 = Vec2::new(0.66, 0.52);
+// and how much of the room it takes: with their hats and desks drawn at the
+// same scale, the pets need some to spare
+const PET_SCALE: f32 = 0.8;
 
 pub fn size() -> [f32; 2] {
     [CARD.x + 2.0 * MARGIN, CARD.y + 2.0 * MARGIN]
@@ -24,14 +29,35 @@ pub fn size() -> [f32; 2] {
 pub struct Out {
     pub actions: Vec<Action>,
     pub hot: Vec<Rect>,
+    /// where the pet's body is in the window, and how wide its frame is
+    pub body: Rect,
+    pub cell: f32,
+    /// where its feet are
+    pub feet: Pos2,
 }
 
 /// `over_pet`: whether the cursor is over the pet (or the glance); None
 /// reads it from the pointer this window sees.
+#[cfg(test)]
 pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
+    draw_with(ui, ctx, f, over_pet, false, false)
+}
+
+/// `draw`, with the pet `away` (out playing on the screen: nothing here
+/// then) and, when `grab`, a drag the app moves itself, so the pet can be
+/// thrown, instead of the OS's.
+pub fn draw_with(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>, away: bool, grab: bool) -> Out {
     let mut actions = vec![];
     let rect = f.area;
     let stage = Rect::from_min_size(Pos2::new((rect.center().x - STAGE.x / 2.0).round(), rect.bottom() - 14.0 - STAGE.y), STAGE);
+    let fit = stage.shrink2(Vec2::new(5.0, 10.0));
+    // every pet the same size: the classic one fitted in, the others at its scale
+    let cell = (fit.width() / CLASSIC_BODY.x).min(fit.height() / CLASSIC_BODY.y) * PET_SCALE;
+    let feet = Pos2::new(stage.center().x, fit.bottom() - (fit.height() - CLASSIC_BODY.y * cell) / 2.0);
+    if away {
+        let body = f.pet.body_at(feet, cell, f.mood);
+        return Out { actions, hot: vec![], body, cell, feet };
+    }
 
     // the pet is the handle
     let resp = ui.interact(stage, ui.scope_id().with("pet-drag"), Sense::click_and_drag());
@@ -39,9 +65,13 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
         ctx.set_cursor_icon(CursorIcon::Grab);
     }
     if resp.drag_started() {
-        ctx.send_viewport_cmd(ViewportCommand::StartDrag);
+        if grab {
+            actions.push(Action::Grab);
+        } else {
+            ctx.send_viewport_cmd(ViewportCommand::StartDrag);
+        }
     }
-    let body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(5.0, 10.0)), f.mood);
+    let body = f.pet.draw_at(ui.painter(), feet, cell, f.mood);
 
     // the glance, always up; its button only while the cursor is over the
     // pet or the glance. Where the glance was last frame counts as over, the
@@ -62,5 +92,5 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     if ctx.input(|i| i.key_pressed(Key::Enter)) {
         actions.push(Action::Resize(Size::Compact));
     }
-    Out { actions, hot }
+    Out { actions, hot, body, cell, feet }
 }

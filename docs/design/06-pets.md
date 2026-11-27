@@ -25,6 +25,32 @@ A pet is a pair of sprite sheets in the classic sprite's layout, generated in it
 
 Each pet is a `Skin` in `native/src/components/skins.rs`, with the sheets compiled into the app and three boxes that say where the art sits in a frame: the whole desk scene, the body with its flames, and the body standing. The standing box keeps the pet the same size and on the same baseline across moods; a sheet is decoded the first time its pet is shown.
 
+Every sheet is generated at the classic sprite's scale, so in pet-only size every pet is drawn with the same frame size and has the same body; what it wears (the Wizard's hat, Santa's sack) spills past it instead of shrinking the pet. The desk scenes are drawn in the same frame, where the pet sits a little smaller (0.84 of its standing size), so the scene with its desk stays close to the standing pet's size. An act strip has an `act_scale`, how wide its frame is drawn against a standing one, set so the pet in it is the size it is everywhere else (Santa's sleigh a little smaller, far up in the sky).
+
+## Hats and play
+
+A pet with a number of its own on the screen ([features](02-features.md#just-the-pet-at-play)) has an **act** strip, 4 × 1, generated like its other sheets, and an `act_box` that says where the art sits in a frame:
+
+- **Getaway** (`getaway-act.png`, 1024 × 256): the car driving (two frames of turning wheels and exhaust, one fast with speed lines) and waving at you.
+- **Santa** (`santa-act.png`, 2048 × 256, frames twice as wide as tall): the sleigh and two reindeer galloping, and Santa waving. The presents he drops are `gifts.png`, four boxes.
+- **Gingerbread** (`gingerbread-act.png`, 1024 × 256): a running cycle of three frames, and the tease.
+- **Reindeer** (`reindeer-act.png`): a flying gallop of three frames, and a wave with its nose aglow.
+- **Wizard** (`wizard-act.png`): the wand raised, sparks shot, a poof of smoke (no wizard in it), and a wave.
+- **Astronaut** (`astronaut-act.png`): riding a little rocket, with two sizes of flame, cruising, and a wave; drawn turned to the way it flies.
+- **Pumpkin** (`pumpkin-act.png`): cackling, then its bat (wings up and down) and its ghost, which fly on their own.
+- **Clauddy** (`clauddy-act.png`): its wave, for the peekaboo; the peeking itself is its own idle pose, drawn only above the window's edge.
+
+Every pet in the catalog has one. A new pet without an act strip hops onto a window instead.
+
+The classic Clauddy has two more sheets:
+
+- **Play**, 4 × 1 frames at 1024 × 256 (`clauddy-play.png`): crouching, jumping, falling and dizzy, for when it plays on the screen ([features](02-features.md#just-the-pet-at-play)). A pet without this strip plays with its moods: its idle face going up, its tired one coming down.
+- **Hats**, 4 × 2 frames at 1024 × 512 (`hats.png`): Santa, party, crown, viking, cowboy, top hat, beanie and grad cap, in the same pixel style.
+
+![Picking a hat](../../native/tests/snapshots/settings-hat-picker.png)
+
+A hat is picked under the pets in the pet picker, which shows the hats while Clauddy is the pet; a pick takes at once and leaves the picker open, and it is kept as `config.hat` (`""` for none). Only the classic Clauddy wears one: the other pets come dressed. The hat sits on the head in every frame from a table of where the head is in each one (`head` in `components/pet.rs`, measured from the sheets), and a pet in a hat is fitted with the hat, so the glance above it clears the hat.
+
 ## Holidays
 
 On a pack's days, one of its pets takes over ([ADR-009](../decisions/ADR-009-holiday-pet-by-hash.md)):

@@ -30,6 +30,10 @@ pub struct Prefs {
     pub muted_until: i64,
     /// the pet picked in Settings (a seasonal one may take over on its days)
     pub pet: String,
+    /// the hat it wears ("" for none)
+    pub hat: String,
+    /// just the pet plays on the screen: weather, hops onto windows, throws
+    pub play: bool,
 }
 
 impl Default for Prefs {
@@ -48,6 +52,8 @@ impl Default for Prefs {
             sound: false,
             muted_until: 0,
             pet: crate::components::skins::DEFAULT.into(),
+            hat: String::new(),
+            play: true,
         }
     }
 }
@@ -79,6 +85,8 @@ impl Prefs {
             sound: v["sound"].as_bool().unwrap_or(false),
             muted_until: v["soundMutedUntil"].as_f64().unwrap_or(0.0) as i64,
             zoom: v["zoom"].as_f64().map(|z| z.round() as i32).unwrap_or(d.zoom),
+            hat: v["hat"].as_str().unwrap_or("").to_string(),
+            play: v["play"].as_bool() != Some(false),
         }
         .clamped()
     }
@@ -109,6 +117,8 @@ impl Prefs {
         v["sound"] = json!(self.sound);
         v["soundMutedUntil"] = json!(self.muted_until);
         v["pet"] = json!(self.pet);
+        v["hat"] = json!(self.hat);
+        v["play"] = json!(self.play);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor), ("wsl", self.wsl)] {
             if !v[key].is_object() {
@@ -151,6 +161,8 @@ mod tests {
                 sound: false,
                 muted_until: 0,
                 pet: "clauddy".into(),
+                hat: String::new(),
+                play: true,
             }
         );
         assert_eq!(Prefs::from_value(&json!({"pet": "wizard"})).pet, "wizard");
